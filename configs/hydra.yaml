@@ -1,0 +1,8 @@
+hydra:
+  job:
+    name: ${now:%Y-%m-%d_%H-%M-%S}
+  run:
+    dir: ${oc.env:LOGGING_DIR}/training_traddl/
+  sweep:
+    dir: ${oc.env:LOGGING_DIR}/training_traddl/
+    subdir: ${hydra.job.num}

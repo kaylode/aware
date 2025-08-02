@@ -1,0 +1,178 @@
+defaults:
+  - tokenization@_here_
+  - _self_
+
+use_vocab: true
+tensorize: true
+add_static_data_to_vocab: true
+manually_added_tokens:
+  - "[PAD]"
+  - "[UNK]"
+
+tensorize_with_labels: false
+label_folder: null
+split_train_val: false
+train_ratio: null
+
+dataset:
+  name: mimic
+  stages:
+
+    - name: filter_subject_ids 
+      params:
+        subject_ids_path: ${icu_ids_path}
+      skip: ${is_null:${vocab}} # Meaning only keep ICU patients in test set
+
+    # - name: add_los_as_code # LOS as code so that it can be used as a filtering feature
+    #   transforms:
+    #     - DemographicData.add_los_as_code
+    #   skip: ${is_null:${vocab}}
+    # - name: filter_short_los
+    #   params:
+    #     los_thresh_in_days: 2
+    #   skip: ${is_null:${vocab}}
+
+    - name: filter_codes_retain
+      params:
+        codes_to_keep:
+          - ADMISSION_TYPE
+          - ATC
+          - DRG//
+          - ED_
+          - GENDER
+          - HOSPITAL_ADMISSION
+          - HOSPITAL_DISCHARGE
+          - DISCHARGE_LOCATION
+          - ICD//CM
+          - ICD//PCS
+          - ICU_ADMISSION
+          - ICU_DISCHARGE
+          - LAB
+          - INFUSION//
+          - INSURANCE//
+          - MARITAL//
+          - MEDS_BIRTH
+          - MEDS_DEATH
+          - PROCEDURES//
+          - RACE//
+          - TRANSFER//
+          - VITAL//
+        is_prefix: true
+  
+
+    # Hierachical processing, from this stage forward, is unique approach of ETHOS
+    - name: split_codes_into_hierarchy
+      transforms:
+        - DiagnosesData.process_icd10
+        - DiagnosesData.append_special_tokens # controllable tokens
+        - ProcedureData.process_icd10
+        - MedicationData.process_atc
+      vocab: ${vocab}
+
+    - name: make_quantiles
+      transforms:
+        - LabData.make_quantiles
+        - ICUStayData.make_infusion_quantiles
+        - MeasurementData.make_quantiles
+      vocab: ${vocab}
+
+    - name: Quantizator
+      params:
+        code_prefixes:
+          - LAB//Q//
+          - VITAL//Q//
+          - INFUSION//Q//
+      agg_to: ${output_dir}/${quantiles_fn}
+      agg_params:
+        num_quantiles: ${num_quantiles}
+      skip: ${is_not_null:${vocab}}
+
+    - name: transform_to_quantiles
+      params:
+        code_quantiles: ${default_if_null:${vocab},${output_dir}}/${quantiles_fn}
+
+    - name: StaticDataCollector
+      agg_to: ${output_dir}/static_data.pickle
+      params:
+        static_code_prefixes:
+          - MEDS_BIRTH
+          - GENDER
+          - MARITAL
+          - RACE
+
+    - name: filter_codes
+      params:
+        codes_to_remove:
+          - MEDS_BIRTH
+          - GENDER
+          - MARITAL
+          - RACE
+        is_prefix: true
+
+    - name: add_missing_hospital_admission
+      transforms:
+        - AdmissionData.add_missing_hospital_admission
+
+    - name: inject_time_intervals
+      params:
+        time_intervals_spec: ${time_intervals_spec}
+
+    - name: IntervalEstimator
+      params:
+        time_intervals_spec: ${time_intervals_spec}
+      agg_to: ${output_dir}/${intervals_fn}
+      skip: ${is_not_null:${vocab}}
+
+    - name: CodeCounter
+      agg_to: ${output_dir}/${code_counts_fn}
+
+    - name: FinalizeData
+      params:
+        columns: 
+          - subject_id
+          - admission_id
+          - time
+          - code
+
+
+
+time_intervals_spec:
+  TIME//5m-15m:
+    minutes: 5
+  TIME//15m-45m:
+    minutes: 15
+  TIME//45m-1h15m:
+    minutes: 45
+  TIME//1h15m-2h:
+    hours: 1
+    minutes: 15
+  TIME//2h-3h:
+    hours: 2
+  TIME//3h-5h:
+    hours: 3
+  TIME//5h-8h:
+    hours: 5
+  TIME//8h-12h:
+    hours: 8
+  TIME//12h-18h:
+    hours: 12
+  TIME//18h-1d:
+    hours: 18
+  TIME//1d-2d:
+    days: 1
+  TIME//2d-4d:
+    days: 2
+  TIME//4d-7d:
+    days: 4
+  TIME//7d-12d:
+    days: 7
+  TIME//12d-20d:
+    days: 12
+  TIME//20d-30d:
+    days: 20
+  TIME//30d-2mt:
+    days: 30
+  TIME//2mt-6mt:
+    days: 60
+  TIME//=6mt:
+    days: 180

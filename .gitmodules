@@ -1,0 +1,3 @@
+[submodule "ehrpfn-aaai"]
+	path = ehrpfn-aaai
+	url = ./ehrpfn-aaai

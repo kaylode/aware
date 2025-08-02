@@ -1,0 +1,93 @@
+defaults:
+  - tokenization@_here_
+  - _self_
+
+use_vocab: true
+tensorize: false
+add_static_data_to_vocab: false
+manually_added_tokens: null
+tensorize_with_labels: false
+label_folder: ${output_dir}/SupervisedData
+train_ratio: 0.9
+do_undersampling_dropout_early_negative_visits: True
+
+dataset:
+  name: mimic
+  stages:
+
+    - name: filter_subject_ids
+      params:
+        subject_ids_path: ${icu_ids_path}
+
+    - name: remove_consecutive_same_codes
+    - name: add_age_as_code # Age as code so that it can be used as a feature
+      transforms:
+        - DemographicData.add_age_as_code
+
+    - name: add_los_as_code # LOS as code so that it can be used as a filtering feature
+      transforms:
+        - DemographicData.add_los_as_code
+    - name: filter_short_los
+      params:
+        los_thresh_in_days: 2
+    
+    - name: filter_codes_retain
+      params:
+        codes_to_keep:
+          - LOS
+          - AGE
+          - ADMISSION_TYPE
+          - DISCHARGE_LOCATION
+          - ATC
+          - DRG//
+          - ED_
+          - GENDER
+          # - HOSPITAL_ADMISSION
+          # - HOSPITAL_DISCHARGE
+          - ICD//CM 
+          - ICD//PCS
+          - ICU_ADMISSION
+          - ICU_DISCHARGE
+          - LAB
+          - INFUSION//
+          - INSURANCE//
+          - MARITAL//
+          # - MEDS_BIRTH
+          # - MEDS_DEATH
+          - PROCEDURES//
+          - RACE//
+          - TRANSFER//
+          - VITAL//
+        is_prefix: true
+    
+    - name: preprocessing
+      transforms:
+        - GBMSDemographicData.assign_numeric_values
+      vocab: ${vocab}
+
+    - name: CodeCounter
+      agg_to: ${output_dir}/${code_counts_fn}
+
+    - name: FinalizeData
+      params:
+        columns: 
+          - subject_id
+          - admission_id
+          - time
+          - code
+          - numeric_value
+          - text_value
+
+    - name: LabelGenerator
+      params:
+        does_split: ${out_fn}
+        ratio: ${train_ratio}
+        neg_over_pos_thresh: 10
+        do_remove_no_hcai_cases_in_early_admissions: ${do_undersampling_dropout_early_negative_visits}
+        tasks:
+          - next_admission_icd:UTI
+          - next_admission_icd:SSI
+          - next_admission_icd:SEPSIS
+          - next_admission_icd:VAP
+          - next_admission_icd:BSI
+      agg_to: ${label_folder}

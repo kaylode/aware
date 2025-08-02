@@ -1,0 +1,175 @@
+defaults:
+  - tokenization@_here_
+  - _self_
+
+use_vocab: true
+tensorize: false
+add_static_data_to_vocab: false
+manually_added_tokens: null
+tensorize_with_labels: false
+label_folder: ${output_dir}/SupervisedData
+train_ratio: 0.9
+do_undersampling_dropout_early_negative_visits: True
+required_codes_fn: required_codes.txt
+
+
+dataset:
+  name: mimic
+  stages:
+
+    - name: write_required_codes
+      params:
+        output_dir: ${output_dir}
+        required_codes_fn: ${required_codes_fn}
+
+    - name: filter_subject_ids
+      params:
+        subject_ids_path: ${icu_ids_path}
+
+    - name: remove_consecutive_same_codes
+    - name: add_age_as_code # Age as code so that it can be used as a feature
+      transforms:
+        - DemographicData.add_age_as_code
+
+    - name: add_los_as_code # LOS as code so that it can be used as a filtering feature
+      transforms:
+        - DemographicData.add_los_as_code
+    - name: filter_short_los
+      params:
+        los_thresh_in_days: 2
+    
+    - name: filter_codes_retain
+      params:
+        codes_to_keep:
+          - LOS
+          - AGE
+          - ADMISSION_TYPE
+          - DISCHARGE_LOCATION
+          - ATC
+          - DRG//
+          # - ED_
+          - GENDER
+          # - HOSPITAL_ADMISSION
+          # - HOSPITAL_DISCHARGE
+          - ICD//CM 
+          - ICD//PCS
+          # - ICU_ADMISSION
+          # - ICU_DISCHARGE
+          - LAB
+          - INFUSION//
+          - INSURANCE//
+          - MARITAL//
+          # - MEDS_BIRTH
+          # - MEDS_DEATH
+          - PROCEDURES//
+          - RACE//
+          # - TRANSFER//
+          - VITAL//
+        is_prefix: true
+
+    - name: CodeCounter
+      agg_to: ${output_dir}/${code_counts_fn}_1
+      skip: ${is_not_null:${vocab}}
+
+    - name: preprocessing_labs_with_counts
+      transforms:
+        - LabData.filter_based_on_counts
+      params:
+        counts: ${output_dir}/${code_counts_fn}_1
+        keep_codes_file: ${output_dir}/${required_codes_fn}
+        top_n: 50
+      vocab: ${vocab}
+      skip: ${is_not_null:${vocab}}
+
+    - name: preprocessing_icu_infusion_with_counts
+      transforms:
+        - ICUStayData.filter_infusion_based_on_counts
+      params:
+        counts: ${output_dir}/${code_counts_fn}_1
+        keep_codes_file: ${output_dir}/${required_codes_fn}
+        top_n: 50
+      vocab: ${vocab}
+      skip: ${is_not_null:${vocab}}
+
+    - name: preprocessing_drg_with_counts
+      transforms:
+        - InpatientData.filter_drg_based_on_counts
+      params:
+        counts: ${output_dir}/${code_counts_fn}_1
+        keep_codes_file: ${output_dir}/${required_codes_fn}
+        top_n: 50
+      vocab: ${vocab}
+      skip: ${is_not_null:${vocab}}
+
+    - name: preprocessing_procedures_with_counts
+      transforms:
+        - ProcedureData.filter_procedures_based_on_counts
+      params:
+        counts: ${output_dir}/${code_counts_fn}_1
+        keep_codes_file: ${output_dir}/${required_codes_fn}
+        top_n: 50
+      vocab: ${vocab}
+      skip: ${is_not_null:${vocab}}
+
+    - name: preprocessing_medication_with_counts
+      transforms:
+        - MedicationData.filter_medication_based_on_counts
+      params:
+        counts: ${output_dir}/${code_counts_fn}_1
+        keep_codes_file: ${output_dir}/${required_codes_fn}
+        top_n: 100
+      vocab: ${vocab}
+      skip: ${is_not_null:${vocab}}
+
+    - name: preprocessing_icd10cm_with_counts
+      transforms:
+        - DiagnosesData.filter_based_on_counts
+      params:
+        counts: ${output_dir}/${code_counts_fn}_1
+        keep_codes_file: ${output_dir}/${required_codes_fn}
+        top_n: 500
+      vocab: ${vocab}
+      skip: ${is_not_null:${vocab}}
+
+    - name: preprocessing_icd10pcs_with_counts
+      transforms:
+        - ProcedureData.filter_based_on_counts
+      params:
+        counts: ${output_dir}/${code_counts_fn}_1
+        keep_codes_file: ${output_dir}/${required_codes_fn}
+        top_n: 200
+      vocab: ${vocab}
+      skip: ${is_not_null:${vocab}}
+    
+    - name: preprocessing
+      transforms:
+        - GBMSDemographicData.assign_numeric_values
+      vocab: ${vocab}
+
+    - name: CodeCounter
+      agg_to: ${output_dir}/${code_counts_fn}
+
+    - name: FinalizeData
+      params:
+        columns: 
+          - subject_id
+          - admission_id
+          - time
+          - code
+          - numeric_value
+          - text_value
+
+    - name: LabelGenerator
+      params:
+        does_split: ${out_fn}
+        ratio: ${train_ratio}
+        neg_over_pos_thresh: 10
+        do_remove_no_hcai_cases_in_early_admissions: ${do_undersampling_dropout_early_negative_visits}
+        tasks:
+          - next_admission_icd:HCAI
+          - next_admission_icd:UTI
+          - next_admission_icd:SSI
+          - next_admission_icd:SEPSIS
+          - next_admission_icd:VAP
+          - next_admission_icd:BSI
+      agg_to: ${label_folder}

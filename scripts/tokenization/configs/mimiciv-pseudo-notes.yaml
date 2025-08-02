@@ -1,0 +1,110 @@
+defaults:
+  - tokenization@_here_
+  - _self_
+
+use_vocab: true
+tensorize: true
+add_static_data_to_vocab: false
+manually_added_tokens: null
+tensorize_with_labels: false
+label_folder: ${output_dir}/SupervisedData
+split_train_val: true
+do_undersampling_dropout_early_negative_visits: True
+
+dataset:
+  name: mimic
+  stages:
+
+    - name: filter_subject_ids
+      params:
+        subject_ids_path: ${icu_ids_path}
+        
+    - name: filter_codes
+      params:
+        codes_to_remove:
+          - Weight
+          - Height
+          - eGFR
+          - PROCEDURE//START
+          - PROCEDURE//END
+        is_prefix: true
+
+    - name: filter_codes_retain
+      params:
+        codes_to_keep:
+          - MEDS_BIRTH
+          - HOSPITAL_ADMISSION
+          - HOSPITAL_DISCHARGE
+          - DIAGNOSIS//
+          - PROCEDURE
+          - DRG//
+          - LAB//
+          - TEMPERATURE
+          - HEART_RATE
+          - RESPIRATORY_RATE
+          - O2_SATURATION
+          - Blood Pressure
+        is_prefix: true
+
+    - name: preprocessing
+      transforms:
+        - LabData.retain_only_test_with_numeric_result
+        - DemographicData.retrieve_demographics_from_hosp_adm
+        - DemographicData.process_race
+        - DemographicData.process_marital_status
+        - InpatientData.process_hospital_discharges # must be before processing diagnoses
+      vocab: ${vocab}
+
+    - name: preprocessing
+      transforms:
+        - DeathData.place_death_before_dc_if_same_time
+        - MeasurementData.process_simple_measurements
+        - MeasurementData.process_pain
+        - MeasurementData.process_blood_pressure
+      vocab: ${vocab}
+
+    - name: preprocessing
+      transforms:
+        - GBMSInpatientData.process_hospital_admissions
+        - GBMSInpatientData.calculate_age
+        - GBMSInpatientData.process_drg_codes
+        - GBMSDiagnosesData.prepare_codes_for_processing
+        - GBMSDiagnosesData.convert_icd_9_to_10
+        - GBMSDiagnosesData.process_icd10
+        - GBMSProcedureData.prepare_codes_for_processing
+        - GBMSProcedureData.convert_icd_9_to_10
+        - GBMSProcedureData.process_icd10
+      vocab: ${vocab}
+
+    - name: preprocessing
+      transforms:
+        - GBMSInpatientData.reassign_admission_id
+        - GBMSDemographicData.assign_numeric_values
+      vocab: ${vocab}
+
+    - name: filter_codes
+      params:
+        codes_to_remove:
+          - MEDS_BIRTH
+          - "[SEP]"
+        is_prefix: true
+
+    - name: CodeCounter
+      agg_to: ${output_dir}/${code_counts_fn}
+
+    - name: LabelGenerator
+      params:
+        does_split: ${split_train_val}
+        ratio: ${train_ratio}
+        neg_over_pos_thresh: 10
+        do_remove_no_hcai_cases_in_early_admissions: ${do_undersampling_dropout_early_negative_visits}
+        tasks:
+          - next_admission_icd:HCAI
+          - next_admission_icd:UTI
+          - next_admission_icd:SSI
+          - next_admission_icd:SEPSIS
+          - next_admission_icd:VAP
+          - next_admission_icd:BSI
+      agg_to: ${label_folder}
+
+    
