@@ -10,12 +10,16 @@ from sklearn.preprocessing import LabelEncoder
 from torch.utils.data import Dataset
 from tqdm import tqdm
 import os.path as osp
+from tabulate import tabulate 
 from ehrpfn.training.model import pad_x
 from ehrpfn.training.utils import FAISS, DataPreprocessor
 
 import sys
 sys.path.append("..")  # Add parent directory to path for imports
 from ehrpfn.datasets import get_mimic_dataset
+
+from ehrpfn.utils.logger import LoggerObserver
+LOGGER = LoggerObserver.getLogger('main')
 
 
 def collate_fn(batch):
@@ -67,6 +71,9 @@ class FullDataset(Dataset):
             )
         self.datasets = defaultdict(dict)
 
+        # Initialize dataset summary list
+        dataset_summary = []
+
         # Load datasets and preprocess them
         for did in tqdm(self.dataset_ids):
             # download the dataset from OpenML
@@ -81,7 +88,8 @@ class FullDataset(Dataset):
             X, y, _, _ = dataset.get_data(
                 dataset_format="dataframe", target=dataset.default_target_attribute
             )
-           
+
+            original_samples, original_features = X.shape
 
             # TODO: preprocessing is a bit different from the usual .fit_transform() since concatenation happens in the middle
             preprocessor = DataPreprocessor()
@@ -99,6 +107,14 @@ class FullDataset(Dataset):
                 faiss_knn = None
 
             self.datasets[did] = {"X": X, "index": faiss_knn, "cat": cat_vals}
+
+            # Add to summary
+            dataset_summary.append([
+                f"OpenML-{did}",
+                dataset.name if hasattr(dataset, 'name') else f"Dataset-{did}",
+                original_samples,
+                original_features,
+            ])
 
         self.mimiciv_id = None # This did has not been used in the training set
         if config.data.use_mimiciv:
@@ -136,12 +152,21 @@ class FullDataset(Dataset):
 
             self.datasets[self.mimiciv_id] = {"X": X_train, "index": None, "cat": cat_vals}
 
+            # Add MIMIC-IV to summary
+            dataset_summary.append([
+                f"MIMIC-IV-{self.mimiciv_id}",
+                "MIMIC-IV",
+                X_train.shape[0],
+                X_train.shape[1],
+            ])
+
         if config.data.use_synthetic:
             synthetic_ehrs = [
                 pd.read_csv(f"{config.data.synthetic.input_folder}/synthea-pt30k-stroke-ml-table-sel-convert.csv"),
                 pd.read_csv(f"{config.data.synthetic.input_folder}/synthea-pt30k4-lc-data-sel-convert.csv"),
             ]
-            for i, ehr in enumerate(synthetic_ehrs):
+            synthetic_names = ["Synthea-Stroke", "Synthea-LC"]
+            for i, (ehr, name) in enumerate(zip(synthetic_ehrs, synthetic_names)):
                 # Preprocess the synthetic EHRs
                 ehr = ehr.drop(columns=["ptnum"])
                 X, y = ehr.iloc[:, 1:], ehr.iloc[:, 0]
@@ -159,6 +184,40 @@ class FullDataset(Dataset):
 
                 self.datasets[100 + i] = {"X": X, "index": faiss_knn, "cat": cat_vals}
                 self.dataset_ids.append(100 + i)
+
+                # Add to summary
+                dataset_summary.append([
+                    f"Synthetic-{100 + i}",
+                    name,
+                    original_samples - 1,  # Exclude ptnum column
+                    original_features - 2,  # Exclude ptnum and target
+                ])
+
+        self._print_dataset_summary(dataset_summary)
+
+    def _print_dataset_summary(self, dataset_summary):
+        """Print a summary table of all loaded datasets.
+        Args:
+            dataset_summary (list): List of dataset information.
+        """
+        headers = ["Dataset ID", "Dataset Name", "Samples", "Original Features"]
+        
+        LOGGER.text("\n" + "="*80)
+        LOGGER.text("DATASET SUMMARY")
+        LOGGER.text("="*80)
+        LOGGER.text(tabulate(dataset_summary, headers=headers, tablefmt="grid"))
+        LOGGER.text("="*80)
+        
+        # LOGGER.text total statistics
+        total_datasets = len(dataset_summary)
+        total_samples = sum(row[2] for row in dataset_summary)
+        total_columns = sum(row[3] for row in dataset_summary)
+        
+        LOGGER.text(f"Total Datasets: {total_datasets}")
+        LOGGER.text(f"Total Samples: {total_samples:,}")
+        LOGGER.text(f"Total Features: {total_columns:,}")
+
+        LOGGER.text("="*80 + "\n")
 
     def __len__(self):
         """Return the total number of samples in the dataset."""

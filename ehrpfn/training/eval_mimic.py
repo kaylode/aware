@@ -15,6 +15,9 @@ from ehrpfn.training.tabdpt import TabDPTClassifier, TabDPTRegressor
 from ehrpfn.training.utils import FAISS, DataPreprocessor
 
 from ehrpfn.training.eval_full import FullEval
+from ehrpfn.utils.logger import LoggerObserver
+
+LOGGER = LoggerObserver.getLogger('main')
 
 class MIMICIVOutcomesEval(FullEval):
     def __init__(
@@ -57,7 +60,7 @@ class MIMICIVOutcomesEval(FullEval):
 
     def _load_mimiciv_data(self, impute_method="mean"):
         """Load MIMIC-IV data from parquet and CSV files."""
-        print("Loading MIMIC-IV evaluation data...")
+        LOGGER.text("Loading MIMIC-IV evaluation data...")
 
         for dataset_id, label in enumerate(self.labels):
             train_features_df = pl.read_parquet(f"{self.data_path}/train/data.parquet")
@@ -187,7 +190,7 @@ class MIMICIVOutcomesEval(FullEval):
             cls_performance["cls-mimiciv"][did] = [acc, f1, auc, ce.item()]
             individual_perfs[dataset_name] = [acc, f1, auc, ce.item()]
             
-            print(f"{dataset_name}: ACC={acc:.4f}, F1={f1:.4f}, AUC={auc:.4f}, CE={ce:.4f}")
+            LOGGER.text(f"{dataset_name}: ACC={acc:.4f}, F1={f1:.4f}, AUC={auc:.4f}, CE={ce:.4f}", level=LoggerObserver.SUCCESS)
 
         # Calculate mean performance across all MIMIC-IV tasks
         cls_perfs = np.array(list(cls_performance["cls-mimiciv"].values()))
@@ -198,11 +201,11 @@ class MIMICIVOutcomesEval(FullEval):
         final_perfs["cls-mimiciv-auc"] = cls_perfs_mean[2]
         final_perfs["cls-mimiciv-ce"] = cls_perfs_mean[3]
         
-        print(f"\nMIMIC-IV Average Performance:")
-        print(f"ACC: {cls_perfs_mean[0]:.4f}")
-        print(f"F1: {cls_perfs_mean[1]:.4f}")
-        print(f"AUC: {cls_perfs_mean[2]:.4f}")
-        print(f"CE: {cls_perfs_mean[3]:.4f}")
+        LOGGER.text(f"\nMIMIC-IV Average Performance:", level=LoggerObserver.SUCCESS)
+        LOGGER.text(f"ACC: {cls_perfs_mean[0]:.4f}", level=LoggerObserver.SUCCESS)
+        LOGGER.text(f"F1: {cls_perfs_mean[1]:.4f}", level=LoggerObserver.SUCCESS)
+        LOGGER.text(f"AUC: {cls_perfs_mean[2]:.4f}", level=LoggerObserver.SUCCESS)
+        LOGGER.text(f"CE: {cls_perfs_mean[3]:.4f}", level=LoggerObserver.SUCCESS)
 
 
 

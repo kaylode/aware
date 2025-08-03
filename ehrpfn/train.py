@@ -14,6 +14,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 import wandb
 
+from ehrpfn.utils.logger import LoggerObserver
 from ehrpfn.training.datasets import FullDataset, collate_fn
 from ehrpfn.training.eval_full import FullEval
 from ehrpfn.training.eval_mimic import MIMICIVOutcomesEval
@@ -27,6 +28,8 @@ from ehrpfn.training.utils import (
     seed_everything,
     signal_handler,
 )
+
+LOGGER = LoggerObserver.getLogger('main')
 
 
 def save(
@@ -68,6 +71,7 @@ def save_eval_callback_wandb(
     config: DictConfig,
     rank: int,
     stats: dict,
+    global_step:int
 ) -> None:
     """Save evaluation checkpoints and log metrics.
 
@@ -97,13 +101,13 @@ def save_eval_callback_wandb(
     for val in vals:
         for name, metric in val.eval(model, context_length=config.training.eval_seq_len).items():
             if rank == 0:
-                print(f"Epoch {epoch} | {name}: {metric}")
+                LOGGER.text(f"Epoch {epoch} | {name}: {metric}")
                 # only save checkpoints using the validation metric
                 if metric > stats.get(f"best_{name}", -float("inf")):
                     stats[f"best_{name}"] = metric
                     if name in config.logging.save_metrics:
                         save(model, optimizer, config, stats, config.exp_path, f"best_{name}")
-                wandb.log({f"val/{name}/": metric}, step=epoch)
+                wandb.log({f"val/{name}/": metric}, step=global_step)
 
     # reset the model and optimizer to training mode
     model.train()
@@ -131,7 +135,7 @@ def set_experiment_from_config(config: DictConfig) -> tuple[nn.Module, torch.opt
     seed_everything(config.seed)
 
 
-    exp_path = osp.join(config.folder, config.exp_name)
+    config.exp_path = osp.join(config.folder, config.exp_name)
 
     # Only rank 0 should modify the directory
     is_master = (not torch.distributed.is_initialized()) or (torch.distributed.get_rank() == 0)
@@ -139,8 +143,8 @@ def set_experiment_from_config(config: DictConfig) -> tuple[nn.Module, torch.opt
     wandb_id = wandb.util.generate_id()
     # directory setup and checkpoint handling
     if is_master:
-        if os.path.exists(exp_path):
-            print("Directory already exists:", exp_path)
+        if os.path.exists(config.exp_path):
+            LOGGER.text("Directory already exists:", config.exp_path)
             if config.training.resume is not None:
                 load_state_from_saved = True
                 checkpoint = torch.load(f"{config.training.resume}/latest.ckpt", weights_only=False)
@@ -150,7 +154,7 @@ def set_experiment_from_config(config: DictConfig) -> tuple[nn.Module, torch.opt
                 wandb_id = checkpoint.get("wandb_id", wandb_id)
                 non_saved_num_epochs = config.training.num_epochs
                 config.training.num_epochs = non_saved_num_epochs
-                print("Continue training. Using saved config.")
+                LOGGER.text("Continue training. Using saved config.")
             elif config.training.pretrained is not None:
                 load_state_from_saved = True
                 checkpoint = torch.load(config.training.pretrained, weights_only=False)
@@ -161,8 +165,8 @@ def set_experiment_from_config(config: DictConfig) -> tuple[nn.Module, torch.opt
                     "Invalid checkpoint path."
                 )
         else:
-            os.makedirs(exp_path, exist_ok=True)
-            print("Created directory: ", exp_path)
+            os.makedirs(config.exp_path, exist_ok=True)
+            LOGGER.text("Created directory: ", config.exp_path)
 
     # Synchronize all processes so that the directory is created before continuing
     if torch.distributed.is_initialized():
@@ -176,9 +180,9 @@ def set_experiment_from_config(config: DictConfig) -> tuple[nn.Module, torch.opt
     config.training.batch_size //= len(config.env.gpus)
 
     # save config
-    OmegaConf.save(config=config, f=f"{exp_path}/config.yaml")
+    OmegaConf.save(config=config, f=f"{config.exp_path}/config.yaml")
 
-    print(f"Using {config.env.gpus} GPUs")
+    LOGGER.text(f"Using {config.env.gpus} GPUs")
 
     # instantiate the model
     model = TabDPTModel(
@@ -212,7 +216,7 @@ def set_experiment_from_config(config: DictConfig) -> tuple[nn.Module, torch.opt
         optimizer.load_state_dict(opt_state)
         del opt_state
 
-    return model, optimizer, stats, exp_path, wandb_id
+    return model, optimizer, stats, wandb_id
 
 
 @hydra.main(version_base=None, config_path="../configs", config_name="pretrain")
@@ -226,16 +230,16 @@ def main(config: DictConfig):
     # signal handling
     signal.signal(signal.SIGINT, signal_handler)
 
-    # print config
-    print("Config:", OmegaConf.to_yaml(config))
+    # LOGGER.text config
+    LOGGER.text("Config:", OmegaConf.to_yaml(config))
 
     # distributed training
     using_dist, rank, device = init_dist(config.env.device)
 
-    model, optimizer, stats, exp_path, wandb_id = set_experiment_from_config(config)
+    model, optimizer, stats, wandb_id = set_experiment_from_config(config)
 
     num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print(f"{num_params/1e6:.{2}f} M parameters")
+    LOGGER.text(f"{num_params/1e6:.{2}f} M parameters")
     model.to(device)
 
     # compile the model if specified in the config
@@ -244,7 +248,7 @@ def main(config: DictConfig):
 
     # using distributed data parallel if specified in the config
     if using_dist:
-        print("Distributed training enabled.")
+        LOGGER.text("Distributed training enabled.")
         model = torch.nn.parallel.DistributedDataParallel(
             model,
             device_ids=[rank],
@@ -282,7 +286,7 @@ def main(config: DictConfig):
     selected_autocast = torch.autocast(device_type=device_type, dtype=torch.bfloat16)
 
     # Initialize the FullDataset for training
-    print("Initializing Dataset...")
+    LOGGER.text("Initializing Dataset...")
     dataset = FullDataset(
         device, config, 
     )
@@ -325,17 +329,22 @@ def main(config: DictConfig):
         "job_type": "test",
         "tags": tags,
         "resume": "allow",
-        "dir": osp.join(exp_path),
+        "dir": osp.join(config.exp_path),
     }
 
     if config.training.resume is not None:
-        wandb_kwargs["resume"] = "must"
+        wandb_kwargs["resume"] = "allow"
         wandb_kwargs["id"] = wandb_id
 
     wandb.init(**wandb_kwargs)
     wandb.run.config.update(OmegaConf.to_container(config, resolve=True))
     wandb.run.config.update({
         'study_name': config.exp_name,
+        'data_name': "",
+        'target_column': "",
+        "MODEL": {
+            "MODEL_NAME": ""
+        }
     })
     wandb.run.config.update({
         'num_params': num_params,
@@ -347,7 +356,7 @@ def main(config: DictConfig):
 
     # Initialize the outer training loop
     for epoch in range(stats["epoch_in_training"] + 1, config.training.num_epochs + 1):
-        print("Epoch ", epoch)
+        LOGGER.text("Epoch ", epoch)
 
         # initialize the loss accumulators
         epoch_loss_cls = 0.0
@@ -425,7 +434,7 @@ def main(config: DictConfig):
         wandb.log({
             "loss/cls-average_train": epoch_loss_cls / config.training.num_model_updates,
             "loss/reg-average_train": epoch_loss_reg / config.training.num_model_updates
-        }, step=epoch)
+        }, step=global_step)
 
         # evaluate the model every eval_every epochs
         if epoch % config.logging.eval_every == 0:
@@ -439,7 +448,7 @@ def main(config: DictConfig):
                 model_eval: nn.Module = model
 
             # save evaluation checkpoints and log metrics
-            save_eval_callback_wandb(model_eval, optimizer, vals, epoch, config, rank, stats)
+            save_eval_callback_wandb(model_eval, optimizer, vals, epoch, config, rank, stats, global_step)
 
             if using_dist:
                 torch.distributed.barrier()
