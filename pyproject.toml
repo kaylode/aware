@@ -47,8 +47,7 @@ dependencies = [
     "plotly==6.2.0",
     "lightgbm==4.6.0",
     "catboost==1.2.8",
-    "tabpfn @ git+https://github.com/kaylode/ehrpfn.git@5fcf230df07d410ae518aba9449bc12d0e24649f#subdirectory=tabpfn_ehr/models/TabPFN",
-    "theseus @ git+https://github.com/kaylode/theseus.git@f4d540030d9849120a2154b55ac394d1ef5a8596"
+    "tabpfn @ git+https://github.com/PriorLabs/TabPFN.git",
 ]
 
 [project.optional-dependencies]
