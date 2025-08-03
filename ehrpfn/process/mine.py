@@ -9,7 +9,7 @@ from collections import defaultdict
 from sklearn.feature_extraction.text import TfidfVectorizer
 # from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
-from theseus import seed_everything
+from ehrpfn.utils import seed_everything
 import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots

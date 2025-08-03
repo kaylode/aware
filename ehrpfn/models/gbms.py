@@ -17,7 +17,7 @@ import xgboost as xgb
 import catboost
 import lightgbm
 import numpy as np
-from theseus.base.utilities.loggers import LoggerObserver
+from ehrpfn.utils.logger import LoggerObserver
 from sklearn.metrics import (
     matthews_corrcoef, f1_score, precision_score, recall_score, accuracy_score
 )

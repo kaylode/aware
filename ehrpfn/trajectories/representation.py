@@ -7,7 +7,7 @@ import pickle
 import json
 import polars as pl
 from torch.utils.data import DataLoader, Dataset
-from theseus import seed_everything
+from ehrpfn.utils import seed_everything
 
 from ehrpfn.trajectories.cohort import DISEASE_GROUP_TO_ICDS
 

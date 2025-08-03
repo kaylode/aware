@@ -9,7 +9,7 @@ from sklearn.metrics import (
 )
 from sklearn.metrics import mean_squared_log_error, median_absolute_error, explained_variance_score
         
-from theseus.theseus import LoggerObserver
+from ehrpfn.utils import LoggerObserver
 LOGGER = LoggerObserver.getLogger("main")
 
 def run_binary_classification_metrics(y_pred, y, average='weighted'):

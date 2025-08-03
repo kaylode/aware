@@ -7,7 +7,7 @@ import json
 import xgboost as xgb
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
-from theseus import LoggerObserver
+from ehrpfn.utils import LoggerObserver
 from dill import pickle
 from ehrpfn.utils import load_model, save_model
 from ehrpfn.datasets import get_mimic_dataset, get_sjh_dataset

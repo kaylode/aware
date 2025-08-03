@@ -22,7 +22,7 @@ from ehrpfn.utils.metrics import run_binary_classification_metrics, run_regressi
 from omegaconf import DictConfig, OmegaConf
 import wandb
 import numpy as np
-from theseus import FileLogger, LoggerObserver, seed_everything
+from ehrpfn.utils import FileLogger, LoggerObserver, seed_everything
 LOGGER = LoggerObserver.getLogger("main")
 
 

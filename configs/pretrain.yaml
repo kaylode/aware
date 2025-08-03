@@ -1,5 +1,5 @@
 version: 0.0.1
-description: TabDPT
+description: EHRPFN
 seed: 42
 exp_name: "default"
 folder: "default"

@@ -10,8 +10,8 @@ from sklearn.preprocessing import LabelEncoder
 from torch.utils.data import Dataset
 from tqdm import tqdm
 import os.path as osp
-from model import pad_x
-from utils import FAISS, DataPreprocessor
+from ehrpfn.training.model import pad_x
+from ehrpfn.training.utils import FAISS, DataPreprocessor
 
 import sys
 sys.path.append("..")  # Add parent directory to path for imports

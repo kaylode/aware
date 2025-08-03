@@ -5,8 +5,8 @@ import os.path as osp
 import numpy as np
 import polars as pl
 from tqdm.auto import tqdm
-from theseus.base.utilities.loggers import LoggerObserver
-from theseus.ml.preprocessors.encoder import LabelEncode
+from ehrpfn.utils.logger import LoggerObserver
+from ehrpfn.datasets.label_encoder import LabelEncode
 from pathlib import Path
 from queue import Queue, Empty
 from multiprocessing import Manager, Process, set_start_method, cpu_count

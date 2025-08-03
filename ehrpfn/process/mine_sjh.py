@@ -8,7 +8,7 @@ import numpy as np
 from collections import defaultdict
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
-from theseus import seed_everything
+from ehrpfn.utils import seed_everything
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 

@@ -6,7 +6,7 @@ import pandas as pd
 import polars as pl
 import torch
 import numpy as np
-from theseus.theseus import LoggerObserver
+from ehrpfn.utils import LoggerObserver
 LOGGER = LoggerObserver.getLogger('main')
 
 
