@@ -246,7 +246,7 @@ def set_experiment_from_config(config: DictConfig) -> tuple[nn.Module, torch.opt
     return model, optimizer, stats
 
 
-@hydra.main(version_base=None, config_path="configs", config_name="default_config")
+@hydra.main(version_base=None, config_path="../configs", config_name="pretrain")
 def main(config: DictConfig):
     """Main function to run the training process.
 
