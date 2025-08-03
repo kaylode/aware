@@ -1,0 +1,19 @@
+# Hydra
+hydra:
+  job:
+    name: ${now:%Y-%m-%d_%H-%M-%S}
+  run:
+    dir: ${oc.env:LOGGING_DIR}/pre_meds/
+  sweep:
+    dir: ${oc.env:LOGGING_DIR}/pre_meds/
+    subdir: ${hydra.job.num}
+
+input_dir: null
+cohort_dir: null
+do_overwrite: false
+log_dir: ${oc.env:LOGGING_DIR}/pre_meds/logs
+
+batches: null
+  # hosp/labevents: 14
+  # icu/chartevents: 30
+  # digits: 2

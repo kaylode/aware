@@ -1,0 +1,673 @@
+subject_id_col: PIN_NO
+
+clean:
+  hosp_admission:
+    code:
+      - "HOSPITAL_ADMISSION"
+    time: col(ADMISSION_DATE)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+  hosp_transfer:
+    code:
+      - TRANSFER
+      - col(ADMISSION WARD)
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    is_a_room: col(IS_A_ROOM)
+    text_value: col(BED_DAY_WARD_DESC)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    patientid: HIPE_PATIENTID
+  hosp_discharge:
+    code:
+      - "HOSPITAL_DISCHARGE"
+    time: col(DISCHARGE_DATE)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+  hosp_discharge_location:
+    code:
+      - "DISCHARGE_LOCATION"
+      - col(DISCHARGE DESCRIPTION)
+    time: col(DISCHARGE_DATE)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    hadm_id: EPISODE_NO
+    specialty: col(DISCHARGE SPECIALTY)
+    patientid: HIPE_PATIENTID
+  diagnosis:
+    code:
+      - "ICD//CM"
+      - "10"
+      - col(DIAGNOSIS_CODE_0)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(DIAGNOSIS_DESC_0)
+
+  diagnosis1:
+    code:
+      - "ICD//CM"
+      - "10"
+      - col(DIAGNOSIS_CODE_1)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(DIAGNOSIS_DESC_1)
+
+  diagnosis2:
+    code:
+      - "ICD//CM"
+      - "10"
+      - col(DIAGNOSIS_CODE_2)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(DIAGNOSIS_DESC_2)
+
+  diagnosis3:
+    code:
+      - "ICD//CM"
+      - "10"
+      - col(DIAGNOSIS_CODE_3)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(DIAGNOSIS_DESC_3)
+
+  diagnosis4:
+    code:
+      - "ICD//CM"
+      - "10"
+      - col(DIAGNOSIS_CODE_4)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(DIAGNOSIS_DESC_4)
+
+  diagnosis5:
+    code:
+      - "ICD//CM"
+      - "10"
+      - col(DIAGNOSIS_CODE_5)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(DIAGNOSIS_DESC_5)
+
+  diagnosis6:
+    code:
+      - "ICD//CM"
+      - "10"
+      - col(DIAGNOSIS_CODE_6)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(DIAGNOSIS_DESC_6)
+
+  diagnosis7:
+    code:
+      - "ICD//CM"
+      - "10"
+      - col(DIAGNOSIS_CODE_7)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(DIAGNOSIS_DESC_7)
+
+  diagnosis8:
+    code:
+      - "ICD//CM"
+      - "10"
+      - col(DIAGNOSIS_CODE_8)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(DIAGNOSIS_DESC_8)
+  
+  diagnosis9:
+    code:
+      - "ICD//CM"
+      - "10"
+      - col(DIAGNOSIS_CODE_9)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(DIAGNOSIS_DESC_9)
+  
+  diagnosis10:
+    code:
+      - "ICD//CM"
+      - "10"
+      - col(DIAGNOSIS_CODE_10)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(DIAGNOSIS_DESC_10)
+
+  diagnosis11:
+    code:
+      - "ICD//CM"
+      - "10"
+      - col(DIAGNOSIS_CODE_11)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(DIAGNOSIS_DESC_11)
+
+  diagnosis12:
+    code:
+      - "ICD//CM"
+      - "10"
+      - col(DIAGNOSIS_CODE_12)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(DIAGNOSIS_DESC_12)
+
+  diagnosis13:
+    code:
+      - "ICD//CM"
+      - "10"
+      - col(DIAGNOSIS_CODE_13)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(DIAGNOSIS_DESC_13)
+
+  diagnosis14:
+    code:
+      - "ICD//CM"
+      - "10"
+      - col(DIAGNOSIS_CODE_14)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(DIAGNOSIS_DESC_14)
+
+  diagnosis15:
+    code:
+      - "ICD//CM"
+      - "10"
+      - col(DIAGNOSIS_CODE_15)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(DIAGNOSIS_DESC_15)
+
+  diagnosis16:
+    code:
+      - "ICD//CM"
+      - "10"
+      - col(DIAGNOSIS_CODE_16)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(DIAGNOSIS_DESC_16)
+
+  diagnosis17:
+    code:
+      - "ICD//CM"
+      - "10"
+      - col(DIAGNOSIS_CODE_17)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(DIAGNOSIS_DESC_17)
+
+  diagnosis18:
+    code:
+      - "ICD//CM"
+      - "10"
+      - col(DIAGNOSIS_CODE_18)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(DIAGNOSIS_DESC_18)
+
+  diagnosis19:
+    code:
+      - "ICD//CM"
+      - "10"
+      - col(DIAGNOSIS_CODE_19)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(DIAGNOSIS_DESC_19)
+
+  diagnosis20:
+    code:
+      - "ICD//CM"
+      - "10"
+      - col(DIAGNOSIS_CODE_20)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(DIAGNOSIS_DESC_20)
+
+  diagnosis21:
+    code:
+      - "ICD//CM"
+      - "10"
+      - col(DIAGNOSIS_CODE_21)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(DIAGNOSIS_DESC_21)
+
+  diagnosis22:
+    code:
+      - "ICD//CM"
+      - "10"
+      - col(DIAGNOSIS_CODE_22)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(DIAGNOSIS_DESC_22)
+
+  diagnosis23:
+    code:
+      - "ICD//CM"
+      - "10"
+      - col(DIAGNOSIS_CODE_23)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(DIAGNOSIS_DESC_23)
+
+  diagnosis24:
+    code:
+      - "ICD//CM"
+      - "10"
+      - col(DIAGNOSIS_CODE_24)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(DIAGNOSIS_DESC_24)
+
+  diagnosis25:
+    code:
+      - "ICD//CM"
+      - "10"
+      - col(DIAGNOSIS_CODE_25)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(DIAGNOSIS_DESC_25)
+
+  diagnosis26:
+    code:
+      - "ICD//CM"
+      - "10"
+      - col(DIAGNOSIS_CODE_26)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(DIAGNOSIS_DESC_26)
+
+  diagnosis27:
+    code:
+      - "ICD//CM"
+      - "10"
+      - col(DIAGNOSIS_CODE_27)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(DIAGNOSIS_DESC_27)
+
+  diagnosis28:
+    code:
+      - "ICD//CM"
+      - "10"
+      - col(DIAGNOSIS_CODE_28)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(DIAGNOSIS_DESC_28)
+
+  diagnosis29:
+    code:
+      - "ICD//CM"
+      - "10"
+      - col(DIAGNOSIS_CODE_29)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(DIAGNOSIS_DESC_29)
+
+  procedure:
+    code:
+      - "ICD//PCS"
+      - "10"
+      - col(PROCEDURE_CODE_0)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(PROCEDURE_DESC_0)
+
+  procedure1:
+    code:
+      - "ICD//PCS"
+      - "10"
+      - col(PROCEDURE_CODE_1)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(PROCEDURE_DESC_1)
+
+  procedure2:
+    code:
+      - "ICD//PCS"
+      - "10"
+      - col(PROCEDURE_CODE_2)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(PROCEDURE_DESC_2)
+
+  procedure3:
+    code:
+      - "ICD//PCS"
+      - "10"
+      - col(PROCEDURE_CODE_3)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(PROCEDURE_DESC_3)
+
+  procedure4:
+    code:
+      - "ICD//PCS"
+      - "10"
+      - col(PROCEDURE_CODE_4)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(PROCEDURE_DESC_4)
+
+  procedure5:
+    code:
+      - "ICD//PCS"
+      - "10"
+      - col(PROCEDURE_CODE_5)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(PROCEDURE_DESC_5)
+
+  procedure6:
+    code:
+      - "ICD//PCS"
+      - "10"
+      - col(PROCEDURE_CODE_6)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(PROCEDURE_DESC_6)
+
+  procedure7:
+    code:
+      - "ICD//PCS"
+      - "10"
+      - col(PROCEDURE_CODE_7)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(PROCEDURE_DESC_7)
+
+  procedure8:
+    code:
+      - "ICD//PCS"
+      - "10"
+      - col(PROCEDURE_CODE_8)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(PROCEDURE_DESC_8)
+
+  procedure9:
+    code:
+      - "ICD//PCS"
+      - "10"
+      - col(PROCEDURE_CODE_9)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(PROCEDURE_DESC_9)
+
+  procedure10:
+    code:
+      - "ICD//PCS"
+      - "10"
+      - col(PROCEDURE_CODE_10)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(PROCEDURE_DESC_10)
+
+  procedure11:
+    code:
+      - "ICD//PCS"
+      - "10"
+      - col(PROCEDURE_CODE_11)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(PROCEDURE_DESC_11)
+
+  procedure12:
+    code:
+      - "ICD//PCS"
+      - "10"
+      - col(PROCEDURE_CODE_12)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(PROCEDURE_DESC_12)
+
+  procedure13:
+    code:
+      - "ICD//PCS"
+      - "10"
+      - col(PROCEDURE_CODE_13)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(PROCEDURE_DESC_13)
+
+  procedure14:
+    code:
+      - "ICD//PCS"
+      - "10"
+      - col(PROCEDURE_CODE_14)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(PROCEDURE_DESC_14)
+
+  procedure15:
+    code:
+      - "ICD//PCS"
+      - "10"
+      - col(PROCEDURE_CODE_15)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(PROCEDURE_DESC_15)
+
+  procedure16:
+    code:
+      - "ICD//PCS"
+      - "10"
+      - col(PROCEDURE_CODE_16)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(PROCEDURE_DESC_16)
+
+  procedure17:
+    code:
+      - "ICD//PCS"
+      - "10"
+      - col(PROCEDURE_CODE_17)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(PROCEDURE_DESC_17)
+
+  procedure18:
+    code:
+      - "ICD//PCS"
+      - "10"
+      - col(PROCEDURE_CODE_18)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(PROCEDURE_DESC_18)
+
+  procedure19:
+    code:
+      - "ICD//PCS"
+      - "10"
+      - col(PROCEDURE_CODE_19)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(PROCEDURE_DESC_19)
+
+  drg:
+    code:
+      - "DRG"
+      - col(DRG_CODE)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(DRG_DESC)
+
+  mdc:
+    code:
+      - "MDC"
+      - col(MDC_CODE)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(BED_DAY_DATE)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(MDC_DESC)
+
+  screen_start:
+    code:
+      - "CPE_SCREEN"
+      - START
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(FIRST_DATE_OF_CPE_SCREEN)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(CPE_SCREEN)
+  screen_end:
+    code:
+      - "CPE_SCREEN"
+      - END
+    time_format: "%Y-%m-%d %H:%M:%S"
+    time: col(LAST_DATE_OF_CPE_SCREEN)
+    hadm_id: EPISODE_NO
+    patientid: HIPE_PATIENTID
+    text_value: col(CPE_SCREEN)
+    numeric_value: col(NUMBER_OF_CPE_SCREENS)
+
+# PIN_NO,GENDER,AREA OF RESIDENCE,TOTAL_LOS,TOTAL_SCREENS,INSIDE DUBLIN,INSIDE IRELAND,TOTAL_PATHWAYS,DISCHARGE_PATHWAYS,DRG_PATHWAYS,MDC_PATHWAYS,TOTAL_NUM_WARDS,TOTAL_NUM_DIAGNOSIS,TOTAL_NUM_PROCEDURES,TOTAL_ICD10CMs_3,TOTAL_ICD10CMs_4,TOTAL_ICD10CMs_5,TOTAL_ICD10PCSs_5,TOTAL_ICD10PCSs_9,CPE_INFECTION_WARD_CODE,CPE_INFECTION_BED_CODE,IS_CPE_WHILE_HOSPITALISATION,NUM_READMISSIONS,PATIENT_CPE_INFECTION_FLAGGED,PATIENT_FIRST_DATE_OF_CPE_SCREEN,PATIENT_LAST_DATE_OF_CPE_SCREEN,PATIENT_CPE_INFECTION_DATE,PATIENT_ISOLATED,PATIENT_ADMISSION_DATE,PATIENT_DISCHARGE_DATE,PATIENT_NUMBER_EMERGENCY_DEPARTMENT_VISITS,PATIENT_NUMBER_ACUTE_DEPARTMENT_VISITS
+
+patients:
+  gender:
+    code: 
+      - "GENDER"
+      - "col(GENDER)"
+    time: null
+  aor:
+    code:
+      - "RESIDENCY"
+      - "col(AREA OF RESIDENCE)"
+    time: null
+    numeric_value: col(INSIDE IRELAND)
+    text_value: col(INSIDE DUBLIN)
+  # age:
+  #   code: 
+  #     - "AGE"
+  #     - "col(AGE)"
+  #   time: null
+  #   patientid: PIN_NO
+  infection:
+    code:
+      - INFECTIOUS_DISEASE
+      - CPE_INFECTION
+    time: col(PATIENT_CPE_INFECTION_DATE)
+    numeric_value: col(IS_CPE_WHILE_HOSPITALISATION)
+    time_format: "%Y-%m-%d %H:%M:%S"
+
+
+
+# episodes:
+#   - code:
+#       - ""
+#       - "col(EPISODE_NO)"
+#     time: col(BED_DAY_DATE)
+#     hadm_id: EPISODE_NO
+#     text_value: col(EPISODE_DESC)
+#     specialty: col(SPECIALTY)
+#     numeric_value: col(LOS)
+#     patientid: HIPE_PATIENTID
+#   LOS
+#  'WILL_READMIT_WITHIN_7_DAYS',
+#  'WILL_READMIT_WITHIN_30_DAYS',
+#  'WILL_READMIT_WITHIN_365_DAYS',
+#  'EPISODE_NUMBER_EMERGENCY_DEPARTMENT_VISITS',
+#  'EPISODE_NUMBER_ACUTE_DEPARTMENT_VISITS',

@@ -1,0 +1,13 @@
+# Hydra
+hydra:
+  job:
+    name: ${now:%Y-%m-%d_%H-%M-%S}
+  run:
+    dir: ${oc.env:LOGGING_DIR}/meds/
+  sweep:
+    dir: ${oc.env:LOGGING_DIR}/meds/
+    subdir: ${hydra.job.num}
+
+parallelize:
+  n_workers: ${oc.env:N_WORKERS}
+  launcher: "joblib"
