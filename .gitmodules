@@ -1,3 +1,6 @@
 [submodule "ehrpfn-aaai"]
 	path = ehrpfn-aaai
 	url = ./ehrpfn-aaai
+[submodule "theseus"]
+	path = theseus
+	url = ./theseus
