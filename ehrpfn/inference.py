@@ -3,9 +3,9 @@ import os.path as osp
 import hydra
 import time
 import json
-from ehrpfn.gbms import Tuner
-from ehrpfn.validate import validate
-from ehrpfn.sampling import synthetic_sampling
+from ehrpfn.models.gbms import Tuner
+from ehrpfn.utils.validate import validate
+from ehrpfn.utils.sampling import synthetic_sampling
 from ehrpfn.datasets import get_mimic_dataset, get_sjh_dataset
 from ehrpfn.utils import load_model, save_model
 import xgboost as xgb
@@ -18,7 +18,7 @@ from tabpfn.model.loading import (
 from tabpfn_extensions.rf_pfn import (
     RandomForestTabPFNClassifier,
 )
-from ehrpfn.metrics import run_binary_classification_metrics, run_regression_metrics
+from ehrpfn.utils.metrics import run_binary_classification_metrics, run_regression_metrics
 from omegaconf import DictConfig, OmegaConf
 import wandb
 import numpy as np
@@ -265,7 +265,7 @@ def run(args: DictConfig):
 
     elif args.method == "tabpfn-knn":
 
-        from TabDPT.src.tabdpt.retrieval import FAISS
+        from ehrpfn.utils.retrieval import FAISS
         from tqdm import tqdm
         retriever = FAISS(X_train)
         all_predictions = []
@@ -339,7 +339,7 @@ def run(args: DictConfig):
         running_time = time.time() - start_time
 
     elif args.method == 'tabdpt':
-        from TabDPT.src.tabdpt import TabDPTClassifier, TabDPTRegressor
+        from ehrpfn.models import TabDPTClassifier, TabDPTRegressor
 
         if is_classification:
             model = TabDPTClassifier(
@@ -377,20 +377,20 @@ def run(args: DictConfig):
             )
         running_time = time.time() - start_time
 
-    elif args.method == 'tabdpt_ehr':
-        from TabDPT.src.tabdpt import TabDPTEHRClassifier, TabDPTEHRRegressor
+    elif args.method == 'ehrpfn':
+        from ehrpfn.models import EHRPFNClassifier, EHRPFNRegressor
 
         if args.retrieval_method is not None:
             tags.append(f"RETRIEVAL:{args['retrieval_method']}")
 
         if is_classification:
-            model = TabDPTEHRClassifier(
+            model = EHRPFNClassifier(
                 model_name=f"{args.pretrain_mode}_{args.num_features}",
                 retrieval_method=args.retrieval_method, 
                 inf_batch_size=args.inf_batch_size
             )
         else:
-            model = TabDPTEHRRegressor(
+            model = EHRPFNRegressor(
                 model_name=f"{args.pretrain_mode}_{args.num_features}",
                 retrieval_method=args.retrieval_method,
                 inf_batch_size=args.inf_batch_size

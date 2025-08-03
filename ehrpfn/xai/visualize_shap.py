@@ -1,15 +1,10 @@
 from typing import *
 import numpy as np
-import seaborn as sns
-import matplotlib.pyplot as plt
 import plotly.graph_objects as go
-import polars as pl
 import pickle
 import os.path as osp
 import shap
-import sys
-sys.path.append("/home/mpham/workspace/source/tabpfn-ehr")
-from ehrpfn.data_mimic import collect_parquet, make_targets
+from ehrpfn.datasets.data_mimic import collect_parquet, make_targets
 import plotly.graph_objects as go
 import numpy as np
 import os

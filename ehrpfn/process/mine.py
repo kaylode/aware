@@ -3,7 +3,6 @@ import sys
 import polars as pl
 from tqdm import tqdm
 from ehrpfn.utils.vocabulary import Vocabulary
-sys.path.append("/home/mpham/workspace/source/tabpfn-ehr")
 
 import numpy as np
 from collections import defaultdict

@@ -10,11 +10,11 @@ from sklearn.metrics import accuracy_score, f1_score, r2_score, roc_auc_score
 from sklearn.preprocessing import LabelEncoder
 from tqdm import tqdm
 
-from model import TabDPTModel, Task
-from tabdpt import TabDPTClassifier, TabDPTRegressor
-from utils import FAISS, DataPreprocessor
+from ehrpfn.training.model import TabDPTModel, Task
+from ehrpfn.training.tabdpt import TabDPTClassifier, TabDPTRegressor
+from ehrpfn.training.utils import FAISS, DataPreprocessor
 
-from eval_full import FullEval
+from ehrpfn.training.eval_full import FullEval
 
 class MIMICIVOutcomesEval(FullEval):
     def __init__(
@@ -23,8 +23,8 @@ class MIMICIVOutcomesEval(FullEval):
         max_feat,
         impute_method="mean",
         use_retrieval=False,
-        data_path="/home/mpham/workspace/source/tabpfn-ehr/outputs/tabpfn/data/mimiciv_outcomes/3.5_feat_engineering",
-        label_path="/home/mpham/workspace/source/tabpfn-ehr/data/mimiciv-icu-gbms-events"
+        data_path="",
+        label_path=""
     ):
         """Initialize the FullMIMICIVEval class for evaluating MIMIC-IV tabular data.
 

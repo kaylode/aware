@@ -9,17 +9,17 @@ from sklearn.preprocessing import StandardScaler
 
 from .model import TabDPTModel
 from .utils import convert_to_torch_tensor, download_model
-from .retrieval import FAISS
+from ehrpfn.utils.retrieval import FAISS
 
 
 class TabDPTEstimator(BaseEstimator):
     _DEFAULT_CHECKPOINT_PATH = {
-        "DEFAULT_500": "/home/mpham/workspace/source/tabpfn-ehr/TabDPT/checkpoints/tabdpt_500.ckpt",
-        "DEFAULT_300": "/home/mpham/workspace/source/tabpfn-ehr/TabDPT/checkpoints/tabdpt_300.ckpt",
-        "DEFAULT_100": "/home/mpham/workspace/source/tabpfn-ehr/TabDPT/checkpoints/tabdpt1_1.pth",
-        "HEALTH_100": "/home/mpham/workspace/source/tabpfn-ehr/TabDPT/checkpoints/ehrdpt_100.ckpt",
-        "HEALTH_300": "/home/mpham/workspace/source/tabpfn-ehr/TabDPT/checkpoints/ehrdpt_300.ckpt",
-        "HEALTH_500": "/home/mpham/workspace/source/tabpfn-ehr/TabDPT/checkpoints/ehrdpt_500.ckpt",
+        "DEFAULT_500": "checkpoints/tabdpt_500.ckpt",
+        "DEFAULT_300": "checkpoints/tabdpt_300.ckpt",
+        "DEFAULT_100": "checkpoints/tabdpt1_1.pth",
+        "HEALTH_100": "checkpoints/ehrdpt_100.ckpt",
+        "HEALTH_300": "checkpoints/ehrdpt_300.ckpt",
+        "HEALTH_500": "checkpoints/ehrdpt_500.ckpt",
     }
     _DEFAULT_DEVICE = "cuda:0"
 

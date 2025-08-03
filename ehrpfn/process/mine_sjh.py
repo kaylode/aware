@@ -3,16 +3,13 @@ import sys
 import polars as pl
 from tqdm import tqdm
 from ehrpfn.utils.vocabulary import Vocabulary
-sys.path.append("/home/mpham/workspace/source/tabpfn-ehr")
 
 import numpy as np
 from collections import defaultdict
 from sklearn.feature_extraction.text import TfidfVectorizer
-# from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
 from theseus import seed_everything
 import plotly.graph_objects as go
-import plotly.express as px
 from plotly.subplots import make_subplots
 
 seed_everything(42)

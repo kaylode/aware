@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 from omegaconf import DictConfig
 
-from transformer_layer import TransformerEncoderLayer
+from ehrpfn.training.transformer_layer import TransformerEncoderLayer
 
 
 class Task(Enum):

@@ -6,8 +6,8 @@ import torch
 from sklearn.base import BaseEstimator, ClassifierMixin, RegressorMixin
 from torch.nn.attention import SDPBackend, sdpa_kernel
 
-from model import TabDPTModel, Task, convert_to_torch_tensor, pad_x
-from utils import FAISS, DataPreprocessor, standardize, seed_everything
+from ehrpfn.training.model import TabDPTModel, Task, convert_to_torch_tensor, pad_x
+from ehrpfn.training.utils import FAISS, DataPreprocessor, standardize, seed_everything
 
 _DEFAULT_DEVICE = "cuda:0"
 _INF_BATCH_SIZE = 512

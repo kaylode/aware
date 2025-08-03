@@ -6,9 +6,9 @@ from .classifier import TabDPTClassifier
 
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler
-from .retrieval import FAISS, ProcessRetriever, TrajectoriesRetriever, ProcessTFIDFRetriever
+from ehrpfn.utils.retrieval import FAISS, ProcessRetriever, TrajectoriesRetriever, ProcessTFIDFRetriever
 
-class TabDPTEHRClassifier(TabDPTClassifier):
+class EHRPFNClassifier(TabDPTClassifier):
 
     def __init__(self, retrieval_method:str = "faiss", *args, **kwargs):
         super().__init__(*args, **kwargs)

@@ -1,6 +1,4 @@
-from .classifier import TabDPTClassifier
-from .regressor import TabDPTRegressor
-from .ehr_classifier import TabDPTEHRClassifier
-from .ehr_regressor import TabDPTEHRRegressor
+from .ehr_classifier import EHRPFNClassifier
+from .ehr_regressor import EHRPFNRegressor
 
-__all__ = ['TabDPTClassifier', 'TabDPTRegressor', 'TabDPTEHRClassifier', 'TabDPTEHRRegressor']
+__all__ = ['EHRPFNClassifier', 'EHRPFNRegressor']

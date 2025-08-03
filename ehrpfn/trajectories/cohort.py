@@ -2,8 +2,11 @@ from typing import *
 import json
 import os
 import polars as pl
-from nosos.utilities.constants import MAPPINGS_DIR
 from tqdm import tqdm
+
+from importlib.resources import files
+from pathlib import Path
+MAPPINGS_DIR: Path = files("preprocess-scripts.tokenization.maps")
 
 _COMPLEMENTARY_CODE_TO_NAME = {
     "F32": "Major depressive disorder, single episode",

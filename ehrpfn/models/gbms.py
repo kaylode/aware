@@ -24,7 +24,7 @@ from sklearn.metrics import (
 from optuna.storages import JournalStorage, JournalFileStorage
 from optuna.integration.wandb import WeightsAndBiasesCallback
 LOGGER = LoggerObserver.getLogger("main")
-from ehrpfn.visualize import visualize_shap
+from ehrpfn.utils.visualize import visualize_shap
 
 # wandb might cause an error without this.
 os.environ["WANDB_START_METHOD"] = "thread"
@@ -397,21 +397,21 @@ class Tuner:
             })
         LOGGER.text(f"Best trial: {best_trial.number} with value: {best_trial.value}", level=LoggerObserver.INFO)
 
-        # if is_classification:
-        #     fig = visualize_shap(
-        #         best_model, 
-        #         X_val, 
-        #         feature_names=[],
-        #         classnames=['0', '1'],
-        #         plot_type="bar",
-        #         plot_size=(12, 6),
-        #         cross_validation=False
-        #     )
-        #     fig.savefig(osp.join(self.save_dir, 'shap_summary.png'), bbox_inches='tight')
-        #     wandb.log({"Shap Summary": wandb.Image(fig)})
-        #     LOGGER.text(f"Shap Summary plot saved to {self.save_dir}/shap_summary.png", level=LoggerObserver.INFO)
-        # else:
-        #     LOGGER.text("Shap values are not supported for regression tasks.", level=LoggerObserver.WARNING)
+        if is_classification:
+            fig = visualize_shap(
+                best_model, 
+                X_val, 
+                feature_names=[],
+                classnames=['0', '1'],
+                plot_type="bar",
+                plot_size=(12, 6),
+                cross_validation=False
+            )
+            fig.savefig(osp.join(self.save_dir, 'shap_summary.png'), bbox_inches='tight')
+            wandb.log({"Shap Summary": wandb.Image(fig)})
+            LOGGER.text(f"Shap Summary plot saved to {self.save_dir}/shap_summary.png", level=LoggerObserver.INFO)
+        else:
+            LOGGER.text("Shap values are not supported for regression tasks.", level=LoggerObserver.WARNING)
 
         
 

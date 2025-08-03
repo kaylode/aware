@@ -15,11 +15,11 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
-from datasets import FullDataset, collate_fn
-from eval_full import FullEval
-from eval_mimic_full import MIMICIVOutcomesEval
-from model import TabDPTModel
-from utils import (
+from ehrpfn.training.datasets import FullDataset, collate_fn
+from ehrpfn.training.eval_full import FullEval
+from ehrpfn.training.eval_mimic_full import MIMICIVOutcomesEval
+from ehrpfn.training.model import TabDPTModel
+from ehrpfn.training.utils import (
     cleanup,
     compute_losses,
     get_combined_loss,

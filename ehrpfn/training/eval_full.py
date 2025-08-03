@@ -8,10 +8,10 @@ import torch
 from sklearn.metrics import accuracy_score, f1_score, r2_score, roc_auc_score
 from tqdm import tqdm
 
-from tabdpt_datasets.openml import OpenMLDataset
-from model import TabDPTModel, Task
-from tabdpt import TabDPTClassifier, TabDPTRegressor
-from utils import FAISS, DataPreprocessor
+from ehrpfn.training.tabdpt_datasets.openml import OpenMLDataset
+from ehrpfn.training.model import TabDPTModel, Task
+from ehrpfn.training.tabdpt import TabDPTClassifier, TabDPTRegressor
+from ehrpfn.training.utils import FAISS, DataPreprocessor
 
 
 class FullEval:

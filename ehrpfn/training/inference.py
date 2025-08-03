@@ -7,9 +7,9 @@ from torch.nn.attention import SDPBackend, sdpa_kernel
 from torch.utils.data import DataLoader
 import torch.autograd as autograd
 
-from datasets import FullDataset, collate_fn
-from model import TabDPTModel
-from utils import (
+from ehrpfn.training.datasets import FullDataset, collate_fn
+from ehrpfn.training.model import TabDPTModel
+from ehrpfn.training.utils import (
     compute_losses,
     get_combined_loss,
     seed_everything,

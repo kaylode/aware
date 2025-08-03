@@ -210,8 +210,8 @@ class NTXentLoss(torch.nn.Module):
 
 
 def train(train_data:List, train_metadata:List, test_data:List, test_metadata:List, data_name:str=None, embed_dim = 128, latent_dim = 64, num_epochs=50):
-    MIMICIV_MAPPING_JSON = "/home/mpham/workspace/source/tabpfn-ehr/outputs/tabpfn/embeddings/mimic4_diagnoses.json"
-    EMBEDDING_PICKLE = "/home/mpham/workspace/source/tabpfn-ehr/outputs/tabpfn/embeddings/glove_emb_128d_579epoch_patient0.pkl"
+    MIMICIV_MAPPING_JSON = "embeddings/mimic4_diagnoses.json"
+    EMBEDDING_PICKLE = "embeddings/glove_emb_128d_579epoch_patient0.pkl"
 
     # Split train into train and validation sets
     train_ids = np.random.choice(len(train_data), int(0.8 * len(train_data)), replace=False)

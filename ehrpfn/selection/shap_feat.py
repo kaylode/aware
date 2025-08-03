@@ -132,7 +132,7 @@ def extract_top_features(args: DictConfig):
 
 def visualize_ranking_distributions(
     task="SEPSIS", 
-    root="/home/mpham/workspace/source/tabpfn-ehr", 
+    root="", 
     top_k=20, 
     remove_icd=True
 ):

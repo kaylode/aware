@@ -8,10 +8,10 @@ from .utils import pad_x, generate_random_permutation
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler
 
-from .retrieval import FAISS, ProcessRetriever, TrajectoriesRetriever, ProcessTFIDFRetriever
+from ehrpfn.utils.retrieval import FAISS, ProcessRetriever, TrajectoriesRetriever, ProcessTFIDFRetriever
 
 
-class TabDPTEHRRegressor(TabDPTRegressor):
+class EHRPFNRegressor(TabDPTRegressor):
     def __init__(self, retrieval_method:str = "faiss", *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.retrieval_method = retrieval_method

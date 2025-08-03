@@ -1,10 +1,9 @@
 import sys
-sys.path.append('/home/mpham/workspace/mlbhd-2023/source/xml')
 from typing import *
 import json
 import os.path as osp
 import numpy as np
-from ehrpfn.visualize import make_cm_fig
+from .visualize import make_cm_fig
 from sklearn.metrics import (
     roc_auc_score, balanced_accuracy_score, 
     confusion_matrix, matthews_corrcoef,

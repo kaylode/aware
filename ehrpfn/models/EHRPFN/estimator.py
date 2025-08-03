@@ -9,7 +9,7 @@ from sklearn.preprocessing import StandardScaler
 
 from .model import TabDPTModel
 from .utils import convert_to_torch_tensor, download_model
-from .retrieval import FAISS
+from ehrpfn.utils.retrieval import FAISS
 
 
 class TabDPTEstimator(BaseEstimator):
