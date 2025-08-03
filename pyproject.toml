@@ -3,12 +3,12 @@ requires = ["setuptools==75.8.2", "wheel", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["tabpfn_ehr", "scripts", "theseus", "TabDPT"]
+packages = ["ehrpfn", "scripts", "theseus"]
 
 [project]
-name = "tabpfn_ehr"
+name = "ehrpfn"
 version = "1.0.0"
-description = "TabPFN for EHR"
+description = "EHRPFN: Tailoring Prior-Fitted Networks for Electronic Health Records with Structured Context Retrieval"
 readme = "README.md"
 authors = [
     { name = "Minh-Khoi Pham", email = "minhkhoi.pham@adaptcentre.ie" }
@@ -34,10 +34,21 @@ dependencies = [
     "MEDS_transforms==0.1.1",
     "pyarrow==19.0.1",
     "numpy==1.26.4",
-    "drug-named-entity-recognition==2.0.5",
     "imbalanced-learn==0.13.0",
-    "pytorch-frame==0.3.0",
-    "scipy==1.11.4"
+    "scipy==1.11.4",
+    "pytorch-lightning==2.5.2",
+    "scikit-learn==1.6.1",
+    "faiss-cpu==1.11.0",
+    "gdown==5.2.0",
+    "omegaconf==2.3.0",
+    "openml==0.15.1",
+    "optuna==4.4.0",
+    "shap==0.47.1",
+    "plotly==6.2.0",
+    "lightgbm==4.6.0",
+    "catboost==1.2.8",
+    "-e git+https://github.com/kaylode/ehrpfn.git@5fcf230df07d410ae518aba9449bc12d0e24649f#egg=tabpfn&subdirectory=tabpfn_ehr/models/TabPFN",
+    "-e git+https://github.com/kaylode/theseus.git@f4d540030d9849120a2154b55ac394d1ef5a8596#egg=theseus"
 ]
 
 [project.optional-dependencies]

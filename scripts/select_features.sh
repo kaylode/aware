@@ -14,7 +14,7 @@ OUTPUT_DIR="${ROOT}/outputs/tabpfn/results"
 MODEL_PATH=${OUTPUT_DIR}/${DATA_NAME}/${TASK}/${METHOD}_${DATA_NAME}_${TASK}
 
 # Loop
-PYTHONPATH=. python tabpfn_ehr/selection/shap_feat.py \
+PYTHONPATH=. python ehrpfn/selection/shap_feat.py \
     --config-path ${MODEL_PATH} \
     --config-name config.yaml \
     method=$METHOD \

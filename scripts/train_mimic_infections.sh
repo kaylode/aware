@@ -17,7 +17,7 @@ PRETRAIN_MODE=HEALTH
 # for loop
 # for SELECTION in null "xgboost" "rf" "shap"
 for TASK in "SEPSIS" "VAP" "BSI"; do
-    PYTHONPATH=. python tabpfn_ehr/inference.py --config-name mimiciv_infections \
+    PYTHONPATH=. python ehrpfn/inference.py --config-name mimiciv_infections \
         train_label_path=${ROOT}/outputs/tabpfn/labels/PATIENT_INFECTION/${TASK}_train_labels.csv \
         test_label_path=${ROOT}/outputs/tabpfn/labels/PATIENT_INFECTION/${TASK}_test_labels.csv \
         method=$METHOD \

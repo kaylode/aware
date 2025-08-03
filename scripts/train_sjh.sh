@@ -13,7 +13,7 @@ RETRIEVAL=activities #activities_tfidf_kmeans #trajectories #activities random #
 
 
 for TASK in "EPISODE_CPE_INFECTION_FLAGGED" "WILL_READMIT_WITHIN_30_DAYS" "DECEASED_NEXT_EPISODE" "NEXT_LOS"; do
-    PYTHONPATH=. python tabpfn_ehr/inference.py --config-name sjh_cpe \
+    PYTHONPATH=. python ehrpfn/inference.py --config-name sjh_cpe \
         method=$METHOD \
         num_features=100 \
         target_column=${TASK} \

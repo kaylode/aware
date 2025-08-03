@@ -15,7 +15,7 @@ PRETRAIN_MODE=HEALTH
 #  
 # Loop 
 for TASK in "DEATH" "WILL_READMIT_WITHIN_7_DAYS"  "NEXT_ADMISSION_LOS" ; do
-    PYTHONPATH=. python tabpfn_ehr/inference.py --config-name mimiciv_outcomes \
+    PYTHONPATH=. python ehrpfn/inference.py --config-name mimiciv_outcomes \
         train_label_path=${ROOT}/data/mimiciv-icu-gbms-events/train/SupervisedData/PATIENT_OUTCOME/${TASK}_prediction_labels.csv \
         test_label_path=${ROOT}/data/mimiciv-icu-gbms-events/test/SupervisedData/PATIENT_OUTCOME/${TASK}_prediction_labels.csv \
         method=$METHOD \
