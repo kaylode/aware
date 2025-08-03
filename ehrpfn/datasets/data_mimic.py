@@ -502,62 +502,63 @@ def make_inputs_targets(df: pl.DataFrame, target_column:str, feature_selection_p
     return (x, y), ids_, feature_names, selected_indices
 
 def collect_parquet(
-        input_path:str,
-        output_path:str,
-        split:str,
+        input_path:str=None,
+        output_path:str=None,
+        split:str=None,
         patient_ids_filter=None,
         load_encoder_mapping:str=None,
         target_column:str=None
 ):
     os.makedirs(output_path, exist_ok=True)
     
-    # Read in and process the DataFrame
-    df = pl.scan_parquet(input_path).collect()
-    if patient_ids_filter is not None:
-        df = df.filter(
-            pl.col("subject_id").is_in(patient_ids_filter)
+    if input_path is not None:
+        # Read in and process the DataFrame
+        df = pl.scan_parquet(input_path).collect()
+        if patient_ids_filter is not None:
+            df = df.filter(
+                pl.col("subject_id").is_in(patient_ids_filter)
+            )
+
+        df = df.select([
+            "subject_id",
+            "admission_id",
+            "time",
+            "code",
+            "numeric_value",
+            "text_value"
+        ])
+
+
+        # Get unique codes
+        LOGGER.text("Getting unique codes...", level=LoggerObserver.INFO)
+        save_path = osp.join(output_path, '1_unique_codes')
+        unique_codes = get_unique_codes(df, save_path=save_path)
+
+        # strip code column
+        df = df.with_columns(
+            pl.col("code").str.strip_chars()
         )
 
-    df = df.select([
-        "subject_id",
-        "admission_id",
-        "time",
-        "code",
-        "numeric_value",
-        "text_value"
-    ])
 
-
-    # Get unique codes
-    LOGGER.text("Getting unique codes...", level=LoggerObserver.INFO)
-    save_path = osp.join(output_path, '1_unique_codes')
-    unique_codes = get_unique_codes(df, save_path=save_path)
-
-    # strip code column
-    df = df.with_columns(
-        pl.col("code").str.strip_chars()
-    )
-
-
-    # Make numpy data
-    if split in ['train', 'val']:
-        save_path = osp.join(output_path, '2_numpify', 'train')
-    else:
-        save_path = osp.join(output_path, '2_numpify', split)
-    os.makedirs(save_path, exist_ok=True)
-    # df = numpify_dataframe_parallel(
-    #     df, unique_codes, 
-    #     save_path=save_path,
-    #     num_workers=8,
-    #     timeout=300,
-    #     chunk_size=3000
-    # )
-    df = numpify_dataframe(
-        df, unique_codes, 
-        save_path=save_path,
-        chunk_size=3000,
-        target_column=target_column
-    )
+        # Make numpy data
+        if split in ['train', 'val']:
+            save_path = osp.join(output_path, '2_numpify', 'train')
+        else:
+            save_path = osp.join(output_path, '2_numpify', split)
+        os.makedirs(save_path, exist_ok=True)
+        # df = numpify_dataframe_parallel(
+        #     df, unique_codes, 
+        #     save_path=save_path,
+        #     num_workers=8,
+        #     timeout=300,
+        #     chunk_size=3000
+        # )
+        df = numpify_dataframe(
+            df, unique_codes, 
+            save_path=save_path,
+            chunk_size=3000,
+            target_column=target_column
+        )
 
     # Encoding table
     if split in ['train', 'val']:
@@ -688,11 +689,12 @@ def get_mimic_dataset(
     else:
         icu_patient_ids = None
 
-    folder_names = os.listdir(train_folder)
-    for folder_name in folder_names:
-        if 'FinalizeData' in folder_name:
-            train_folder = osp.join(train_folder, folder_name)
-            break
+    if train_folder is not None:
+        folder_names = os.listdir(train_folder)
+        for folder_name in folder_names:
+            if 'FinalizeData' in folder_name:
+                train_folder = osp.join(train_folder, folder_name)
+                break
     if test_folder is not None:
         folder_names = os.listdir(test_folder)
         for folder_name in folder_names:

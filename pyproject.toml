@@ -3,7 +3,7 @@ requires = ["setuptools==75.8.2", "wheel", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["ehrpfn", "scripts"]
+packages = ["ehrpfn", "scripts", "preprocess-scripts"]
 
 [project]
 name = "ehrpfn"
@@ -45,10 +45,13 @@ dependencies = [
     "optuna==4.4.0",
     "shap==0.47.1",
     "plotly==6.2.0",
+    "tabulate==0.9.0",
+    "xgboost==3.0.3",
     "lightgbm==4.6.0",
     "catboost==1.2.8",
     "schedulefree==1.4.1",
     "tensorboard==2.20.0",
+    "dill==0.4.0",
     "tabpfn @ git+https://github.com/PriorLabs/TabPFN.git"
 ]
 

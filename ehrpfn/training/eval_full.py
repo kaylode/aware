@@ -21,6 +21,7 @@ class FullEval:
         max_feat,
         impute_method="mean",
         use_retrieval=False,
+        data_folder:str="data_splits",
     ):
         """Initialize the FullEval class for evaluating tabular data.
 
@@ -35,13 +36,13 @@ class FullEval:
         self.use_retrieval = use_retrieval
 
         # loading classification dataset
-        df_eval_cls = pd.read_csv("data_splits/cls_datasets.csv")
+        df_eval_cls = pd.read_csv(f"{data_folder}/cls_datasets.csv")
         self.cc18_dids = df_eval_cls[df_eval_cls["test_all"] == True][
             "did"
         ].values.tolist()  # 72 datasets
 
         # loading regression dataset
-        reg_df = pd.read_csv("data_splits/reg_datasets.csv")
+        reg_df = pd.read_csv(f"{data_folder}/reg_datasets.csv")
         ctr_df = reg_df[reg_df["test"] == True]
         self.ctr_dids = ctr_df["did"].values.tolist()
 

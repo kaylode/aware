@@ -61,9 +61,9 @@ class MIMICIVOutcomesEval(FullEval):
 
         for dataset_id, label in enumerate(self.labels):
             train_features_df = pl.read_parquet(f"{self.data_path}/train/data.parquet")
-            train_labels_df = pl.read_csv(f"{self.label_path}/train/SupervisedData/PATIENT_OUTCOME/{label}_prediction_labels.csv")
+            train_labels_df = pl.read_csv(f"{self.label_path}/PATIENT_OUTCOME/{label}_train_labels.csv")
             test_features_df = pl.read_parquet(f"{self.data_path}/test/data.parquet")
-            test_labels_df = pl.read_csv(f"{self.label_path}/test/SupervisedData/PATIENT_OUTCOME/{label}_prediction_labels.csv")
+            test_labels_df = pl.read_csv(f"{self.label_path}/PATIENT_OUTCOME/{label}_test_labels.csv")
 
             train_features_df = train_features_df.filter(pl.col("admission_id") > 0)
             train_features_df = train_features_df.join(

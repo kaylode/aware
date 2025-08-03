@@ -1,5 +1,7 @@
 import logging
+import sys
 import os
+from typing import Dict, List
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -10,31 +12,44 @@ import torch
 mpl.use("Agg")
 
 import threading
-from inspect import getframeinfo, stack
-from typing import Dict, List
-
 from tabulate import tabulate
+from inspect import getframeinfo, stack
 
-from .subscriber import LoggerSubscriber
+from loguru import logger
+logger.remove()
 
 
-def get_type(value):
-    if isinstance(value, torch.nn.Module):
-        return LoggerObserver.TORCH_MODULE
-    if isinstance(value, mpl.figure.Figure) or isinstance(value, go.Figure):
-        return LoggerObserver.FIGURE
-    if isinstance(value, torch.Tensor) or isinstance(value, np.ndarray):
-        if len(value.shape) == 2:
-            return LoggerObserver.EMBED
-    if isinstance(value, (int, float)):
-        return LoggerObserver.SCALAR
-    if isinstance(value, str):
-        if value.endswith(".html"):
-            return LoggerObserver.HTML
-        else:
-            return LoggerObserver.TEXT
-    else:
-        raise ValueError(f"Fail to log undefined type: {type(value)}")
+class LoggerSubscriber:
+    def __init__(self, **kwargs) -> None:
+        pass
+
+    def log_scalar(self, **kwargs):
+        return
+
+    def log_figure(self, **kwargs):
+        return
+
+    def log_torch_module(self, **kwargs):
+        return
+
+    def log_text(self, **kwargs):
+        return
+
+    def log_embedding(self, **kwargs):
+        return
+
+    def log_spec_text(self, **kwargs):
+        return
+
+    def log_table(self, **kwargs):
+        return
+
+    def log_video(self, **kwargs):
+        return
+
+    def log_html(self, **kwargs):
+        return
+
 
 
 class LoggerObserver(object):
@@ -76,7 +91,6 @@ class LoggerObserver(object):
         self.name = name
 
         # Init with a stdout logger
-        from .stdout_logger import StdoutLogger
 
         logger = StdoutLogger(name=self.name, debug=True)
         self.subscribe(logger)
@@ -169,3 +183,133 @@ class LoggerObserver(object):
             tablefmt="fancy_grid",
         )
         return "Logger subscribers: \n" + table
+
+
+
+class BaseTextLogger(LoggerSubscriber):
+    """
+    Logger class for showing text in prompt and file
+    For more documents, look into https://docs.python.org/3/library/logging.html
+
+    Usage:
+        from modules.logger import BaseTextLogger
+        LOGGER = BaseTextLogger.init_logger(__name__)
+
+    """
+
+    message_format = """<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <light-black>{extra[filename]}</light-black>:<light-black>{extra[funcname]}</light-black>:<light-black>{extra[lineno]}</light-black> - <level>{message}</level>"""
+
+    def __init__(self, name):
+        self.name = name
+
+    def log_text(self, tag, value, level=LoggerObserver.DEBUG, **kwargs):
+        if level == LoggerObserver.WARN:
+            logger.warning(value)
+
+        if level == LoggerObserver.INFO:
+            logger.info(value)
+
+        if level == LoggerObserver.ERROR:
+            logger.error(value)
+
+        if level == LoggerObserver.DEBUG:
+            logger.debug(value)
+
+        if level == LoggerObserver.SUCCESS:
+            logger.success(value)
+
+
+class FileLogger(BaseTextLogger):
+    """
+    Logger class for showing text in prompt and file
+    For more documents, look into https://docs.python.org/3/library/logging.html
+
+    Usage:
+        from modules.logger import FileLogger
+        LOGGER = FileLogger.init_logger(__name__)
+
+    """
+
+    def __init__(self, name, logdir, rotation="10 MB", debug=False):
+        self.logdir = logdir
+        self.filename = f"{self.logdir}/log.txt"
+        super().__init__(name)
+
+        if debug:
+            level = "DEBUG"
+        else:
+            level = "INFO"
+
+        logger.add(
+            self.filename,
+            rotation=rotation,
+            level=level,
+            filter=lambda record: "filelog" in record["extra"],
+        )
+
+    def log_text(self, tag, value, level=LoggerObserver.DEBUG, **kwargs):
+        filename = kwargs.get("filename", None)
+        funcname = kwargs.get("funcname", None)
+        lineno = kwargs.get("lineno", None)
+        with logger.contextualize(
+            filelog=True, filename=filename, funcname=funcname, lineno=lineno
+        ):
+            return super().log_text(tag, value, level, **kwargs)
+
+
+class StdoutLogger(BaseTextLogger):
+    """
+    Logger class for showing text in prompt and file
+    For more documents, look into https://docs.python.org/3/library/logging.html
+
+    Usage:
+        from modules.logger import StdoutLogger
+        LOGGER = StdoutLogger.init_logger(__name__)
+
+    """
+
+    def __init__(self, name, debug=False):
+        super().__init__(name)
+
+        if debug:
+            level = "DEBUG"
+        else:
+            level = "INFO"
+
+        logger.add(
+            sys.stdout,
+            backtrace=True,
+            diagnose=True,
+            level=level,
+            format=self.message_format,
+            filter=lambda record: "stdout" in record["extra"],
+        )
+
+    def log_text(self, tag, value, level=LoggerObserver.DEBUG, **kwargs):
+        filename = kwargs.get("filename", None)
+        funcname = kwargs.get("funcname", None)
+        lineno = kwargs.get("lineno", None)
+        with logger.contextualize(
+            stdout=True, filename=filename, funcname=funcname, lineno=lineno
+        ):
+            return super().log_text(tag, value, level, **kwargs)
+
+
+def get_type(value):
+    if isinstance(value, torch.nn.Module):
+        return LoggerObserver.TORCH_MODULE
+    if isinstance(value, mpl.figure.Figure) or isinstance(value, go.Figure):
+        return LoggerObserver.FIGURE
+    if isinstance(value, torch.Tensor) or isinstance(value, np.ndarray):
+        if len(value.shape) == 2:
+            return LoggerObserver.EMBED
+    if isinstance(value, (int, float)):
+        return LoggerObserver.SCALAR
+    if isinstance(value, str):
+        if value.endswith(".html"):
+            return LoggerObserver.HTML
+        else:
+            return LoggerObserver.TEXT
+    else:
+        raise ValueError(f"Fail to log undefined type: {type(value)}")
+

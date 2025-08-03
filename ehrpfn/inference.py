@@ -15,9 +15,6 @@ from tabpfn.model.loading import (
     load_fitted_tabpfn_model,
     save_fitted_tabpfn_model,
 )
-from tabpfn_extensions.rf_pfn import (
-    RandomForestTabPFNClassifier,
-)
 from ehrpfn.utils.metrics import run_binary_classification_metrics, run_regression_metrics
 from omegaconf import DictConfig, OmegaConf
 import wandb

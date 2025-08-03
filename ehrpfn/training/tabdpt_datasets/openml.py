@@ -7,7 +7,7 @@ import openml
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder, OrdinalEncoder
 
-from tabdpt_datasets.dataset import Dataset
+from .dataset import Dataset
 
 
 class OpenMLDataset(Dataset):

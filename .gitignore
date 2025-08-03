@@ -21,3 +21,4 @@ data/
 notebooks/
 outputs/
 */outputs/*
+*/training_deepspeed

@@ -1,8 +1,10 @@
-version: 0.0.1
-description: EHRPFN
+defaults:
+  - hydra@_here_
+  - _self_
+
 seed: 42
 exp_name: "default"
-folder: "default"
+folder: "outputs/pretraining"
 exp_path: ''
 
 env:
@@ -11,13 +13,13 @@ env:
   num_workers: 32
 
 model:
-  emsize: 512
+  emsize: 768
   max_num_classes: 10
   max_num_features: 100
   # number of heads in the transformer, 8 worked slightly better than 4
   nhead: 8
   nhid_factor: 2
-  nlayers: 12
+  nlayers: 16
 
 
 training:
@@ -39,9 +41,10 @@ training:
   # seq len for eval
   eval_seq_len: 1024
   label_smoothing: 0.1
-  reset_policy: 'rm' # reset policy: 'rm' for remove, 'cnt' for continue
   compile: true
   clip_grad_norm: 1
+  resume: null
+  pretrained: null
 
 
 data:
@@ -51,13 +54,18 @@ data:
   retrieval: true
   # retrieval during eval: this may take more memory than the training, be careful with memory
   eval_retrieval: true
-  use_mimic_only: false # use MIMIC data for training
+  use_mimiciv: false # use mimiciv data for training
   use_health_data: false # use health data for training
   use_synthetic: false
+
+  openml:
+    input_folder: "/home/mpham/workspace/source/ehrpfn/data/pretraining"
+  synthetic:
+    input_folder: "/home/mpham/workspace/source/ehrpfn/data/pretraining"
   mimiciv:
-    train_folder: "/home/mpham/workspace/source/tabpfn-ehr/data/mimiciv-icu-gbms-events/train"
-    test_folder: "/home/mpham/workspace/source/tabpfn-ehr/data/mimiciv-icu-gbms-events/test"
-    data_output_folder: "/home/mpham/workspace/source/tabpfn-ehr/outputs/tabpfn/data/mimiciv_outcomes"
+    val_folder: "/home/mpham/workspace/source/ehrpfn/data/processed/mimiciv_outcomes/3.5_feat_engineering"
+    val_label_folder: "/home/mpham/workspace/source/ehrpfn/data/labels"
+    data_output_folder: "/home/mpham/workspace/source/ehrpfn/data/processed/mimiciv_outcomes"
 
 logging:
   eval_every: 10

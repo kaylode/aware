@@ -234,6 +234,60 @@ def log_param_norms(
     writer.add_scalar("Parameter/Norm/", param_norm, global_step=global_step)
     writer.add_scalar("Prior/reg_ratio", task.float().mean().item(), global_step=global_step)
 
+def log_param_norms_wandb(
+    model: nn.Module, step: int, task: str, global_step: int
+):
+    """Log the norms of model parameters to WandB.
+
+    Args:
+        model (nn.Module): model to log parameter norms for.
+        writer (SummaryWriter): TensorBoard writer to log the norms.
+        step (int): current training step, used for logging.
+        task (str): regression or classification task, used for logging.
+        global_step (int): current global step, used for logging.
+    """
+    import wandb
+    model = get_module(model)
+    # Log encoder weight and bias norms (if bias exists)
+    wandb.log({"norms/encoder_weight": torch.norm(model.encoder.weight).item()}, step=step)
+    if model.encoder.bias is not None:
+        wandb.log({"norms/encoder_bias": torch.norm(model.encoder.bias).item()}, step=step)
+
+    # Log y_encoder weight and bias norms (if bias exists)
+    wandb.log({"norms/y_encoder_weight": torch.norm(model.y_encoder.weight).item()}, step=step)
+    if model.y_encoder.bias is not None:
+        wandb.log({"norms/y_encoder_bias": torch.norm(model.y_encoder.bias).item()}, step=step)
+
+    # Log transformer encoder total weights and biases (if biases exist)
+    transformer_weights_norm = sum(
+        torch.norm(layer.kv_proj.weight).item() for layer in model.transformer_encoder
+    )
+
+    wandb.log({"norms/transformer_weights": transformer_weights_norm}, step=step)
+
+    # Log classifier head weight and bias norms
+    head_weights_norm = sum(torch.norm(param).item() for param in model.head.parameters())
+
+    wandb.log({"norms/head_weights_biases": head_weights_norm}, step=step)
+
+    total_norm = torch.norm(
+        torch.stack(
+            [torch.norm(p.grad.detach(), 2) for p in model.parameters() if p.grad is not None]
+        ),
+        2,
+    )
+    total_norm1 = torch.norm(
+        torch.stack(
+            [torch.norm(p.grad.detach(), 1) for p in model.parameters() if p.grad is not None]
+        ),
+        1,
+    )
+    param_norm = torch.norm(torch.stack([torch.norm(p.detach(), 2) for p in model.parameters()]), 2)
+    wandb.log({"Gradient/Norm": total_norm}, step=global_step)
+    wandb.log({"Gradient/Norm_L1": total_norm1}, step=global_step)
+    wandb.log({"Parameter/Norm": param_norm}, step=global_step)
+    wandb.log({"Prior/reg_ratio": task.float().mean().item()}, step=global_step)
+
 
 def print_on_master_only(is_master: bool):
     """Override the built-in print function to only print on the master process.

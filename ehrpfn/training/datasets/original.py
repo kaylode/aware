@@ -59,11 +59,11 @@ class FullDataset(Dataset):
         # TODO: make dataset_ids configurable
         if config.data.use_health_data:
             self.dataset_ids = (
-                pd.read_csv("data_splits/health_training_datasets.csv")["did"].values.ravel().tolist()
+                pd.read_csv(f"{config.data.openml.input_folder}/health_training_datasets.csv")["did"].values.ravel().tolist()
             )
         else:
             self.dataset_ids = (
-                pd.read_csv("data_splits/noleak_training_datasets.csv")["did"].values.ravel().tolist()
+                pd.read_csv(f"{config.data.openml.input_folder}/noleak_training_datasets.csv")["did"].values.ravel().tolist()
             )
         self.datasets = defaultdict(dict)
 
@@ -100,44 +100,46 @@ class FullDataset(Dataset):
 
             self.datasets[did] = {"X": X, "index": faiss_knn, "cat": cat_vals}
 
-        #### Add MIMIC-IV
-        mimic_dataset = get_mimic_dataset(
-            train_folder= config.data.mimiciv.train_folder,
-            test_folder= config.data.mimiciv.test_folder,
-            icu_ids=None,
-            data_output_folder=osp.join(config.data.mimiciv.data_output_folder),
-            target_column=None,
-            train_label_path=None,
-            test_label_path=None,
-            feature_selection_path=None,
-            selection_method=None,
-            process_file_path=None,
-            n_process_variants=None,
-            trajectory_file_path=None,
-            logger=None
-        )
+        self.mimiciv_id = None # This did has not been used in the training set
+        if config.data.use_mimiciv:
+            #### Add MIMIC-IV
+            mimic_dataset = get_mimic_dataset(
+                train_folder=None,
+                test_folder=None,
+                icu_ids=None,
+                data_output_folder=osp.join(config.data.mimiciv.data_output_folder),
+                target_column=None,
+                train_label_path=None,
+                test_label_path=None,
+                feature_selection_path=None,
+                selection_method=None,
+                process_file_path=None,
+                n_process_variants=None,
+                trajectory_file_path=None,
+                logger=None
+            )
 
-        self.mimiciv_id = 69 # This did has not been used in the training set
-        self.dataset_ids.append(self.mimiciv_id)
+            self.mimiciv_id = 69 # This did has not been used in the training set
+            self.dataset_ids.append(self.mimiciv_id)
 
-        (
-            X_train, categorical_feature_indices, feature_names
-        ) = (
-            mimic_dataset["X_train"], 
-            mimic_dataset["categorical_feature_indices"], mimic_dataset["feature_names"]
-        )
+            (
+                X_train, categorical_feature_indices, feature_names
+            ) = (
+                mimic_dataset["X_train"], 
+                mimic_dataset["categorical_feature_indices"], mimic_dataset["feature_names"]
+            )
 
-        cat_vals = categorical_feature_indices
-        preprocessor = DataPreprocessor()
-        X_train = preprocessor.imputer.fit_transform(X_train)
-        X_train = preprocessor.scaler.fit_transform(X_train)
+            cat_vals = categorical_feature_indices
+            preprocessor = DataPreprocessor()
+            X_train = preprocessor.imputer.fit_transform(X_train)
+            X_train = preprocessor.scaler.fit_transform(X_train)
 
-        self.datasets[self.mimiciv_id] = {"X": X_train, "index": None, "cat": cat_vals}
+            self.datasets[self.mimiciv_id] = {"X": X_train, "index": None, "cat": cat_vals}
 
-        if config.data.use_synthetic and config.data.use_health_data:
+        if config.data.use_synthetic:
             synthetic_ehrs = [
-                pd.read_csv("data_splits/synthea-pt30k-stroke-ml-table-sel-convert.csv"),
-                pd.read_csv("data_splits/synthea-pt30k4-lc-data-sel-convert.csv"),
+                pd.read_csv(f"{config.data.synthetic.input_folder}/synthea-pt30k-stroke-ml-table-sel-convert.csv"),
+                pd.read_csv(f"{config.data.synthetic.input_folder}/synthea-pt30k4-lc-data-sel-convert.csv"),
             ]
             for i, ehr in enumerate(synthetic_ehrs):
                 # Preprocess the synthetic EHRs
@@ -361,7 +363,7 @@ class FullDataset(Dataset):
         # Get the dataset
         X_sample, index_sample, _ = self.datasets[did_sample].values()
 
-        if did_sample == self.mimiciv_id:
+        if self.mimiciv_id is not None and did_sample == self.mimiciv_id:
             # If the dataset is MIMIC-IV, we need to sample from the training set
             sampled_feat_indices = np.random.choice(
                 X_sample.shape[1], self.max_feat, replace=False
