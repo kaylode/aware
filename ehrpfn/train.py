@@ -107,6 +107,7 @@ def save_eval_callback_wandb(
                     stats[f"best_{name}"] = metric
                     if name in config.logging.save_metrics:
                         save(model, optimizer, config, stats, config.exp_path, f"best_{name}")
+                        LOGGER.text(f"Saved best {name} model at epoch {epoch} with score={metric}", level=LoggerObserver.SUCCESS)
                 wandb.log({f"val/{name}/": metric}, step=global_step)
 
     # reset the model and optimizer to training mode
@@ -144,7 +145,7 @@ def set_experiment_from_config(config: DictConfig) -> tuple[nn.Module, torch.opt
     # directory setup and checkpoint handling
     if is_master:
         if os.path.exists(config.exp_path):
-            LOGGER.text("Directory already exists:", config.exp_path)
+            LOGGER.text(f"Directory already exists: {config.exp_path}")
             if config.training.resume is not None:
                 load_state_from_saved = True
                 checkpoint = torch.load(f"{config.training.resume}/latest.ckpt", weights_only=False)
@@ -166,7 +167,7 @@ def set_experiment_from_config(config: DictConfig) -> tuple[nn.Module, torch.opt
                 )
         else:
             os.makedirs(config.exp_path, exist_ok=True)
-            LOGGER.text("Created directory: ", config.exp_path)
+            LOGGER.text(f"Created directory: {config.exp_path}")
 
     # Synchronize all processes so that the directory is created before continuing
     if torch.distributed.is_initialized():
@@ -231,7 +232,7 @@ def main(config: DictConfig):
     signal.signal(signal.SIGINT, signal_handler)
 
     # LOGGER.text config
-    LOGGER.text("Config:", OmegaConf.to_yaml(config))
+    LOGGER.text(OmegaConf.to_yaml(config, resolve=True))
 
     # distributed training
     using_dist, rank, device = init_dist(config.env.device)
@@ -337,7 +338,7 @@ def main(config: DictConfig):
         wandb_kwargs["id"] = wandb_id
 
     wandb.init(**wandb_kwargs)
-    wandb.run.config.update(OmegaConf.to_container(config, resolve=True))
+    wandb.run.config.update(OmegaConf.to_container(config, resolve=True), allow_val_change=True)
     wandb.run.config.update({
         'study_name': config.exp_name,
         'data_name': "",
@@ -356,7 +357,7 @@ def main(config: DictConfig):
 
     # Initialize the outer training loop
     for epoch in range(stats["epoch_in_training"] + 1, config.training.num_epochs + 1):
-        LOGGER.text("Epoch ", epoch)
+        LOGGER.text(f"Epoch {epoch}")
 
         # initialize the loss accumulators
         epoch_loss_cls = 0.0

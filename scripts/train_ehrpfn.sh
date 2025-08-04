@@ -10,8 +10,8 @@ export LOGGING_DIR="/home/mpham/workspace/source/ehrpfn/outputs/tabpfn/logs"
 USE_HEALTH_DATA=true
 USE_MIMICIV=true
 USE_SYNTHETIC=true
-NUM_FEATURES=100
-RESUME=/home/mpham/workspace/source/ehrpfn/outputs/pretraining/TabDPT-MIMICIV-100
+NUM_FEATURES=300
+RESUME=/home/mpham/workspace/source/ehrpfn/outputs/pretraining/EHRPFN-HEALTH-MIMICIV-SYNTHETIC-300
 
 
 PRETRAINED=null
@@ -42,7 +42,7 @@ EXP_NAME="$MODEL_NAME-$NUM_FEATURES"
 CUDA_VISIBLE_DEVICES=0 python ehrpfn/train.py \
   exp_name=$EXP_NAME \
   model.max_num_features=$NUM_FEATURES \
-  training.batch_size=128 \
+  training.batch_size=64 \
   data.use_health_data=$USE_HEALTH_DATA \
   data.use_mimiciv=$USE_MIMICIV \
   data.use_synthetic=$USE_SYNTHETIC \

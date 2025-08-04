@@ -227,12 +227,18 @@ class MIMICIVOutcomesEval(FullEval):
 
             reg_performance["reg-mimiciv"][did] = [mse, correlation[0], r2]
             individual_perfs[dataset_name] = [mse, correlation[0], r2]
+            LOGGER.text(f"{dataset_name}: MSE={mse:.4f}, Correlation={correlation[0]:.4f}, R2={r2:.4f}", level=LoggerObserver.SUCCESS)
 
         reg_perfs = np.array(list(reg_performance["reg-mimiciv"].values()))
         reg_perfs_mean = reg_perfs.mean(0)
         final_perfs["reg-mimiciv-mse"] = reg_perfs_mean[0]
         final_perfs["reg-mimiciv-cor"] = reg_perfs_mean[1]
         final_perfs["reg-mimiciv-r2"] = reg_perfs_mean[2]
+
+        LOGGER.text(f"\nMIMIC-IV Regression Average Performance:", level=LoggerObserver.SUCCESS)
+        LOGGER.text(f"MSE: {reg_perfs_mean[0]:.4f}", level=LoggerObserver.SUCCESS)
+        LOGGER.text(f"Correlation: {reg_perfs_mean[1]:.4f}", level=LoggerObserver.SUCCESS)
+        LOGGER.text(f"R2: {reg_perfs_mean[2]:.4f}", level=LoggerObserver.SUCCESS)
 
         if return_individual_perfs:
             return final_perfs, individual_perfs
