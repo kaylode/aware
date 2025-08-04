@@ -69,7 +69,9 @@ class FullDataset(Dataset):
             self.dataset_ids = (
                 pd.read_csv(f"{config.data.openml.input_folder}/noleak_training_datasets.csv")["did"].values.ravel().tolist()
             )
+        self.dataset_ids = sorted(self.dataset_ids)
         self.datasets = defaultdict(dict)
+        self.dataset_weights = []
 
         # Initialize dataset summary list
         dataset_summary = []
@@ -115,6 +117,7 @@ class FullDataset(Dataset):
                 original_samples,
                 original_features,
             ])
+            self.dataset_weights.append(1.0)
 
         self.mimiciv_id = None # This did has not been used in the training set
         if config.data.use_mimiciv:
@@ -159,6 +162,7 @@ class FullDataset(Dataset):
                 X_train.shape[0],
                 X_train.shape[1],
             ])
+            self.dataset_weights.append(5.0)
 
         if config.data.use_synthetic:
             synthetic_ehrs = [
@@ -192,6 +196,7 @@ class FullDataset(Dataset):
                     original_samples - 1,  # Exclude ptnum column
                     original_features - 2,  # Exclude ptnum and target
                 ])
+                self.dataset_weights.append(5.0)
 
         self._print_dataset_summary(dataset_summary)
 
@@ -417,7 +422,7 @@ class FullDataset(Dataset):
             Tuple[torch.Tensor, torch.Tensor, torch.Tensor]: The input features, target values, and task type.
         """
         # Randomly select a dataset ID
-        did_sample = random.choices(self.dataset_ids, k=1)[0]
+        did_sample = random.choices(self.dataset_ids, k=1, weights=self.dataset_weights)[0]
 
         # Get the dataset
         X_sample, index_sample, _ = self.datasets[did_sample].values()

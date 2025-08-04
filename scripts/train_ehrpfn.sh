@@ -8,32 +8,31 @@ export LOGGING_DIR="/home/mpham/workspace/source/ehrpfn/outputs/tabpfn/logs"
 
 
 USE_HEALTH_DATA=true
-USE_MIMICIV=true
-USE_SYNTHETIC=true
-NUM_FEATURES=300
-RESUME=/home/mpham/workspace/source/ehrpfn/outputs/pretraining/EHRPFN-HEALTH-MIMICIV-SYNTHETIC-300
+USE_MIMICIV=false
+USE_SYNTHETIC=false
+NUM_FEATURES=100
+RESUME=null #/home/mpham/workspace/source/ehrpfn/outputs/pretraining/EHRPFN-HEALTH-MIMICIV-SYNTHETIC-100
+PRETRAINED=/home/mpham/workspace/source/ehrpfn/data/checkpoints/tabdpt1_1.pth
 
-
-PRETRAINED=null
 if [ -n "$PRETRAINED" ]; then
   MODEL_NAME=EHRPFN
 else
   MODEL_NAME=TabDPT
 fi
 
-if [ -n "$USE_SYNTHETIC" ] || [ -n "$USE_HEALTH_DATA" ] || [ -n "$USE_MIMICIV" ]; then
+if $USE_SYNTHETIC || $USE_HEALTH_DATA || $USE_MIMICIV; then
   MODEL_NAME=EHRPFN
 fi
 
-if [ -n "$USE_HEALTH_DATA" ]; then
+if $USE_HEALTH_DATA; then
   MODEL_NAME="${MODEL_NAME}-HEALTH"
 fi
 
-if [ -n "$USE_MIMICIV" ]; then
+if $USE_MIMICIV; then
   MODEL_NAME="${MODEL_NAME}-MIMICIV"
 fi
 
-if [ -n "$USE_SYNTHETIC" ]; then
+if $USE_SYNTHETIC; then
   MODEL_NAME="${MODEL_NAME}-SYNTHETIC"
 fi
 

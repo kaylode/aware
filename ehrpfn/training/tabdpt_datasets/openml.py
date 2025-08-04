@@ -80,7 +80,7 @@ class OpenMLDataset(Dataset):
             raise ValueError("Data not loaded yet")
         return self._openml_dataset
 
-    def prepare_data(self, download_dir: str):
+    def prepare_data(self, download_dir: str, manual_target_column: Optional[str] = None):
         """
         Downloads the OpenML dataset and prepares the data for use.
         Args:
@@ -157,15 +157,26 @@ class OpenMLDataset(Dataset):
 
         self.metadata["categorical_feature_inds"] = categorical_inds
 
+        if y is None:
+            if manual_target_column is not None:
+                if manual_target_column not in X.columns:
+                    raise ValueError(
+                        f"Manual target column '{manual_target_column}' not found in dataset"
+                    )
+                y = X[manual_target_column]
+                X = X.drop(columns=[manual_target_column])
+            else:
+                self.y = None
+                self.metadata["target_type"] = "none"
+                return
+            
         self.X = X.to_numpy().astype(np.float32)
 
-        if y is None:
-            self.y = None
-            self.metadata["target_type"] = "none"
-            return
+        target_column = dataset.default_target_attribute or manual_target_column
 
         target_feature = [
-            f for f in dataset.features.values() if f.name == dataset.default_target_attribute
+            f for f in dataset.features.values()
+            if f.name == target_column
         ][0]
 
         # encode target variable if it is categorical

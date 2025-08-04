@@ -71,3 +71,4 @@ logging:
   eval_every: 10
   save_metrics:
     - cls-mimiciv-auc
+    - cls-health-auc

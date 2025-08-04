@@ -17,6 +17,7 @@ import wandb
 from ehrpfn.utils.logger import LoggerObserver
 from ehrpfn.training.datasets import FullDataset, collate_fn
 from ehrpfn.training.eval_full import FullEval
+from ehrpfn.training.eval_health import FullHealthEval
 from ehrpfn.training.eval_mimic import MIMICIVOutcomesEval
 from ehrpfn.training.model import TabDPTModel
 from ehrpfn.training.utils import (
@@ -261,6 +262,12 @@ def main(config: DictConfig):
 
     if config.data.use_health_data:
         vals = [
+            FullHealthEval(
+                device=device,
+                max_feat=config.model.max_num_features,
+                use_retrieval=config.data.eval_retrieval,
+                data_folder=config.data.openml.input_folder,
+            ),
             MIMICIVOutcomesEval(
                 device=device,
                 max_feat=config.model.max_num_features,
