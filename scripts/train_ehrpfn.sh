@@ -1,27 +1,30 @@
 export LOGGING_DIR="/home/mpham/workspace/source/ehrpfn/outputs/tabpfn/logs"
-# CUDA_VISIBLE_DEVICES=0 torchrun \
-#   --nproc_per_node=1 \
-#   --rdzv_endpoint=localhost:29500 train.py \
-#   env.gpus="[0]" \
-#   exp_name="tabdpt" \
-#   model.max_num_features=100
+export NCCL_DEBUG=INFO
+export NCCL_TIMEOUT=1800
+export NCCL_IB_DISABLE=1
+export NCCL_P2P_DISABLE=1
+export CUDA_LAUNCH_BLOCKING=1
 
-
+USE_GENERAL_DATA=true
 USE_HEALTH_DATA=true
 USE_MIMICIV=false
-USE_SYNTHETIC=false
+USE_SYNTHETIC=true
 NUM_FEATURES=100
-RESUME=null #/home/mpham/workspace/source/ehrpfn/outputs/pretraining/EHRPFN-HEALTH-MIMICIV-SYNTHETIC-100
-PRETRAINED=/home/mpham/workspace/source/ehrpfn/data/checkpoints/tabdpt1_1.pth
+NUM_MODEL_UPDATES=512
+EVAL_EVERY=15
 
-if [ -n "$PRETRAINED" ]; then
-  MODEL_NAME=EHRPFN
-else
-  MODEL_NAME=TabDPT
-fi
+
+RESUME=/home/mpham/workspace/source/ehrpfn/outputs/pretraining/EHRPFN-GENERAL-HEALTH-SYNTHETIC-100
+PRETRAINED=null #/home/mpham/workspace/source/ehrpfn/outputs/pretraining/TabDPT-100/tabdpt1_1.pth
+
+MODEL_NAME=TabDPT
 
 if $USE_SYNTHETIC || $USE_HEALTH_DATA || $USE_MIMICIV; then
   MODEL_NAME=EHRPFN
+fi
+
+if $USE_GENERAL_DATA; then
+  MODEL_NAME="${MODEL_NAME}-GENERAL"
 fi
 
 if $USE_HEALTH_DATA; then
@@ -42,9 +45,34 @@ CUDA_VISIBLE_DEVICES=0 python ehrpfn/train.py \
   exp_name=$EXP_NAME \
   model.max_num_features=$NUM_FEATURES \
   training.batch_size=64 \
+  data.use_general_data=$USE_GENERAL_DATA \
   data.use_health_data=$USE_HEALTH_DATA \
   data.use_mimiciv=$USE_MIMICIV \
   data.use_synthetic=$USE_SYNTHETIC \
   training.num_epochs=2048 \
   training.resume=$RESUME \
-  training.pretrained=$PRETRAINED
+  training.pretrained=$PRETRAINED \
+  training.num_model_updates=$NUM_MODEL_UPDATES \
+  logging.eval_every=$EVAL_EVERY \
+  training.eval_only=false
+
+
+# CUDA_VISIBLE_DEVICES=0 torchrun \
+#   --nnodes=1 \
+#   --nproc_per_node=1 \
+#   --rdzv_endpoint=localhost:29500 ehrpfn/train.py \
+#   env.gpus="[0]" \
+#   exp_name=$EXP_NAME \
+#   model.max_num_features=$NUM_FEATURES \
+#   training.batch_size=64 \
+#   data.use_general_data=$USE_GENERAL_DATA \
+#   data.use_health_data=$USE_HEALTH_DATA \
+#   data.use_mimiciv=$USE_MIMICIV \
+#   data.use_synthetic=$USE_SYNTHETIC \
+#   training.num_epochs=2048 \
+#   training.resume=$RESUME \
+#   training.pretrained=$PRETRAINED \
+#   training.num_model_updates=$NUM_MODEL_UPDATES \
+#   logging.eval_every=$EVAL_EVERY \
+#   training.eval_only=false
+
