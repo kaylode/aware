@@ -13,6 +13,9 @@ from ehrpfn.training.model import TabDPTModel, Task
 from ehrpfn.training.tabdpt import TabDPTClassifier, TabDPTRegressor
 from ehrpfn.training.utils import FAISS, DataPreprocessor
 
+from ehrpfn.utils.logger import LoggerObserver
+LOGGER = LoggerObserver.getLogger('main')
+
 
 class FullEval:
     def __init__(
@@ -153,6 +156,13 @@ class FullEval:
             )
             cls_performance["cc18"][did] = [acc, f1, auc, ce]
             individual_perfs[dataset_name] = [acc, f1, auc, ce]
+            LOGGER.text(f"\nOpenML [{dataset_name}] Performance:", level=LoggerObserver.SUCCESS)
+            LOGGER.text({
+                "ACC": acc,
+                "F1": f1,
+                "AUC": auc,
+                "CE": ce.item()
+            }, level=LoggerObserver.SUCCESS)
 
         cls_perfs = np.array(list(cls_performance["cc18"].values()))
         cls_perfs_mean = cls_perfs.mean(0)
@@ -180,11 +190,21 @@ class FullEval:
             reg_performance["ctr"][did] = [mse, correlation[0], r2]
             individual_perfs[dataset_name] = [mse, correlation[0], r2]
 
+            LOGGER.text(f"\nOpenML [{dataset_name}] Performance:", level=LoggerObserver.SUCCESS)
+            LOGGER.text({
+                "MSE": mse,
+                "Correlation": correlation[0],
+                "R2": r2
+            }, level=LoggerObserver.SUCCESS)
+
         reg_perfs = np.array(list(reg_performance["ctr"].values()))
         reg_perfs_mean = reg_perfs.mean(0)
         final_perfs["reg-ctr-mse"] = reg_perfs_mean[0]
         final_perfs["reg-ctr-cor"] = reg_perfs_mean[1]
         final_perfs["reg-ctr-r2"] = reg_perfs_mean[2]
+
+        LOGGER.text(f"\nOpenML Average Performance:", level=LoggerObserver.SUCCESS)
+        LOGGER.text(final_perfs, level=LoggerObserver.SUCCESS)
 
         if return_individual_perfs:
             return final_perfs, individual_perfs
