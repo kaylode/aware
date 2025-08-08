@@ -52,6 +52,12 @@ dependencies = [
     "schedulefree==1.4.1",
     "tensorboard==2.20.0",
     "dill==0.4.0",
+    "levenshtein==0.27.1",
+    "optuna-integration==4.4.0",
+    "seaborn==0.13.2",
+    "lime==0.2.0.1",
+    "scikit-plot==0.3.7",
+    "kaleido==1.0.0",
     "tabpfn @ git+https://github.com/PriorLabs/TabPFN.git"
 ]
 
