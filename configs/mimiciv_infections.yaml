@@ -3,19 +3,20 @@ defaults:
   - _self_
 
 data_name: mimiciv_infections
-train_folder: /home/mpham/workspace/source/tabpfn-ehr/data/mimiciv-icu-gbms-events/train
-test_folder: /home/mpham/workspace/source/tabpfn-ehr/data/mimiciv-icu-gbms-events/test
-output_folder: /home/mpham/workspace/source/tabpfn-ehr/outputs/tabpfn
-train_label_path: /home/mpham/workspace/source/tabpfn-ehr/outputs/tabpfn/labels/COMBINED/train_labels.csv
-test_label_path: /home/mpham/workspace/source/tabpfn-ehr/outputs/tabpfn/labels/COMBINED/test_labels.csv
-process_file_path: /home/mpham/workspace/source/tabpfn-ehr/outputs/tabpfn/data/mimiciv_outcomes/process
+train_folder: null
+test_folder: null
+data_folder: /home/mpham/workspace/source/ehrpfn/data/processed
+output_folder: /home/mpham/workspace/source/ehrpfn/outputs/tabpfn
+train_label_path: /home/mpham/workspace/source/ehrpfn/data/labels/PATIENT_INFECTION/train_labels.csv
+test_label_path: /home/mpham/workspace/source/ehrpfn/data/labels/PATIENT_INFECTION/test_labels.csv
+process_file_path: /home/mpham/workspace/source/ehrpfn/data/processed/mimiciv_infections/process
 n_process_variants: 50
-trajectory_file_path: /home/mpham/workspace/source/tabpfn-ehr/outputs/tabpfn/data/mimiciv_outcomes/process
+trajectory_file_path: /home/mpham/workspace/source/ehrpfn/data/processed/mimiciv_infections/process
 feature_selection_path: null
 selection_method: null
 retrieval_method: null
 target_column: null
-icu_ids: /home/mpham/workspace/source/tabpfn-ehr/data/mimiciv-icu-gbms-events/icu_subject_ids.txt
+icu_ids: /home/mpham/workspace/source/ehrpfn/data/processed/mimiciv_infections/icu_subject_ids.txt
 method: xgboost
 use_best_params: false
 direction: maximize
@@ -30,7 +31,7 @@ inf_batch_size: 512
 context_size: 1024
 num_features: 100
 n_ensembles: 8
-pretrain_mode: DEFAULT
+pretrained_path: null
 
 wandb:
   project: tabpfn-ehr

@@ -29,7 +29,7 @@ training:
   batch_size: 256 # to be adjusted based on the number of gpus
   lr: 0.0005
   weight_decay: 0.05
-  dropout: 0.0
+  dropout: 0.1
   # minimum number of elements in the context: too low means lots of noise, too high means we never see small contexts
   min_eval_pos: 50
   # maximum number of elements in the context
@@ -45,6 +45,7 @@ training:
   clip_grad_norm: 1
   resume: null
   pretrained: null
+  eval_only: false
 
 
 data:
@@ -54,6 +55,8 @@ data:
   retrieval: true
   # retrieval during eval: this may take more memory than the training, be careful with memory
   eval_retrieval: true
+
+  use_general_data: false # use general data for training
   use_mimiciv: false # use mimiciv data for training
   use_health_data: false # use health data for training
   use_synthetic: false
@@ -72,3 +75,4 @@ logging:
   save_metrics:
     - cls-mimiciv-auc
     - cls-health-auc
+    - cls-cc18-auc
