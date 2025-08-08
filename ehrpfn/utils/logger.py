@@ -114,6 +114,12 @@ class LoggerObserver(object):
         self.subscriber.append(subscriber)
 
     def log(self, logs: List[Dict]):
+        
+        # Support distributed logging
+        is_master = (not torch.distributed.is_initialized()) or (torch.distributed.get_rank() == 0)
+        if not is_master:
+            return
+        
         for subscriber in self.subscriber:
             for log in logs:
                 tag = log["tag"]

@@ -3,7 +3,13 @@ import torch
 import pandas as pd
 import polars as pl
 import faiss
-from ehrpfn.process.graph import convert_pathways_to_int_lists, calculate_ed_queries_to_pool
+import multiprocessing as mp
+from functools import partial
+from ehrpfn.process.graph import (
+    convert_pathways_to_int_lists, 
+    calculate_ed_queries_to_pool, 
+    calculate_ed_queries_to_pool_parallel
+)
 
 class FAISS:
     def __init__(self, X):
@@ -49,7 +55,13 @@ class ProcessRetriever:
             pathway_column=self.pathway_column
         )
 
-        lev_results = calculate_ed_queries_to_pool(query_pathways, self.pool_pathways, return_sorted=True)
+        # lev_results = calculate_ed_queries_to_pool(query_pathways, self.pool_pathways, k=k, return_sorted=True)
+        
+        # Use optimized parallel version
+        lev_results = calculate_ed_queries_to_pool_parallel(
+            query_pathways, self.pool_pathways, 
+            return_sorted=True, k=k, n_jobs=4
+        )
 
         results = []
         for query_results in lev_results:
@@ -61,7 +73,6 @@ class ProcessRetriever:
         results = np.array(results)
         return results
 
-
 class TrajectoriesRetriever:
     def __init__(self, X, X_traj):
         assert isinstance(X, np.ndarray), "X must be a numpy array"
@@ -72,6 +83,8 @@ class TrajectoriesRetriever:
         self.faiss = FAISS(self.X_traj)
 
     def retrieve(self, queries, queries_traj, k, **kwargs):
+        if len(queries_traj.shape) == 1:
+            queries_traj = queries_traj.reshape(1, -1)
         return self.faiss.retrieve(queries_traj, k)
     
 class ProcessTFIDFRetriever:

@@ -96,7 +96,7 @@ def run_regression_metrics(y_pred, y):
     mape = np.mean(np.abs((y - y_pred) / y)) * 100 if np.any(y) else np.nan
     evs = explained_variance_score(y, y_pred)
     medae = median_absolute_error(y, y_pred)
-    msle = mean_squared_log_error(y, y_pred) if np.all(y >= 0) else np.nan
+    msle = mean_squared_log_error(y, y_pred) if np.all(y >= 0) and np.all(y_pred >= 0) else np.nan
     
     score = {
         'mse': float(mse),

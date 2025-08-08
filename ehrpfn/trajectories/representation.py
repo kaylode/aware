@@ -8,6 +8,7 @@ import json
 import polars as pl
 from torch.utils.data import DataLoader, Dataset
 from ehrpfn.utils import seed_everything
+from ehrpfn.utils.vocabulary import Vocabulary
 
 from ehrpfn.trajectories.cohort import DISEASE_GROUP_TO_ICDS
 
@@ -430,6 +431,14 @@ def preprocess_data_mimic(data_name:str):
             df_codes = df_codes.filter(
                 ~pl.col("code").str.split('//').list[-1].is_in(RARE_DISEASE_ICDS)
             )
+
+        # Store unique codes for mapping
+        # unique_codes = df_codes.select(pl.col("code").unique().sort()).to_numpy().tolist()
+        # unique_codes = [i[0] for i in unique_codes]  # Flatten
+        # vocab = Vocabulary()
+        # vocab.add_words(unique_codes)
+        # vocab.dump(f"{DATASET_PATH}/process")
+
 
         # Create process pathways with backward-looking features
         traj_df = df_codes.group_by(["subject_id", "admission_id"]).agg(
