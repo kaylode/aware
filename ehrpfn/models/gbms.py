@@ -38,6 +38,7 @@ def fit_xgboost(params, X_train, X_val, y_train, y_val, is_classification=True):
         params.update({
             'eval_metric': ['auc'],
             'objective': objective_fn,
+            'early_stopping_rounds': 100
         })
         model = xgb.XGBClassifier(**params)
     else:
@@ -46,7 +47,7 @@ def fit_xgboost(params, X_train, X_val, y_train, y_val, is_classification=True):
             'objective': 'reg:squarederror',
         })
         model = xgb.XGBRegressor(**params)
-    model.fit(X_train, y_train, eval_set=[(X_val, y_val)], verbose=True, early_stopping_rounds=50)
+    model.fit(X_train, y_train, eval_set=[(X_val, y_val)], verbose=True)
     return model, params
 
 def fit_catboost(params, X_train, X_val, y_train, y_val, is_classification:bool=True, cat_features=None):
@@ -397,21 +398,20 @@ class Tuner:
             })
         LOGGER.text(f"Best trial: {best_trial.number} with value: {best_trial.value}", level=LoggerObserver.INFO)
 
-        if is_classification:
-            fig = visualize_shap(
-                best_model, 
-                X_val, 
-                feature_names=[],
-                classnames=['0', '1'],
-                plot_type="bar",
-                plot_size=(12, 6),
-                cross_validation=False
-            )
-            fig.savefig(osp.join(self.save_dir, 'shap_summary.png'), bbox_inches='tight')
-            wandb.log({"Shap Summary": wandb.Image(fig)})
-            LOGGER.text(f"Shap Summary plot saved to {self.save_dir}/shap_summary.png", level=LoggerObserver.INFO)
-        else:
-            LOGGER.text("Shap values are not supported for regression tasks.", level=LoggerObserver.WARNING)
+        # if is_classification:
+        #     fig = visualize_shap(
+        #         best_model, 
+        #         X_val, 
+        #         classnames=['0', '1'],
+        #         plot_type="bar",
+        #         plot_size=(12, 6),
+        #         cross_validation=False
+        #     )
+        #     fig.savefig(osp.join(self.save_dir, 'shap_summary.png'), bbox_inches='tight')
+        #     wandb.log({"Shap Summary": wandb.Image(fig)})
+        #     LOGGER.text(f"Shap Summary plot saved to {self.save_dir}/shap_summary.png", level=LoggerObserver.INFO)
+        # else:
+        #     LOGGER.text("Shap values are not supported for regression tasks.", level=LoggerObserver.WARNING)
 
         
 

@@ -13,23 +13,15 @@ from ehrpfn.utils.retrieval import FAISS
 
 
 class TabDPTEstimator(BaseEstimator):
-    _DEFAULT_CHECKPOINT_PATH = {
-        "DEFAULT_500": "checkpoints/tabdpt_500.ckpt",
-        "DEFAULT_300": "checkpoints/tabdpt_300.ckpt",
-        "DEFAULT_100": "checkpoints/tabdpt1_1.pth",
-        "HEALTH_100": "checkpoints/ehrdpt_100.ckpt",
-        "HEALTH_300": "checkpoints/ehrdpt_300.ckpt",
-        "HEALTH_500": "checkpoints/ehrdpt_500.ckpt",
-    }
     _DEFAULT_DEVICE = "cuda:0"
 
-    def __init__(self, mode: str, model_name:str='DEFAULT_100', inf_batch_size: int = 512, device: str = _DEFAULT_DEVICE,
+    def __init__(self, mode: str, pretrained_path:str=None, inf_batch_size: int = 512, device: str = _DEFAULT_DEVICE,
                  use_flash: bool = True, compile: bool = True):
         self.mode = mode
         self.inf_batch_size = inf_batch_size
         self.device = device
         self.use_flash = use_flash
-        path = self._DEFAULT_CHECKPOINT_PATH[model_name]
+        path = pretrained_path
 
         # automatically download model weight if path is not found
         if not os.path.exists(path):

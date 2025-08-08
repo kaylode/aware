@@ -260,31 +260,28 @@ def main(config: DictConfig):
     # set validation datasets
     # TODO : make this configurable
 
-    if config.data.use_health_data:
-        vals = [
-            FullHealthEval(
-                device=device,
-                max_feat=config.model.max_num_features,
-                use_retrieval=config.data.eval_retrieval,
-                data_folder=config.data.openml.input_folder,
-            ),
-            MIMICIVOutcomesEval(
-                device=device,
-                max_feat=config.model.max_num_features,
-                use_retrieval=config.data.eval_retrieval,
-                data_path=config.data.mimiciv.val_folder,
-                label_path=config.data.mimiciv.val_label_folder,
-            ),
-        ]
-    else:
-        vals = [
-            FullEval(
-                device=device,
-                max_feat=config.model.max_num_features,
-                use_retrieval=config.data.eval_retrieval,
-                data_folder=config.data.openml.input_folder,
-            ),
-        ]
+    vals = [
+        FullEval(
+            device=device,
+            max_feat=config.model.max_num_features,
+            use_retrieval=config.data.eval_retrieval,
+            data_folder=config.data.openml.input_folder,
+        ),
+        FullHealthEval(
+            device=device,
+            max_feat=config.model.max_num_features,
+            use_retrieval=config.data.eval_retrieval,
+            data_folder=config.data.openml.input_folder,
+        ),
+        MIMICIVOutcomesEval(
+            device=device,
+            max_feat=config.model.max_num_features,
+            use_retrieval=config.data.eval_retrieval,
+            data_path=config.data.mimiciv.val_folder,
+            label_path=config.data.mimiciv.val_label_folder,
+        ),
+    ]
+
        
 
     # select the device type
@@ -317,15 +314,15 @@ def main(config: DictConfig):
     tags = [f"FEAT:{config.model.max_num_features}"]
 
     if config.data.use_health_data:
-        tags.append("PRETRAINED:HEALTH")
+        tags.append("PRETRAIN:HEALTH")
     else:
-        tags.append("PRETRAINED:DEFAULT")
+        tags.append("PRETRAIN:DEFAULT")
 
     if config.data.use_synthetic:
-        tags.append("PRETRAINED:SYNTHETIC")
+        tags.append("PRETRAIN:SYNTHETIC")
 
     if config.data.use_mimiciv:
-        tags.append("PRETRAINED:MIMICIV")
+        tags.append("PRETRAIN:MIMICIV")
 
     ## Init wandb logger
     wandb_kwargs = {
@@ -361,6 +358,28 @@ def main(config: DictConfig):
     # Synchronize all processes so that the directory is created before continuing
     if torch.distributed.is_initialized():
         torch.distributed.barrier()
+
+    if config.training.eval_only:
+        # Start with evaluation
+        if using_dist:
+            torch.distributed.barrier()
+        if isinstance(model, torch.nn.parallel.DistributedDataParallel):
+            model_eval: nn.Module = model.module
+        else:
+            model_eval: nn.Module = model
+        # save evaluation checkpoints and log metrics
+        save_eval_callback_wandb(
+            model_eval, optimizer, vals, 
+            stats["epoch_in_training"], 
+            config, rank, stats, 
+            config.training.num_model_updates * config.training.num_agg * (stats["epoch_in_training"])
+        )
+        if using_dist:
+            torch.distributed.barrier()
+        if using_dist:
+            cleanup()
+        wandb.finish()
+        return
 
     # Initialize the outer training loop
     for epoch in range(stats["epoch_in_training"] + 1, config.training.num_epochs + 1):

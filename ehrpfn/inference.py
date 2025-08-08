@@ -11,6 +11,7 @@ from ehrpfn.utils import load_model, save_model
 import xgboost as xgb
 
 from tabpfn import TabPFNClassifier, TabPFNRegressor
+from ehrpfn.models import get_tabpfn_knn_results
 from tabpfn.model.loading import (
     load_fitted_tabpfn_model,
     save_fitted_tabpfn_model,
@@ -29,7 +30,7 @@ def run(args: DictConfig):
 
     seed_everything(args.seed)
 
-    data_output_folder = osp.join(args.output_folder, "data", args.data_name)
+    data_output_folder = osp.join(args.data_folder, args.data_name)
     result_folder = osp.join(args.output_folder, "results", args.data_name, args.target_column)
     os.makedirs(result_folder, exist_ok=True)
     os.makedirs(data_output_folder, exist_ok=True)
@@ -92,6 +93,7 @@ def run(args: DictConfig):
     X_train_traj = data.get('X_train_traj', None)
     X_test_traj = data.get('X_test_traj', None)
 
+
     if X_train_process is not None:
         assert X_train_process.shape[0] == X_train.shape[0], "X_train_process must have the same number of samples as X_train"
         assert X_test_process.shape[0] == X_test.shape[0], "X_test_process must have the same number of samples as X_test"
@@ -127,6 +129,7 @@ def run(args: DictConfig):
     y_test = y_test.astype(int)
 
     LOGGER.text(f"Data shape: {X_train.shape}, {X_test.shape}", level=LoggerObserver.DEBUG)
+    LOGGER.text(f"Saving data to {data_output_folder}", level=LoggerObserver.DEBUG)
 
     result_folder = osp.join(result_folder, study_name)
     os.makedirs(result_folder, exist_ok=True)
@@ -147,12 +150,16 @@ def run(args: DictConfig):
     else:
         is_classification = True
 
-    tags = [f"METHOD:{args['method']}", f"TASK:{args['target_column']}", f"FEAT:{args.num_features}", f"PRETRAIN:{args.pretrain_mode}"]
+    tags = [f"METHOD:{args['method']}", f"TASK:{args['target_column']}", f"FEAT:{args.num_features}"]
     if args.sampling is not None:
         tags.append(f"SAMPLING:{args['sampling']}")
     if args.selection_method is not None:
         tags.append(f"SELECTION:{args['selection_method']}")
-    
+    if args.pretrained_path is not None:
+        _pretrained_name = osp.basename(osp.dirname(args.pretrained_path))
+        for tok in _pretrained_name.split('-'):
+            if tok in ['HEALTH', 'MIMICIV', 'SYNTHETIC']:
+                tags.append(f"PRETRAIN:{tok}")
 
     if args.method in ['xgboost', 'rf', 'catboost', 'lightgbm']:
         
@@ -213,6 +220,11 @@ def run(args: DictConfig):
     
 
     elif args.method == "tabpfn":
+
+        from ehrpfn.models.TabPFN.utils import (
+            default_classifier_preprocessor_configs,
+            default_regressor_preprocessor_configs,
+        )
         
         if is_classification:
             if args.selection_method is not None:
@@ -228,7 +240,13 @@ def run(args: DictConfig):
                 random_state=args.seed,
                 memory_saving_mode=True,
                 fit_mode = 'low_memory',
-                inference_config={"SUBSAMPLE_SAMPLES": args.inf_batch_size}  # Needs to be set low so that not OOM on fitting intermediate nodes
+                inference_config={
+                    "SUBSAMPLE_SAMPLES": args.context_size,
+                    "FEATURE_SHIFT_METHOD": "shuffle",
+                    'FINGERPRINT_FEATURE': False,
+                    "CLASS_SHIFT_METHOD": "shuffle",
+                    "PREPROCESS_TRANSFORMS": default_classifier_preprocessor_configs(),
+                }  # Needs to be set low so that not OOM on fitting intermediate nodes
             )
         else:
             model = TabPFNRegressor(
@@ -240,7 +258,13 @@ def run(args: DictConfig):
                 random_state=args.seed,
                 memory_saving_mode=True,
                 n_jobs=4,
-                inference_config={"SUBSAMPLE_SAMPLES": args.inf_batch_size}  # Needs to be set low so that not OOM on fitting intermediate nodes
+                inference_config={
+                    "SUBSAMPLE_SAMPLES": args.context_size,
+                    "FEATURE_SHIFT_METHOD": "shuffle",
+                    'FINGERPRINT_FEATURE': False,
+                    "CLASS_SHIFT_METHOD": "shuffle",
+                    "PREPROCESS_TRANSFORMS": default_regressor_preprocessor_configs(),
+                }  # Needs to be set low so that not OOM on fitting intermediate nodes
             )
         model.fit(X_train, y_train)
         # save_fitted_tabpfn_model(model, osp.join(result_folder, 'model.tabpfn_fit'))
@@ -260,69 +284,27 @@ def run(args: DictConfig):
             )
         running_time = time.time() - start_time
 
-    elif args.method == "tabpfn-knn":
+    elif args.method == "tabpfn-retrieval":
 
-        from ehrpfn.utils.retrieval import FAISS
-        from tqdm import tqdm
-        retriever = FAISS(X_train)
-        all_predictions = []
-        
+        if args.retrieval_method is not None:
+            tags.append(f"RETRIEVAL:{args['retrieval_method']}")
 
         start_time = time.time()
-        for i in tqdm(range(X_test.shape[0])):
-            item = X_test[i].reshape(1, -1)
-            nn_indices = retriever.retrieve(item, k=1024)[0]
-            X_context = X_train[nn_indices, :]
-            y_context = y_train[nn_indices]
-            if is_classification:
-                if args.selection_method is not None:
-                    device = 'cuda'
-                else:
-                    device = 'cpu'
-            
-                model = TabPFNClassifier(
-                    n_estimators=args.n_ensembles,
-                    ignore_pretraining_limits=True,
-                    categorical_features_indices=categorical_feature_indices,
-                    device=device,
-                    n_jobs=-1,
-                    random_state=args.seed,
-                    memory_saving_mode=True,
-                )
-            else:
-                model = TabPFNRegressor(
-                    n_estimators=args.n_ensembles,
-                    ignore_pretraining_limits=True,
-                    categorical_features_indices=categorical_feature_indices,
-                    device="cpu",
-                    random_state=args.seed,
-                    memory_saving_mode=True,
-                    n_jobs=-1,
-                )
+        all_predictions = get_tabpfn_knn_results(
+            X_train, y_train, 
+            X_test, 
+            categorical_feature_indices, 
+            is_classification, 
+            n_ensembles=args.n_ensembles,
+            context_size=args.context_size,
+            retrieval_method=args.retrieval_method,
+            seed=args.seed,
+            X_processes_train=X_train_process,
+            X_traj_train=X_train_traj,
+            X_processes_test=X_test_process,
+            X_traj_test=X_test_traj
+        )
 
-            try:
-                X_context = X_context + np.random.normal(0, 1e-6, X_context.shape)
-                model.fit(X_context, y_context)
-                if is_classification:
-                    y_pred = model.predict_proba(item)
-                    if y_pred.shape[1] != 2:
-                        y_pred = np.zeros((1, 2))
-                        max_freq_class = np.bincount(y_context).argmax()
-                        y_pred[0, max_freq_class] = 1.0
-                else:
-                    y_pred = model.predict(item)
-            except Exception as e:
-                if is_classification:
-                    y_pred = np.zeros((1, 2))
-                    max_freq_class = np.bincount(y_context).argmax()
-                    y_pred[0, max_freq_class] = 1.0
-                else:
-                    y_pred = np.zeros((1, model.n_classes_))
-                    y_pred[0, -1] = -1
-            
-            all_predictions.append(y_pred)
-
-        all_predictions = np.concatenate(all_predictions, axis=0)
         if is_classification:
             score = run_binary_classification_metrics(
                 all_predictions, 
@@ -335,46 +317,48 @@ def run(args: DictConfig):
             )
         running_time = time.time() - start_time
 
-    elif args.method == 'tabdpt':
-        from ehrpfn.models import TabDPTClassifier, TabDPTRegressor
+    # elif args.method == 'tabdpt':
+    #     from ehrpfn.models import TabDPTClassifier, TabDPTRegressor
 
-        if is_classification:
-            model = TabDPTClassifier(
-                model_name=f"{args.pretrain_mode}_{args.num_features}",
-                inf_batch_size=args.inf_batch_size
-            )
-        else:
-            model = TabDPTRegressor(
-                model_name=f"{args.pretrain_mode}_{args.num_features}",
-                inf_batch_size=args.inf_batch_size
-            )
+    #     tags.append("RETRIEVAL:faiss") # default retrieval method for TabDPT
 
-        model.fit(X_train, y_train)
-        save_model(model, osp.join(result_folder, 'model.pkl'))
-        start_time = time.time()
-        if is_classification:
-            y_pred = model.predict(
-                X_test, 
-                n_ensembles=args.n_ensembles,
-                temperature=0.8, context_size=args.context_size
-            )
-            score = run_binary_classification_metrics(
-                y_pred, 
-                y_test,
-            )
-        else:
-            y_pred = model.predict(
-                X_test, 
-                n_ensembles=args.n_ensembles,
-                context_size=args.context_size
-            )
-            score = run_regression_metrics(
-                y_pred, 
-                y_test,
-            )
-        running_time = time.time() - start_time
+    #     if is_classification:
+    #         model = TabDPTClassifier(
+    #             pretrained_path=args.pretrained_path,
+    #             inf_batch_size=args.inf_batch_size
+    #         )
+    #     else:
+    #         model = TabDPTRegressor(
+    #             pretrained_path=args.pretrained_path,
+    #             inf_batch_size=args.inf_batch_size
+    #         )
 
-    elif args.method == 'ehrpfn':
+    #     model.fit(X_train, y_train)
+    #     save_model(model, osp.join(result_folder, 'model.pkl'))
+    #     start_time = time.time()
+    #     if is_classification:
+    #         y_pred = model.predict(
+    #             X_test, 
+    #             n_ensembles=args.n_ensembles,
+    #             temperature=0.8, context_size=args.context_size
+    #         )
+    #         score = run_binary_classification_metrics(
+    #             y_pred, 
+    #             y_test,
+    #         )
+    #     else:
+    #         y_pred = model.predict(
+    #             X_test, 
+    #             n_ensembles=args.n_ensembles,
+    #             context_size=args.context_size
+    #         )
+    #         score = run_regression_metrics(
+    #             y_pred, 
+    #             y_test,
+    #         )
+    #     running_time = time.time() - start_time
+
+    elif args.method in ['tabdpt', 'ehrpfn']:
         from ehrpfn.models import EHRPFNClassifier, EHRPFNRegressor
 
         if args.retrieval_method is not None:
@@ -382,15 +366,17 @@ def run(args: DictConfig):
 
         if is_classification:
             model = EHRPFNClassifier(
-                model_name=f"{args.pretrain_mode}_{args.num_features}",
+                pretrained_path=args.pretrained_path,
                 retrieval_method=args.retrieval_method, 
-                inf_batch_size=args.inf_batch_size
+                inf_batch_size=args.inf_batch_size,
+                categorical_feature_indices=categorical_feature_indices
             )
         else:
             model = EHRPFNRegressor(
-                model_name=f"{args.pretrain_mode}_{args.num_features}",
+                pretrained_path=args.pretrained_path,
                 retrieval_method=args.retrieval_method,
-                inf_batch_size=args.inf_batch_size
+                inf_batch_size=args.inf_batch_size,
+                categorical_feature_indices=categorical_feature_indices
             )
 
 

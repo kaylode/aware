@@ -13,23 +13,16 @@ from ehrpfn.utils.retrieval import FAISS
 
 
 class TabDPTEstimator(BaseEstimator):
-    _DEFAULT_CHECKPOINT_PATH = {
-        "DEFAULT_500": "/home/mpham/workspace/source/tabpfn-ehr/TabDPT/checkpoints/tabdpt_500.ckpt",
-        "DEFAULT_300": "/home/mpham/workspace/source/tabpfn-ehr/TabDPT/checkpoints/tabdpt_300.ckpt",
-        "DEFAULT_100": "/home/mpham/workspace/source/tabpfn-ehr/TabDPT/checkpoints/tabdpt1_1.pth",
-        "HEALTH_100": "/home/mpham/workspace/source/tabpfn-ehr/TabDPT/checkpoints/ehrdpt_100.ckpt",
-        "HEALTH_300": "/home/mpham/workspace/source/tabpfn-ehr/TabDPT/checkpoints/ehrdpt_300.ckpt",
-        "HEALTH_500": "/home/mpham/workspace/source/tabpfn-ehr/TabDPT/checkpoints/ehrdpt_500.ckpt",
-    }
     _DEFAULT_DEVICE = "cuda:0"
 
-    def __init__(self, mode: str, model_name:str='DEFAULT_100', inf_batch_size: int = 512, device: str = _DEFAULT_DEVICE,
-                 use_flash: bool = True, compile: bool = True):
+    def __init__(self, mode: str, pretrained_path:str=None, inf_batch_size: int = 512, device: str = _DEFAULT_DEVICE,
+                 use_flash: bool = True, compile: bool = True, categorical_feature_indices: list = None):
         self.mode = mode
         self.inf_batch_size = inf_batch_size
         self.device = device
         self.use_flash = use_flash
-        path = self._DEFAULT_CHECKPOINT_PATH[model_name]
+        path = pretrained_path
+        self.categorical_feature_indices = categorical_feature_indices
 
         # automatically download model weight if path is not found
         if not os.path.exists(path):
