@@ -61,15 +61,19 @@ class FullDataset(Dataset):
 
         # Load dataset IDs from CSV file
         # TODO: make dataset_ids configurable
+        self.dataset_ids = []
         if config.data.use_health_data:
-            self.dataset_ids = (
+            self.dataset_ids.extend(
                 pd.read_csv(f"{config.data.openml.input_folder}/health_training_datasets.csv")["did"].values.ravel().tolist()
             )
-        else:
-            self.dataset_ids = (
+
+        if config.data.use_general_data:
+            self.dataset_ids.extend(
                 pd.read_csv(f"{config.data.openml.input_folder}/noleak_training_datasets.csv")["did"].values.ravel().tolist()
             )
-        self.dataset_ids = sorted(self.dataset_ids)
+
+        if len(self.dataset_ids) > 0:
+            self.dataset_ids = sorted(self.dataset_ids)
         self.datasets = defaultdict(dict)
         self.dataset_weights = []
 
@@ -172,8 +176,10 @@ class FullDataset(Dataset):
             synthetic_names = ["Synthea-Stroke", "Synthea-LC"]
             for i, (ehr, name) in enumerate(zip(synthetic_ehrs, synthetic_names)):
                 # Preprocess the synthetic EHRs
+                preprocessor = DataPreprocessor()
                 ehr = ehr.drop(columns=["ptnum"])
                 X, y = ehr.iloc[:, 1:], ehr.iloc[:, 0]
+                original_samples, original_features = X.shape
                 X, y, cat_vals, _ = preprocessor.convert_cat2num(X, y)
                 X = preprocessor.imputer.fit_transform(X)
                 X = preprocessor.scaler.fit_transform(X)

@@ -460,6 +460,10 @@ def make_inputs_targets(df: pl.DataFrame, target_column:str, feature_selection_p
     """
     assert target_column in df.columns
 
+    if target_column in ['NEXT_ADMISSION_LOS']:
+        # Drop negative values
+        df = df.filter(pl.col(target_column) >= 0)
+
     x, y = df.drop([target_column]), df[target_column]
 
     # Filter features
@@ -472,6 +476,7 @@ def make_inputs_targets(df: pl.DataFrame, target_column:str, feature_selection_p
 
     if target_column in ['DEATH']:
         x = x.drop(['DISCHARGE_LOCATION'], strict=False)
+    
 
     # Load top features
     if selection_method is not None:
