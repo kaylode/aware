@@ -1,7 +1,6 @@
 METHOD=$1
 
-ROOT=/home/mpham/workspace/source/tabpfn-ehr
-DATA_FOLDER="${ROOT}/data/mimiciv-icu-gbms-events"
+ROOT=/home/mpham/workspace/source/ehrpfn
 export HYDRA_FULL_ERROR=1
 export LOGGING_DIR="${ROOT}/outputs/tabpfn/logs"
 
@@ -10,16 +9,20 @@ set -u  # Treat unset variables as an error
 
 SELECTION=shap
 SAMPLING=null
-RETRIEVAL=trajectories #activities_tfidf_kmeans #trajectories #activities random #
-PRETRAIN_MODE=HEALTH
+RETRIEVAL=activities #activities_tfidf_kmeans #trajectories #activities random #
+
+if [ $METHOD = "tabdpt" ]; then
+    PRETRAIN_PATH=/home/mpham/workspace/source/ehrpfn/data/checkpoints/tabdpt1_1.pth
+else
+    PRETRAIN_PATH=/home/mpham/workspace/source/ehrpfn/outputs/pretraining/EHRPFN-HEALTH-SYNTHETIC-100/best_cls-health-auc.ckpt
+fi
 
 # Loop
-# for loop
-# for SELECTION in null "xgboost" "rf" "shap"
+
 for TASK in "SEPSIS" "VAP" "BSI"; do
     PYTHONPATH=. python ehrpfn/inference.py --config-name mimiciv_infections \
-        train_label_path=${ROOT}/outputs/tabpfn/labels/PATIENT_INFECTION/${TASK}_train_labels.csv \
-        test_label_path=${ROOT}/outputs/tabpfn/labels/PATIENT_INFECTION/${TASK}_test_labels.csv \
+        train_label_path=${ROOT}/data/labels/PATIENT_INFECTION/${TASK}_train_labels.csv \
+        test_label_path=${ROOT}/data/labels/PATIENT_INFECTION/${TASK}_test_labels.csv \
         method=$METHOD \
         num_features=100 \
         target_column=${TASK} \
@@ -29,5 +32,5 @@ for TASK in "SEPSIS" "VAP" "BSI"; do
         feature_selection_path=${ROOT}/outputs/tabpfn/selection/mimiciv_infections/${TASK} \
         n_process_variants=50 \
         context_size=1024 \
-        pretrain_mode=${PRETRAIN_MODE}
+        pretrained_path=${PRETRAIN_PATH}
 done
