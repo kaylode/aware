@@ -7,10 +7,9 @@ import pickle
 import json
 import polars as pl
 from torch.utils.data import DataLoader, Dataset
-from ehrpfn.utils import seed_everything
-from ehrpfn.utils.vocabulary import Vocabulary
+from theseus import seed_everything
 
-from ehrpfn.trajectories.cohort import DISEASE_GROUP_TO_ICDS
+from tabpfn_ehr.trajectories.cohort import DISEASE_GROUP_TO_ICDS
 
 RARE_DISEASE_ICDS = [i for key, i in DISEASE_GROUP_TO_ICDS.items() if key in ['HCAI']]
 RARE_DISEASE_ICDS = [item for sublist in RARE_DISEASE_ICDS for item in sublist]
@@ -211,8 +210,8 @@ class NTXentLoss(torch.nn.Module):
 
 
 def train(train_data:List, train_metadata:List, test_data:List, test_metadata:List, data_name:str=None, embed_dim = 128, latent_dim = 64, num_epochs=50):
-    MIMICIV_MAPPING_JSON = "embeddings/mimic4_diagnoses.json"
-    EMBEDDING_PICKLE = "embeddings/glove_emb_128d_579epoch_patient0.pkl"
+    MIMICIV_MAPPING_JSON = "/home/mpham/workspace/source/tabpfn-ehr/outputs/tabpfn/embeddings/mimic4_diagnoses.json"
+    EMBEDDING_PICKLE = "/home/mpham/workspace/source/tabpfn-ehr/outputs/tabpfn/embeddings/glove_emb_128d_579epoch_patient0.pkl"
 
     # Split train into train and validation sets
     train_ids = np.random.choice(len(train_data), int(0.8 * len(train_data)), replace=False)
@@ -431,14 +430,6 @@ def preprocess_data_mimic(data_name:str):
             df_codes = df_codes.filter(
                 ~pl.col("code").str.split('//').list[-1].is_in(RARE_DISEASE_ICDS)
             )
-
-        # Store unique codes for mapping
-        # unique_codes = df_codes.select(pl.col("code").unique().sort()).to_numpy().tolist()
-        # unique_codes = [i[0] for i in unique_codes]  # Flatten
-        # vocab = Vocabulary()
-        # vocab.add_words(unique_codes)
-        # vocab.dump(f"{DATASET_PATH}/process")
-
 
         # Create process pathways with backward-looking features
         traj_df = df_codes.group_by(["subject_id", "admission_id"]).agg(

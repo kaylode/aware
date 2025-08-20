@@ -125,7 +125,7 @@ DISEASE_GROUP_TO_ICDS = {
     "SSI": ["T814", "T8189"],
     "UTI": ["T835", "N390", "N30", "N34", "N398", "N399", "Z87440", "O2340"],
     "VAP": ["J95851", "J13", "J150", "J15211"],
-    "BSI": ["T80211", "T80219", "T80212", "T80218"],
+    "BSI": ["T80211", "T80219", "T80212", "T80218", "T802"],
 }
 DISEASE_GROUP_TO_ICDS["HCAI"] = (
     DISEASE_GROUP_TO_ICDS["SSI"] 
