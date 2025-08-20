@@ -564,7 +564,6 @@ def collect_parquet(
             chunk_size=3000,
             target_column=target_column
         )
-
     # Encoding table
     if split in ['train', 'val']:
         save_path = osp.join(output_path, '3_encoding', 'train')
@@ -864,4 +863,6 @@ def get_mimic_dataset(
         'X_test_traj': X_test_traj,
         'categorical_feature_indices': categorical_feature_indices,
         'feature_names': feature_names,
+        'train_ids': train_ids_df,
+        'test_ids': test_ids_df
     }
