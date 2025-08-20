@@ -11,11 +11,11 @@ USE_MIMICIV=false
 USE_SYNTHETIC=true
 NUM_FEATURES=100
 NUM_MODEL_UPDATES=512
-EVAL_EVERY=15
-
+EVAL_EVERY=20
+NUM_EPOCHS=512
 
 RESUME=/home/mpham/workspace/source/ehrpfn/outputs/pretraining/EHRPFN-GENERAL-HEALTH-SYNTHETIC-100
-PRETRAINED=null #/home/mpham/workspace/source/ehrpfn/outputs/pretraining/TabDPT-100/tabdpt1_1.pth
+PRETRAINED=null # /home/mpham/workspace/source/ehrpfn/outputs/pretraining/TabDPT-100/tabdpt1_1.pth
 
 MODEL_NAME=TabDPT
 
@@ -49,7 +49,7 @@ CUDA_VISIBLE_DEVICES=0 python ehrpfn/train.py \
   data.use_health_data=$USE_HEALTH_DATA \
   data.use_mimiciv=$USE_MIMICIV \
   data.use_synthetic=$USE_SYNTHETIC \
-  training.num_epochs=2048 \
+  training.num_epochs=$NUM_EPOCHS \
   training.resume=$RESUME \
   training.pretrained=$PRETRAINED \
   training.num_model_updates=$NUM_MODEL_UPDATES \

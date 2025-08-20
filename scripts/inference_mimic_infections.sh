@@ -9,12 +9,12 @@ set -u  # Treat unset variables as an error
 
 SELECTION=shap
 SAMPLING=null
-RETRIEVAL=activities #activities_tfidf_kmeans #trajectories #activities random #
+RETRIEVAL=trajectories #activities_tfidf_kmeans #trajectories #activities random #
 
 if [ $METHOD = "tabdpt" ]; then
     PRETRAIN_PATH=/home/mpham/workspace/source/ehrpfn/data/checkpoints/tabdpt1_1.pth
 else
-    PRETRAIN_PATH=/home/mpham/workspace/source/ehrpfn/outputs/pretraining/EHRPFN-HEALTH-SYNTHETIC-100/best_cls-health-auc.ckpt
+    PRETRAIN_PATH=/home/mpham/workspace/source/ehrpfn/outputs/pretraining/EHRPFN-GENERAL-HEALTH-SYNTHETIC-100/best_cls-health-auc.ckpt
 fi
 
 # Loop

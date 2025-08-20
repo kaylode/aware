@@ -9,16 +9,16 @@ set -u  # Treat unset variables as an error
 
 SELECTION=shap
 SAMPLING=null
-RETRIEVAL=trajectories #faiss #activities_tfidf_kmeans #trajectories #activities random #
+RETRIEVAL=activities #faiss #activities_tfidf_kmeans #trajectories #activities random #
 
 if [ $METHOD = "tabdpt" ]; then
     PRETRAIN_PATH=/home/mpham/workspace/source/ehrpfn/data/checkpoints/tabdpt1_1.pth
 else
-    PRETRAIN_PATH=/home/mpham/workspace/source/ehrpfn/outputs/pretraining/EHRPFN-HEALTH-SYNTHETIC-100/best_cls-health-auc.ckpt
+    PRETRAIN_PATH=/home/mpham/workspace/source/ehrpfn/outputs/pretraining/EHRPFN-GENERAL-HEALTH-SYNTHETIC-100/best_cls-health-auc.ckpt
 fi
 
-# Loop  
-for TASK in "DEATH" "WILL_READMIT_WITHIN_7_DAYS" "NEXT_ADMISSION_LOS" ; do
+# Loop 
+for TASK in "WILL_READMIT_WITHIN_30_DAYS" "DEATH" "WILL_READMIT_WITHIN_7_DAYS" "NEXT_ADMISSION_LOS" ; do
     PYTHONPATH=. python ehrpfn/inference.py --config-name mimiciv_outcomes \
         train_label_path=${ROOT}/data/labels/PATIENT_OUTCOME/${TASK}_train_labels.csv \
         test_label_path=${ROOT}/data/labels/PATIENT_OUTCOME/${TASK}_test_labels.csv \

@@ -4,18 +4,18 @@ import hydra
 import time
 import json
 from ehrpfn.models.gbms import Tuner
-from ehrpfn.utils.validate import validate
+# from ehrpfn.utils.validate import validate
 from ehrpfn.utils.sampling import synthetic_sampling
-from ehrpfn.datasets import get_mimic_dataset, get_sjh_dataset
+from ehrpfn.datasets import get_mimic_dataset, get_sjh_dataset, get_mimic_dataset_v2
 from ehrpfn.utils import load_model, save_model
 import xgboost as xgb
 
 from tabpfn import TabPFNClassifier, TabPFNRegressor
 from ehrpfn.models import get_tabpfn_knn_results
-from tabpfn.model.loading import (
-    load_fitted_tabpfn_model,
-    save_fitted_tabpfn_model,
-)
+# from tabpfn.model.loading import (
+#     load_fitted_tabpfn_model,
+#     save_fitted_tabpfn_model,
+# )
 from ehrpfn.utils.metrics import run_binary_classification_metrics, run_regression_metrics
 from omegaconf import DictConfig, OmegaConf
 import wandb
@@ -29,12 +29,9 @@ LOGGER = LoggerObserver.getLogger("main")
 def run(args: DictConfig):
 
     seed_everything(args.seed)
-
-    data_output_folder = osp.join(args.data_folder, args.data_name)
+    
     result_folder = osp.join(args.output_folder, "results", args.data_name, args.target_column)
     os.makedirs(result_folder, exist_ok=True)
-    os.makedirs(data_output_folder, exist_ok=True)
-
 
     LOGGER.subscribe(FileLogger(__name__, osp.join(args.output_folder, 'logs'), debug=True))
 
@@ -42,6 +39,8 @@ def run(args: DictConfig):
         args.selection_method += f"_{args.num_features}"
 
     if args.data_name.startswith('mimiciv'):
+        data_output_folder = osp.join(args.data_folder, args.data_name)
+        os.makedirs(data_output_folder, exist_ok=True)
         data = get_mimic_dataset(
             train_folder=args.train_folder,
             test_folder=args.test_folder,
@@ -57,7 +56,19 @@ def run(args: DictConfig):
             trajectory_file_path=args.trajectory_file_path,
             logger=LOGGER
         )
+    elif args.data_name == 'mimicpipe':
+        data = get_mimic_dataset_v2(
+            data_csv=args.data_csv,
+            train_label_path=args.train_label_path,
+            test_label_path=args.test_label_path,
+            feature_selection_path=args.feature_selection_path,
+            selection_method=args.selection_method,
+            process_file_path=args.process_file_path,
+            trajectory_file_path=args.trajectory_file_path,
+        )
     elif args.data_name == 'sjh_cpe':
+        data_output_folder = osp.join(args.data_folder, args.data_name)
+        os.makedirs(data_output_folder, exist_ok=True)
         data = get_sjh_dataset(
             input_folder=args.input_folder,
             output_folder=data_output_folder,
@@ -129,7 +140,6 @@ def run(args: DictConfig):
     y_test = y_test.astype(int)
 
     LOGGER.text(f"Data shape: {X_train.shape}, {X_test.shape}", level=LoggerObserver.DEBUG)
-    LOGGER.text(f"Saving data to {data_output_folder}", level=LoggerObserver.DEBUG)
 
     result_folder = osp.join(result_folder, study_name)
     os.makedirs(result_folder, exist_ok=True)
@@ -142,7 +152,7 @@ def run(args: DictConfig):
         json.dump({
             "categorical_feature_indices": categorical_feature_indices,
             "feature_names": data.get('feature_names', None)
-        }, f, indent=4)
+        }, f, indent=4, default=str)
     # Initialize the model
 
     if args.target_column in ['NEXT_ADMISSION_LOS', 'NEXT_LOS']:
@@ -155,13 +165,9 @@ def run(args: DictConfig):
         tags.append(f"SAMPLING:{args['sampling']}")
     if args.selection_method is not None:
         tags.append(f"SELECTION:{args['selection_method']}")
-    if args.pretrained_path is not None:
-        _pretrained_name = osp.basename(osp.dirname(args.pretrained_path))
-        for tok in _pretrained_name.split('-'):
-            if tok in ['HEALTH', 'MIMICIV', 'SYNTHETIC']:
-                tags.append(f"PRETRAIN:{tok}")
+    
 
-    if args.method in ['xgboost', 'rf', 'catboost', 'lightgbm']:
+    if args.method in ['xgboost', 'rf', 'catboost', 'lightgbm', 'knn']:
         
         if osp.exists(osp.join(result_folder, 'model.pkl')):
             LOGGER.text(f"Loading fitted model from {osp.join(result_folder, 'model.pkl')}", level=LoggerObserver.DEBUG)
@@ -189,7 +195,9 @@ def run(args: DictConfig):
                     "project": args.wandb.project,
                     "entity": args.wandb.entity,
                     "tags": tags,
-                }
+                },
+                feature_names=data.get('feature_names', None),
+                classnames=['0', '1'] if is_classification else None
             )
             X_train, X_val, y_train, y_val = train_test_split(
                 X_train, y_train, 
@@ -361,6 +369,12 @@ def run(args: DictConfig):
     elif args.method in ['tabdpt', 'ehrpfn']:
         from ehrpfn.models import EHRPFNClassifier, EHRPFNRegressor
 
+        if args.pretrained_path is not None:
+            _pretrained_name = osp.basename(osp.dirname(args.pretrained_path))
+            for tok in _pretrained_name.split('-'):
+                if tok in ['HEALTH', 'MIMICIV', 'SYNTHETIC']:
+                    tags.append(f"PRETRAIN:{tok}")
+
         if args.retrieval_method is not None:
             tags.append(f"RETRIEVAL:{args['retrieval_method']}")
 
@@ -369,6 +383,7 @@ def run(args: DictConfig):
                 pretrained_path=args.pretrained_path,
                 retrieval_method=args.retrieval_method, 
                 inf_batch_size=args.inf_batch_size,
+                compile = False,
                 categorical_feature_indices=categorical_feature_indices
             )
         else:
@@ -378,7 +393,6 @@ def run(args: DictConfig):
                 inf_batch_size=args.inf_batch_size,
                 categorical_feature_indices=categorical_feature_indices
             )
-
 
         model.fit(X_train, y_train, X_processes=X_train_process, X_traj=X_train_traj)
         save_model(model, osp.join(result_folder, 'model.pkl'))
@@ -471,7 +485,7 @@ def run(args: DictConfig):
         "entity": "kaylode",
         "project": "tabpfn-ehr",
         "reinit": True,
-        "group": "tabpfn-ehr-test",
+        "group": "ehrpfn-mimicpipe",
         "job_type": "test",
         "tags": tags,
         "resume": "allow",

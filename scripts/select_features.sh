@@ -1,23 +1,27 @@
 METHOD=$1
-TASK=$2
+# TASK=$2
 
 export HYDRA_FULL_ERROR=1
-ROOT=/home/mpham/workspace/source/tabpfn-ehr
+ROOT=/home/mpham/workspace/source/ehrpfn
 export LOGGING_DIR="${ROOT}/outputs/tabpfn/logs"
 
 set -e  # Exit on error
 set -u  # Treat unset variables as an error
 
-DATA_NAME=sjh_cpe #mimiciv_infections
+DATA_NAME=mimicpipe #mimiciv_outcomes #mimiciv_infections
 OUTPUT_DIR="${ROOT}/outputs/tabpfn/results"
 
-MODEL_PATH=${OUTPUT_DIR}/${DATA_NAME}/${TASK}/${METHOD}_${DATA_NAME}_${TASK}
 
 # Loop
-PYTHONPATH=. python ehrpfn/selection/shap_feat.py \
-    --config-path ${MODEL_PATH} \
-    --config-name config.yaml \
-    method=$METHOD \
-    target_column=${TASK} \
-    +explainable_model_path=${OUTPUT_DIR}/${DATA_NAME}/${TASK}/${METHOD}_${DATA_NAME}_${TASK}
-    # +use_shap=True
+for TASK in "Readmission" "Mortality" "Length of Stay" ; do
+# for TASK in "ICD SEPSIS" "ICD VAP" "ICD SSI" "ICD UTI" "ICD BSI"; do
+    MODEL_PATH="${OUTPUT_DIR}/${DATA_NAME}/${TASK}/${METHOD}_${DATA_NAME}_${TASK}"
+    PYTHONPATH=. python ehrpfn/selection/shap_feat.py \
+        --config-path "${MODEL_PATH}" \
+        --config-name config.yaml \
+        +explainable_model_path="${OUTPUT_DIR}/${DATA_NAME}/${TASK}/${METHOD}_${DATA_NAME}_${TASK}" \
+        +use_shap=True
+done
+
+# train_label_path="${ROOT}/data/labels/PATIENT_OUTCOME/${TASK}_train_labels.csv" \
+# test_label_path="${ROOT}/data/labels/PATIENT_OUTCOME/${TASK}_test_labels.csv" \
