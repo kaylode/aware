@@ -5,17 +5,18 @@ export NCCL_IB_DISABLE=1
 export NCCL_P2P_DISABLE=1
 export CUDA_LAUNCH_BLOCKING=1
 
-USE_GENERAL_DATA=true
-USE_HEALTH_DATA=true
-USE_MIMICIV=false
+FREEZE_TRANSFORMER=false
+USE_GENERAL_DATA=false
+USE_HEALTH_DATA=false
+USE_MIMICIV=true
 USE_SYNTHETIC=true
-NUM_FEATURES=100
+NUM_FEATURES=500
 NUM_MODEL_UPDATES=512
-EVAL_EVERY=20
+EVAL_EVERY=1
 NUM_EPOCHS=512
-
-RESUME=/home/mpham/workspace/source/ehrpfn/outputs/pretraining/EHRPFN-GENERAL-HEALTH-SYNTHETIC-100
-PRETRAINED=null # /home/mpham/workspace/source/ehrpfn/outputs/pretraining/TabDPT-100/tabdpt1_1.pth
+EVAL_ONLY=false
+RESUME=null #/home/mpham/workspace/source/ehrpfn/outputs/pretraining/EHRPFN-MIMICIV-100
+PRETRAINED=null #/home/mpham/workspace/source/ehrpfn/outputs/pretraining/TabDPT-100/tabdpt1_1.pth
 
 MODEL_NAME=TabDPT
 
@@ -54,7 +55,8 @@ CUDA_VISIBLE_DEVICES=0 python ehrpfn/train.py \
   training.pretrained=$PRETRAINED \
   training.num_model_updates=$NUM_MODEL_UPDATES \
   logging.eval_every=$EVAL_EVERY \
-  training.eval_only=false
+  training.eval_only=$EVAL_ONLY \
+  model.freeze_transformer=$FREEZE_TRANSFORMER
 
 
 # CUDA_VISIBLE_DEVICES=0 torchrun \
