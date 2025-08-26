@@ -62,15 +62,15 @@ class FullDataset(Dataset):
         # Load dataset IDs from CSV file
         # TODO: make dataset_ids configurable
         self.dataset_ids = []
+        self.open_ml_health_ids = []
+        self.open_ml_general_ids = []
         if config.data.use_health_data:
-            self.dataset_ids.extend(
-                pd.read_csv(f"{config.data.openml.input_folder}/health_training_datasets.csv")["did"].values.ravel().tolist()
-            )
+            self.open_ml_health_ids = pd.read_csv(f"{config.data.openml.input_folder}/health_training_datasets.csv")["did"].values.ravel().tolist()
+            self.dataset_ids.extend(self.open_ml_health_ids)
 
         if config.data.use_general_data:
-            self.dataset_ids.extend(
-                pd.read_csv(f"{config.data.openml.input_folder}/noleak_training_datasets.csv")["did"].values.ravel().tolist()
-            )
+            self.open_ml_general_ids = pd.read_csv(f"{config.data.openml.input_folder}/noleak_training_datasets.csv")["did"].values.ravel().tolist()
+            self.dataset_ids.extend(self.open_ml_general_ids)
 
         if len(self.dataset_ids) > 0:
             self.dataset_ids = sorted(self.dataset_ids)
@@ -121,25 +121,21 @@ class FullDataset(Dataset):
                 original_samples,
                 original_features,
             ])
-            self.dataset_weights.append(1.0)
+
+            if did in self.open_ml_health_ids:
+                self.dataset_weights.append(5.0)
+            else:
+                self.dataset_weights.append(1.0)
 
         self.mimiciv_id = None # This did has not been used in the training set
         if config.data.use_mimiciv:
             #### Add MIMIC-IV
             mimic_dataset = get_mimic_dataset(
-                train_folder=None,
-                test_folder=None,
-                icu_ids=None,
-                data_output_folder=osp.join(config.data.mimiciv.data_output_folder),
-                target_column=None,
-                train_label_path=None,
-                test_label_path=None,
+                data_csv=config.data.mimiciv.data_csv,
+                train_label_path=config.data.mimiciv.train_label_path,
+                test_label_path=config.data.mimiciv.test_label_path,
                 feature_selection_path=None,
                 selection_method=None,
-                process_file_path=None,
-                n_process_variants=None,
-                trajectory_file_path=None,
-                logger=None
             )
 
             self.mimiciv_id = 69 # This did has not been used in the training set
@@ -161,8 +157,8 @@ class FullDataset(Dataset):
 
             # Add MIMIC-IV to summary
             dataset_summary.append([
-                f"MIMIC-IV-{self.mimiciv_id}",
-                "MIMIC-IV",
+                f"MIMIC-IV-PIPE-{self.mimiciv_id}",
+                "MIMIC-IV-PIPE",
                 X_train.shape[0],
                 X_train.shape[1],
             ])
@@ -448,9 +444,6 @@ class FullDataset(Dataset):
                 index_sample = FAISS(X_sample, metric="L2", use_hnsw=False)
             else:
                 index_sample = None
-
-
-
 
         num_samples, num_features = X_sample.shape
 

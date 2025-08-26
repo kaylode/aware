@@ -126,6 +126,7 @@ class TabDPTModel(nn.Module):
         ninp: int,
         nlayers: int,
         num_features: int,
+        freeze_transformer:bool=False
     ):
         """TabDPTModel initialization.
 
@@ -156,6 +157,10 @@ class TabDPTModel(nn.Module):
         self.dropout = nn.Dropout(p=dropout)
         self.y_encoder = nn.Linear(1, ninp)
         self.head = nn.Sequential(nn.Linear(ninp, nhid), nn.GELU(), nn.Linear(nhid, n_out + 1))
+
+        if freeze_transformer:
+            for param in self.transformer_encoder.parameters():
+                param.requires_grad = False
 
     def forward(
         self,
@@ -229,6 +234,7 @@ class TabDPTModel(nn.Module):
             ninp=config.model.emsize,
             nlayers=config.model.nlayers,
             num_features=config.model.max_num_features,
+            freeze_transformer=config.model.freeze_transformer
         )
 
         module_prefix = "_orig_mod."

@@ -105,7 +105,7 @@ class OpenMLDataset(Dataset):
             )
 
             # retrieve data and metadata
-            X, y, _, self.column_names = dataset.get_data(target=dataset.default_target_attribute)
+            X, y, self.is_categorical, self.column_names = dataset.get_data(target=dataset.default_target_attribute)
             n = len(X)
 
             self.metadata["openml_task_id"] = self.tid
@@ -125,7 +125,7 @@ class OpenMLDataset(Dataset):
                 download_qualities=True,
                 download_features_meta_data=True,
             )
-            X, y, _, self.column_names = dataset.get_data(target=dataset.default_target_attribute)
+            X, y, self.is_categorical, self.column_names = dataset.get_data(target=dataset.default_target_attribute)
             self.metadata["openml_dataset_id"] = self.did
 
         self.metadata["openml_dataset_name"] = dataset.name
