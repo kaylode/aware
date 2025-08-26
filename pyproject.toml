@@ -65,3 +65,6 @@ dependencies = [
 dev = ["pre-commit<4"]
 tests = ["pytest"]
 jupyter = ["jupyter", "seaborn", "scikit-learn", "matplotlib", "pandas", "altair", "pylatex", "vl-convert-python"]
+
+[tool.pyright]
+typeCheckingMode = "off"
