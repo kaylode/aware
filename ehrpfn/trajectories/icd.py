@@ -6,11 +6,12 @@ import numpy as np
 import pickle
 import json
 import os
+import os.path as osp
 import polars as pl
 from tqdm import tqdm
 from torch.utils.data import DataLoader, Dataset
 from ehrpfn.utils.seed import seed_everything
-
+from ehrpfn.utils.logger import LoggerObserver
 from ehrpfn.trajectories.cohort import DISEASE_GROUP_TO_ICDS
 
 RARE_DISEASE_ICDS = [i for key, i in DISEASE_GROUP_TO_ICDS.items() if key in ['HCAI']]
@@ -20,7 +21,16 @@ RARE_DISEASE_ICDS.extend([i[:4] for i in RARE_DISEASE_ICDS])
 RARE_DISEASE_ICDS.extend([i[:3] for i in RARE_DISEASE_ICDS])
 RARE_DISEASE_ICDS = list(set(RARE_DISEASE_ICDS))
 
+LOGGER = LoggerObserver.getLogger('main')
+
 seed_everything(42)
+
+# --- In your train loop ---
+# --- Global Configurable Paths ---
+MIMICIV_MAPPING_JSON = "/home/mpham/workspace/source/ehrpfn/data/embeddings/mimic4_diagnoses.json"
+EMBEDDING_PICKLE = "/home/mpham/workspace/source/ehrpfn/data/embeddings/glove_emb_128d_579epoch_patient0.pkl"
+PROCESSED_DATA_PATH = "/home/mpham/workspace/source/ehrpfn/data/processed/mimiciv"
+
 
 class NTXentLoss(torch.nn.Module):
     """
@@ -200,17 +210,31 @@ class VisitICDDataset(Dataset):
         return torch.stack(padded), torch.stack(masks), torch.stack(pos_ids_padded), [metadata for _, _, metadata in batch]
 
 class VisitPoolingGRUEncoder(nn.Module):
-    def __init__(self, input_dim, output_dim, embedding_pickle, mapping_dict=None, hidden_dim=256, vocab_size=None, max_visits=50):
+    def __init__(self, input_dim, output_dim, embedding_pickle=None, mapping_dict=None, hidden_dim=256, vocab_size=None, max_visits=50, embed_size=None):
         super().__init__()
         self.mapping_dict = mapping_dict
-        embeds = pickle.load(open(embedding_pickle, "rb"))
-        self.embed_tensor = torch.from_numpy(embeds).float()
-        if self.mapping_dict is not None and len(self.mapping_dict) > embeds.shape[0]:
-            extra_size = len(self.mapping_dict) - embeds.shape[0]
-            extra_embeds = torch.randn(extra_size, embeds.shape[1]) * 0.01
-            self.embed_tensor = torch.cat([self.embed_tensor, extra_embeds], dim=0)
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        self.hidden_dim = hidden_dim
+        self.vocab_size = vocab_size
+        self.max_visits = max_visits
+        self.embed_size = embed_size
 
-        self.embed_tensor = torch.nn.Parameter(self.embed_tensor, requires_grad=True)
+        if embedding_pickle is not None:
+            embeds = pickle.load(open(embedding_pickle, "rb"))
+            self.embed_tensor = torch.from_numpy(embeds).float()
+            if self.mapping_dict is not None and len(self.mapping_dict) > embeds.shape[0]:
+                extra_size = len(self.mapping_dict) - embeds.shape[0]
+                extra_embeds = torch.randn(extra_size, embeds.shape[1]) * 0.01
+                self.embed_tensor = torch.cat([self.embed_tensor, extra_embeds], dim=0)
+
+            self.embed_tensor = torch.nn.Parameter(self.embed_tensor, requires_grad=True)
+            self.embed_size = self.embed_tensor.shape
+        else:
+            self.embed_size = embed_size
+            self.embed_tensor = torch.randn(embed_size).float()
+            self.embed_tensor = torch.nn.Parameter(self.embed_tensor, requires_grad=True)
+
         bidirectional = True
         self.gru = nn.GRU(input_dim, hidden_dim, batch_first=True, bidirectional=bidirectional)
         self.linear = nn.Linear(hidden_dim, output_dim)
@@ -261,6 +285,33 @@ class VisitPoolingGRUEncoder(nn.Module):
                 mlm_logits[mlm_mask], mlm_labels[mlm_mask], reduction='mean'
             )
         return out, mlm_loss
+
+    def save(self, save_path):
+        torch.save({
+            "model": self.state_dict(),
+            "mapping": self.mapping_dict,
+            'input_dim': self.input_dim,
+            'output_dim': self.output_dim,
+            'hidden_dim': self.hidden_dim,
+            'vocab_size': self.vocab_size,
+            'max_visits': self.max_visits,
+            'embed_size': self.embed_size
+        }, save_path)
+
+    @classmethod
+    def load_from(cls, load_path):
+        ckpt = torch.load(load_path)
+        model = cls(
+            input_dim=ckpt['input_dim'],
+            output_dim=ckpt['output_dim'],
+            mapping_dict=ckpt['mapping'],
+            hidden_dim=ckpt['hidden_dim'],
+            vocab_size=ckpt['vocab_size'],
+            max_visits=ckpt['max_visits'],
+            embed_size=ckpt['embed_size'],
+        )
+        model.load_state_dict(ckpt['model'])
+        return model
 
 
 class VisitPoolingEncoder(nn.Module):
@@ -327,11 +378,25 @@ def mask_tokens(inputs, pad_token_id, mask_token_id, vocab_size, mlm_probability
     inputs[indices_random] = random_words[indices_random]
     return inputs, labels, masked_indices
 
-# --- In your train loop ---
-def train(train_data:List, train_metadata:List, test_data:List, test_metadata:List, data_name:str=None, embed_dim = 128, latent_dim = 64, num_epochs=50, use_histories:bool=False, use_proc_icd:bool=False, use_mlm=False, mlm_weight=1.0, use_hard_negatives=False):
-    MIMICIV_MAPPING_JSON = "/home/mpham/workspace/source/ehrpfn/data/embeddings/mimic4_diagnoses.json"
-    EMBEDDING_PICKLE = "/home/mpham/workspace/source/ehrpfn/data/embeddings/glove_emb_128d_579epoch_patient0.pkl"
 
+def train(
+    train_data: List,
+    train_metadata: List,
+    test_data: List,
+    test_metadata: List,
+    data_name: str = None,
+    embed_dim: int = 128,
+    latent_dim: int = 64,
+    num_epochs: int = 50,
+    use_histories: bool = False,
+    use_proc_icd: bool = False,
+    use_mlm: bool = False,
+    mlm_weight: float = 1.0,
+    use_hard_negatives: bool = False,
+    mapping_json: str = MIMICIV_MAPPING_JSON,
+    embedding_pickle: str = EMBEDDING_PICKLE,
+    processed_data_path: str = PROCESSED_DATA_PATH,
+):
     # Split train into train and validation sets
     train_ids = np.random.choice(len(train_data), int(0.8 * len(train_data)), replace=False)
     val_ids = np.setdiff1d(np.arange(len(train_data)), train_ids)
@@ -344,14 +409,14 @@ def train(train_data:List, train_metadata:List, test_data:List, test_metadata:Li
     train_dataset = VisitICDDataset(
         train_set, 
         train_meta_set,
-        mapping_json=MIMICIV_MAPPING_JSON,
+        mapping_json=mapping_json,
         histories=use_histories,
         use_proc_icd=use_proc_icd
     )
     val_dataset = VisitICDDataset(
         val_set,
         val_meta_set,
-        mapping_json=MIMICIV_MAPPING_JSON,
+        mapping_json=mapping_json,
         load_from_mapping=train_dataset.mapping_dict,
         histories=use_histories,
         use_proc_icd=use_proc_icd
@@ -359,44 +424,34 @@ def train(train_data:List, train_metadata:List, test_data:List, test_metadata:Li
     test_dataset = VisitICDDataset(
         test_data,
         test_metadata,
-        mapping_json=MIMICIV_MAPPING_JSON,
+        mapping_json=mapping_json,
         load_from_mapping=train_dataset.mapping_dict,
         histories=use_histories,
         use_proc_icd=use_proc_icd
     )
 
-    print(f"Trainset shape: {len(train_dataset)}")
-    print(f"Valset shape: {len(val_dataset)}")
-    print(f"Testset shape: {len(test_dataset)}")
+    LOGGER.text(f"Trainset shape: {len(train_dataset)}")
+    LOGGER.text(f"Valset shape: {len(val_dataset)}")
+    LOGGER.text(f"Testset shape: {len(test_dataset)}")
 
     BATCH_SIZE = 256
-    train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=train_dataset.collate_fn, drop_last=True)  # Increased batch size
+    train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=train_dataset.collate_fn, drop_last=True)
     val_dataloader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False, collate_fn=train_dataset.collate_fn, drop_last=True)
     test_dataloader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False, collate_fn=train_dataset.collate_fn, drop_last=True)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    # model = VisitPoolingEncoder(embed_dim, latent_dim, EMBEDDING_PICKLE, train_dataset.mapping_dict, hidden_dim=256).to(device)
-    model = VisitPoolingGRUEncoder(embed_dim, latent_dim, EMBEDDING_PICKLE, train_dataset.mapping_dict, hidden_dim=256).to(device)
-    
-    # Better optimizer settings
+    model = VisitPoolingGRUEncoder(embed_dim, latent_dim, embedding_pickle, train_dataset.mapping_dict, hidden_dim=256).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3, weight_decay=1e-4)
-    # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs)
-
-    # Create loss function once outside the loop
-    nt_xent_loss = NTXentLoss(device, BATCH_SIZE, temperature=0.05, use_cosine_similarity=True)  # Lower temperature
+    nt_xent_loss = NTXentLoss(device, BATCH_SIZE, temperature=0.15, use_cosine_similarity=True)
 
     for epoch in range(num_epochs):
-        # Improved noise schedule - cap the maximum noise
-        noise_std = 0.005 + min((epoch / 20) * 0.01, 0.015)  # Slower increase, lower max
-        
-        # Training phase
+        noise_std = 0.005 + min((epoch / 20) * 0.01, 0.015)
         model.train()
         total_train_loss = 0
         for batch_idx, (x, mask, pos_ids, _) in enumerate(train_dataloader):
             x = x.to(device)
             mask = mask.to(device)
             pos_ids = pos_ids.to(device)
-            # --- MLM augmentation ---
             mlm_loss = None
             if use_mlm:
                 x_mlm, mlm_labels, mlm_mask = mask_tokens(
@@ -409,9 +464,7 @@ def train(train_data:List, train_metadata:List, test_data:List, test_metadata:Li
             else:
                 z_i, _ = model(x, mask, pos_ids, add_noise=True, noise_std=noise_std)
                 z_j, _ = model(x, mask, pos_ids, add_noise=True, noise_std=noise_std)
-            # --- Hard negative mining ---
             if use_hard_negatives:
-                # For demonstration, shuffle batch as hard negatives
                 negative_ids = torch.randperm(x.size(0))
                 z_hard, _ = model(x[negative_ids], mask[negative_ids], pos_ids[negative_ids], add_noise=True, noise_std=noise_std)
                 loss = nt_xent_loss(z_i, z_j, z_hard=z_hard)
@@ -421,18 +474,10 @@ def train(train_data:List, train_metadata:List, test_data:List, test_metadata:Li
                 loss = loss + mlm_weight * mlm_loss
             optimizer.zero_grad()
             loss.backward()
-            # Add gradient clipping
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
             total_train_loss += loss.item()
-            
-            # Print progress every 100 batches
-            # if batch_idx % 100 == 0:
-                # print(f"Epoch {epoch+1}, Batch {batch_idx}: Loss = {loss.item():.4f}")
         
-        # scheduler.step()  # Update learning rate
-        
-        # Validation phase
         model.eval()
         total_val_loss = 0
         with torch.no_grad():
@@ -440,20 +485,15 @@ def train(train_data:List, train_metadata:List, test_data:List, test_metadata:Li
                 x = x.to(device)
                 mask = mask.to(device)
                 pos_ids = pos_ids.to(device)
-
-                # For validation, use no noise or very low noise
                 z_i,_ = model(x, mask, pos_ids, add_noise=False)
                 z_j,_ = model(x, mask, pos_ids, add_noise=True, noise_std=0.005)
-
                 loss = nt_xent_loss(z_i, z_j)
                 total_val_loss += loss.item()
         
         avg_train_loss = total_train_loss / len(train_dataloader)
         avg_val_loss = total_val_loss / len(val_dataloader)
-        # current_lr = scheduler.get_last_lr()[0]
         current_lr = optimizer.param_groups[0]['lr']
 
-        # Test phase every 10 epochs
         if (epoch + 1) % 10 == 0:
             total_test_loss = 0
             with torch.no_grad():
@@ -461,19 +501,15 @@ def train(train_data:List, train_metadata:List, test_data:List, test_metadata:Li
                     x = x.to(device)
                     mask = mask.to(device)
                     pos_ids = pos_ids.to(device)
-
                     z_i,_ = model(x, mask, pos_ids, add_noise=False)
                     z_j,_ = model(x, mask, pos_ids, add_noise=True, noise_std=0.005)
-                    
                     loss = nt_xent_loss(z_i, z_j)
                     total_test_loss += loss.item()
-            
             avg_test_loss = total_test_loss / len(test_dataloader)
-            print(f"Epoch {epoch+1}: Train = {avg_train_loss:.4f}, Val = {avg_val_loss:.4f}, Test = {avg_test_loss:.4f}, LR = {current_lr:.6f}, Noise = {noise_std:.4f}")
+            LOGGER.text(f"Epoch {epoch+1}: Train = {avg_train_loss:.4f}, Val = {avg_val_loss:.4f}, Test = {avg_test_loss:.4f}, LR = {current_lr:.6f}, Noise = {noise_std:.4f}")
         else:
-            print(f"Epoch {epoch+1}: Train = {avg_train_loss:.4f}, Val = {avg_val_loss:.4f}, LR = {current_lr:.6f}, Noise = {noise_std:.4f}")
+            LOGGER.text(f"Epoch {epoch+1}: Train = {avg_train_loss:.4f}, Val = {avg_val_loss:.4f}, LR = {current_lr:.6f}, Noise = {noise_std:.4f}")
 
-    save_path = f'/home/mpham/workspace/source/ehrpfn/data/processed/mimiciv'
     model_name = "visit_pooling_encoder"
     if use_mlm:
         model_name += '_mlm'
@@ -481,12 +517,10 @@ def train(train_data:List, train_metadata:List, test_data:List, test_metadata:Li
         model_name += '_ohem'
     if use_proc_icd:
         model_name += '_procicd'
-    # ---- 5️⃣ Save and Retrieve ---- #
-    torch.save(model.state_dict(), f'{save_path}/{model_name}.pt')
-    print("Finished training and saved model for retrieval indexing.")
-    
-   
-    
+    save_path = osp.join(processed_data_path, data_name)
+    os.makedirs(save_path, exist_ok=True)
+    model.save(osp.join(save_path, f"{model_name}.pt"))
+    LOGGER.text("Finished training and saved model for retrieval indexing.")
     return model
 
 def generate_embeddings(model, dataloader, device, dataset_name="dataset"):
@@ -494,14 +528,15 @@ def generate_embeddings(model, dataloader, device, dataset_name="dataset"):
     model.eval()
     all_embeddings = []
     all_metadata = []
-    print(f"Generating embeddings for {dataset_name}...")
+    LOGGER.text(f"Generating embeddings for {dataset_name}...")
     with torch.no_grad():
-        for batch_idx, (x, mask, metadata) in enumerate(dataloader):
+        # for x, mask, pos_ids, _ in test_dataloader:
+        for batch_idx, (x, mask, pos_ids, metadata) in enumerate(dataloader):
             x = x.to(device)
             mask = mask.to(device)
             
             # Generate embeddings without noise augmentation
-            embeddings = model(x, mask, add_noise=False)
+            embeddings, _ = model(x, mask, add_noise=False)
             
             all_embeddings.append(embeddings.cpu().numpy())
             # Keep track of original indices for later mapping
@@ -510,96 +545,81 @@ def generate_embeddings(model, dataloader, device, dataset_name="dataset"):
     # Concatenate all embeddings
     embeddings_array = np.concatenate(all_embeddings, axis=0)
     
-    print(f"Generated {embeddings_array.shape[0]} embeddings of dimension {embeddings_array.shape[1]} for {dataset_name}")
+    LOGGER.text(f"Generated {embeddings_array.shape[0]} embeddings of dimension {embeddings_array.shape[1]} for {dataset_name}")
     return embeddings_array, all_metadata
 
 
-def save_embeddings(train_data, train_metadata, test_data, test_metadata, embed_dim=128, latent_dim=64, data_name:str=None, use_histories:int=None):
-    """Generate and save embeddings after training"""
-    MIMICIV_MAPPING_JSON = "/home/mpham/workspace/source/ehrpfn/data/embeddings/mimic4_diagnoses.json"
-    EMBEDDING_PICKLE = "/home/mpham/workspace/source/ehrpfn/data/embeddings/glove_emb_128d_579epoch_patient0.pkl"
-
-    os.makedirs(f"/home/mpham/workspace/source/ehrpfn/data/processed/mimiciv/{data_name}/trajectories", exist_ok=True)
-
-
+def save_embeddings(
+    train_data,
+    train_metadata,
+    test_data,
+    test_metadata,
+    data_name: str = None,
+    use_histories: int = None,
+    mapping_json: str = MIMICIV_MAPPING_JSON,
+    processed_data_path: str = PROCESSED_DATA_PATH,
+):
+    os.makedirs(f"{processed_data_path}/{data_name}/trajectories", exist_ok=True)
     train_dataset = VisitICDDataset(
         train_data,
         train_metadata,
-        mapping_json=MIMICIV_MAPPING_JSON
+        mapping_json=mapping_json,
+        histories=True,
+        use_proc_icd=True
     )
     test_dataset = VisitICDDataset(
         test_data,
         test_metadata,
-        mapping_json=MIMICIV_MAPPING_JSON,
-        load_from_mapping=train_dataset.mapping_dict
+        mapping_json=mapping_json,
+        load_from_mapping=train_dataset.mapping_dict,
+        histories = True,
+        use_proc_icd = True
     )
-    
-    # Create dataloaders without dropping last batch to get all data
     train_dataloader = DataLoader(train_dataset, batch_size=64, shuffle=False, collate_fn=train_dataset.collate_fn, drop_last=False)
     test_dataloader = DataLoader(test_dataset, batch_size=64, shuffle=False, collate_fn=test_dataset.collate_fn, drop_last=False)
-
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    
-    # Load the trained model
-    model = VisitPoolingEncoder(embed_dim, latent_dim, EMBEDDING_PICKLE, train_dataset.mapping_dict, hidden_dim=256).to(device)
-    model.load_state_dict(torch.load(f'/home/mpham/workspace/source/ehrpfn/data/processed/mimiciv/process/mimiciv_outcomes/visit_pooling_encoder.pt', map_location=device))
-    print("Loaded trained model successfully")
 
-    # Generate embeddings for all datasets
-    print("Generating embeddings...")
-    train_embeddings, train_metadata = generate_embeddings(
-        model,  train_dataloader, device, "training set"
-    )
-    test_embeddings, test_metadata = generate_embeddings(
-        model, test_dataloader, device, "test set"
-    )
+    model = VisitPoolingGRUEncoder.load_from(f'{processed_data_path}/{data_name}/visit_pooling_encoder_mlm_ohem_procicd.pt').to(device)
 
-    # Save embeddings with metadata
+    LOGGER.text("Loaded trained model successfully", level=LoggerObserver.SUCCESS)
+    train_embeddings, train_metadata = generate_embeddings(model, train_dataloader, device, "training set")
+    test_embeddings, test_metadata = generate_embeddings(model, test_dataloader, device, "test set")
     if use_histories is not None and use_histories > 0:
-        np.savez(f'/home/mpham/workspace/source/ehrpfn/data/processed/mimiciv/{data_name}/trajectories/trajectories_hist{use_histories}_train_embeddings.npz', embeddings=train_embeddings, data=train_data, metadata=train_metadata)
-        np.savez(f'/home/mpham/workspace/source/ehrpfn/data/processed/mimiciv/{data_name}/trajectories/trajectories_hist{use_histories}_test_embeddings.npz', embeddings=test_embeddings, data=test_data, metadata=test_metadata)
+        np.savez(f'{processed_data_path}/{data_name}/trajectories/trajectories_hist{use_histories}_train_embeddings.npz', embeddings=train_embeddings, data=train_data, metadata=train_metadata)
+        np.savez(f'{processed_data_path}/{data_name}/trajectories/trajectories_hist{use_histories}_test_embeddings.npz', embeddings=test_embeddings, data=test_data, metadata=test_metadata)
     else:
-        np.savez(f'/home/mpham/workspace/source/ehrpfn/data/processed/mimiciv/{data_name}/trajectories/trajectories_train_embeddings.npz', embeddings=train_embeddings, data=train_data, metadata=train_metadata)
-        np.savez(f'/home/mpham/workspace/source/ehrpfn/data/processed/mimiciv/{data_name}/trajectories/trajectories_test_embeddings.npz', embeddings=test_embeddings, data=test_data, metadata=test_metadata)
-
+        np.savez(f'{processed_data_path}/{data_name}/trajectories/trajectories_train_embeddings.npz', embeddings=train_embeddings, data=train_data, metadata=train_metadata)
+        np.savez(f'{processed_data_path}/{data_name}/trajectories/trajectories_test_embeddings.npz', embeddings=test_embeddings, data=test_data, metadata=test_metadata)
     return train_embeddings, test_embeddings
 
-def preprocess_data_mimicv2(data_name:str, use_histories:int=None, use_proc_icd:bool=False):
+def preprocess_data_mimic(
+    data_name: str,
+    use_histories: int = None,
+    use_proc_icd: bool = False,
+    processed_data_path: str = PROCESSED_DATA_PATH,
+):
     data = []
     metadata = []
-    
     for SPLIT in ["train", "test"]:
-        # Configuration
-        id_df = pl.read_csv(f"/home/mpham/workspace/source/ehrpfn/data/processed/mimiciv/{data_name}/split/{SPLIT}_labels.csv")
-        df_codes = pl.read_csv(f"/home/mpham/workspace/source/ehrpfn/data/processed/mimiciv/{data_name}/features/preproc_diag_icu.csv.gz")
-        
+        id_df = pl.read_csv(f"{processed_data_path}/{data_name}/split/{SPLIT}_labels.csv")
+        df_codes = pl.read_csv(f"{processed_data_path}/{data_name}/features/preproc_diag_icu.csv.gz")
         if use_proc_icd:
-            df_proc_codes = pl.read_csv(f"/home/mpham/workspace/source/ehrpfn/data/processed/mimiciv/{data_name}/features/preproc_proc_icd_icu.csv.gz")
+            df_proc_codes = pl.read_csv(f"{processed_data_path}/{data_name}/features/preproc_proc_icd_icu.csv.gz")
             df_codes = pl.concat([df_codes, df_proc_codes], how="vertical")
-
         traj_df = df_codes.group_by(["subject_id", "hadm_id", 'stay_id']).agg(
-            pl.col("new_icd_code").str.join(",").alias("trajectories")
+            pl.col("new_icd_code").str.join(",").alias("trajectories"),
         )
-
-        traj_df = traj_df.join(id_df, on=["subject_id", "hadm_id", "stay_id"], how="left")
+        traj_df = id_df.join(traj_df, on=["subject_id", "hadm_id", "stay_id"], how="left")
         traj_df = traj_df.sort(["subject_id", "hadm_id"])
-
-
         if use_histories is not None and use_histories > 0:
-            # Add backward-looking trajectory columns
             traj_df = traj_df.with_columns([
-                # Get previous trajectories (lag 1)
                 pl.col("trajectories").shift(1).over("subject_id").alias("prev_trajectories_1"),
-                # Get trajectories from 2 steps back (lag 2)
                 pl.col("trajectories").shift(2).over("subject_id").alias("prev_trajectories_2")
             ]).with_columns([
-                # Concat current with 1 previous trajectories
                 pl.when(pl.col("prev_trajectories_1").is_null())
                 .then(pl.col("trajectories"))
                 .otherwise(pl.col("prev_trajectories_1") + pl.lit(",") + pl.col("trajectories"))
                 .alias("trajectories_with_prev_1"),
-
-                # Concat current with 2 previous trajectoriess
                 pl.when(pl.col("prev_trajectories_2").is_null() | pl.col("prev_trajectories_1").is_null())
                 .then(
                     pl.when(pl.col("prev_trajectories_1").is_null())
@@ -612,8 +632,6 @@ def preprocess_data_mimicv2(data_name:str, use_histories:int=None, use_proc_icd:
                     pl.col("trajectories")
                 )
                 .alias("trajectories_with_prev_2"),
-
-                # Only past, used for querying without exposing to current diagnosis
                 pl.when(pl.col("prev_trajectories_2").is_null() | pl.col("prev_trajectories_1").is_null())
                 .then(
                     pl.when(pl.col("prev_trajectories_1").is_null())
@@ -626,45 +644,61 @@ def preprocess_data_mimicv2(data_name:str, use_histories:int=None, use_proc_icd:
                 )
                 .alias("trajectories_with_prev_2_only_history"),
             ])
-
             if SPLIT == 'train':
-                traj_list = traj_df.select("trajectories_with_prev_2").to_numpy().flatten().tolist()  # trajectories
+                traj_list = traj_df.select("trajectories_with_prev_2").to_numpy().flatten().tolist()
             else:
-                traj_list = traj_df.select("trajectories_with_prev_2_only_history").to_numpy().flatten().tolist()  # trajectories
+                traj_list = traj_df.select("trajectories_with_prev_2_only_history").to_numpy().flatten().tolist()
         else:
-            traj_list = traj_df.select("trajectories").to_numpy().flatten().tolist()  # trajectories
-        meta_list = traj_df.select(["subject_id", "hadm_id", "stay_id"]).to_numpy().tolist()  # (subject_id, hadm_id, stay_id)
+            traj_list = traj_df.select("trajectories").to_numpy().flatten().tolist()
+        meta_list = traj_df.select(["subject_id", "hadm_id", "stay_id"]).to_numpy().tolist()
         data.append(traj_list)
         metadata.append(meta_list)
-    
-    return data[0], metadata[0], data[1], metadata[1]  # Return train_data, train_metadata, test_data, test_metadata
-
-
+    return data[0], metadata[0], data[1], metadata[1]
 
 if __name__ == "__main__":
+    # --- All parameters exposed here ---
+    data_name = 'Readmission'
+    embed_dim = 128
+    latent_dim = 64
+    num_epochs = 1024
+    use_histories = 2
+    use_proc_icd = True
+    use_mlm = True
+    mlm_weight = 0.1
+    use_hard_negatives = True
+    mapping_json = MIMICIV_MAPPING_JSON
+    embedding_pickle = EMBEDDING_PICKLE
+    processed_data_path = PROCESSED_DATA_PATH
 
-    # data_name = 'mimiciv_infections'
-    # train_data, train_metadata, test_data, test_metadata = preprocess_data_mimic(data_name)
-    train_data, train_metadata, test_data, test_metadata = preprocess_data_mimicv2('ICD SEPSIS', use_histories=2, use_proc_icd=True)
+    train_data, train_metadata, test_data, test_metadata = preprocess_data_mimic(
+        data_name,
+        use_histories=use_histories,
+        use_proc_icd=use_proc_icd,
+        processed_data_path=processed_data_path,
+    )
     model = train(
-        train_data, train_metadata, test_data, test_metadata, 
-        data_name='ICD SEPSIS', num_epochs=100, 
-        use_histories=True, use_proc_icd=True,
-        use_mlm=True, mlm_weight=0.1, use_hard_negatives=True
+        train_data, train_metadata, test_data, test_metadata,
+        data_name=data_name,
+        embed_dim=embed_dim,
+        latent_dim=latent_dim,
+        num_epochs=num_epochs,
+        use_histories=use_histories,
+        use_proc_icd=use_proc_icd,
+        use_mlm=use_mlm,
+        mlm_weight=mlm_weight,
+        use_hard_negatives=use_hard_negatives,
+        mapping_json=mapping_json,
+        embedding_pickle=embedding_pickle,
+        processed_data_path=processed_data_path,
     )
 
-    # for data_name in ['Readmission', 'Mortality', 'Length of Stay', 'ICD SEPSIS', 'ICD VAP', 'ICD SSI', 'ICD BSI', 'ICD UTI']:
-    #     train_data, train_metadata, test_data, test_metadata = preprocess_data_mimicv2(data_name, use_histories=2)
-    #     model = train(train_data, train_metadata, test_data, test_metadata, data_name=data_name, num_epochs=30)
-
-        # Generate embeddings after training
-        # print("\nGenerating embeddings for all visits...")
-        # train_val_embeddings, test_embeddings = save_embeddings(
-        #     train_data, train_metadata, test_data, test_metadata, data_name=data_name, use_histories=2
-        # )
-
-        # train_data, train_metadata, test_data, test_metadata = preprocess_data_mimicv2(data_name, use_histories=None)
-        # print("\nGenerating embeddings for all visits...")
-        # train_val_embeddings, test_embeddings = save_embeddings(
-        #     train_data, train_metadata, test_data, test_metadata, data_name=data_name, use_histories=None
-        # )
+    save_embeddings(
+        train_data,
+        train_metadata,
+        test_data,
+        test_metadata,
+        data_name=data_name,
+        use_histories=use_histories,
+        mapping_json=mapping_json,
+        processed_data_path=processed_data_path,
+    )
