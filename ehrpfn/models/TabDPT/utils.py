@@ -49,11 +49,11 @@ def maskstd(x, mask, dim=0):
     return ((diffs**2).sum(dim=0, keepdim=True) / (num - 1)) ** 0.5
 
 
-def normalize_data(data, eval_pos=-1, dim=0, return_mean_std: bool = False):
+def normalize_data(data, eval_pos=-1, dim=0, return_mean_std: bool = False, mean:float=None, std:float=None):
     X = data[:eval_pos] if eval_pos > 0 else data
     mask = ~torch.isnan(X)
-    mean = maskmean(X, mask, dim=dim)
-    std = maskstd(X, mask, dim=dim) + 1e-6
+    mean = maskmean(X, mask, dim=dim) if mean is None else mean
+    std = maskstd(X, mask, dim=dim) + 1e-6 if std is None else std
     data = (data - mean) / std
     if return_mean_std:
         return data, mean, std
