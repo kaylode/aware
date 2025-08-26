@@ -10,7 +10,7 @@ import plotly.graph_objects as go
 from ehrpfn.utils import LoggerObserver
 from dill import pickle
 from ehrpfn.utils import load_model, save_model
-from ehrpfn.datasets import get_mimic_dataset, get_sjh_dataset
+from ehrpfn.datasets import get_mimic_dataset, get_sjh_dataset, get_mimic_dataset
 from omegaconf import DictConfig, OmegaConf
 from xgboost import XGBClassifier, XGBRegressor
 from catboost import CatBoostClassifier, CatBoostRegressor
@@ -53,25 +53,18 @@ def extract_top_features(args: DictConfig):
 
     # Setup directories
     if args.get("use_shap", False):
-        data_output_folder = osp.join(args.output_folder, "data", args.data_name)
 
-        if args.data_name.startswith('mimiciv'):
+        if args.data_name.startswith('mimicpipe') or args.data_name.startswith('mimiciv'):
             data = get_mimic_dataset(
-                train_folder=args.train_folder,
-                test_folder=args.test_folder,
-                icu_ids=args.icu_ids,
-                data_output_folder=data_output_folder,
-                target_column=args.target_column,
+                data_csv=args.data_csv,
                 train_label_path=args.train_label_path,
                 test_label_path=args.test_label_path,
                 feature_selection_path=args.feature_selection_path,
                 selection_method=args.selection_method,
-                process_file_path=args.process_file_path,
-                n_process_variants=args.n_process_variants,
-                trajectory_file_path=args.trajectory_file_path,
-                logger=LOGGER
+                embedding_file_path=args.embedding_file_path
             )
         elif args.data_name == 'sjh_cpe':
+            data_output_folder = osp.join(args.data_folder, args.data_name)
             data = get_sjh_dataset(
                 input_folder=args.input_folder,
                 output_folder=data_output_folder,
@@ -79,13 +72,8 @@ def extract_top_features(args: DictConfig):
                 max_length=args.max_length,
                 num_chunks=args.num_chunks,
                 patient_ids=None,
-
                 feature_selection_path=args.feature_selection_path,
                 selection_method=args.selection_method,
-                process_file_path=args.process_file_path,
-                n_process_variants=args.n_process_variants,
-                trajectory_file_path=args.trajectory_file_path,
-
             )
         else:
             raise ValueError(f"Data {args.data_name} is not supported. Please choose from ['mimiciv', 'sjh_cpe']")
