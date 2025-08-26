@@ -2,21 +2,18 @@ defaults:
   - hydra@_here_
   - _self_
 
-data_name: mimiciv_infections
-train_folder: null
-test_folder: null
-data_folder: /home/mpham/workspace/source/ehrpfn/data/processed
+
+data_name: openml_ehr
+data_csv: null
 output_folder: /home/mpham/workspace/source/ehrpfn/outputs/tabpfn
-train_label_path: /home/mpham/workspace/source/ehrpfn/data/labels/PATIENT_INFECTION/train_labels.csv
-test_label_path: /home/mpham/workspace/source/ehrpfn/data/labels/PATIENT_INFECTION/test_labels.csv
-process_file_path: /home/mpham/workspace/source/ehrpfn/data/processed/mimiciv_infections/process
+data_folder: /home/mpham/workspace/source/ehrpfn/data/pretraining
+process_file_path: null
+trajectory_file_path: null
 n_process_variants: 50
-trajectory_file_path: /home/mpham/workspace/source/ehrpfn/data/processed/mimiciv_infections/process
 feature_selection_path: null
 selection_method: null
 retrieval_method: null
 target_column: null
-icu_ids: /home/mpham/workspace/source/ehrpfn/data/processed/mimiciv_infections/icu_subject_ids.txt
 method: xgboost
 use_best_params: false
 direction: maximize

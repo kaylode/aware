@@ -2,21 +2,17 @@ defaults:
   - hydra@_here_
   - _self_
 
-data_name: mimiciv_outcomes
-train_folder: null
-test_folder: null
-data_folder: /home/mpham/workspace/source/ehrpfn/data/processed
+
+data_name: mimicpipe
+data_csv: null
 output_folder: /home/mpham/workspace/source/ehrpfn/outputs/tabpfn
-train_label_path: train/Labels/next_admission_icd/prediction_labels.csv
-test_label_path: test/Labels/next_admission_icd/prediction_labels.csv
-process_file_path: /home/mpham/workspace/source/ehrpfn/data/processed/mimiciv_outcomes/process
-n_process_variants: 50
-trajectory_file_path: /home/mpham/workspace/source/ehrpfn/data/processed/mimiciv_outcomes/process
+train_label_path: /home/mpham/workspace/source/ehrpfn/data/processed/mimiciv/train_id_filtered_mapping.csv
+test_label_path: /home/mpham/workspace/source/ehrpfn/data/processed/mimiciv/test_id_filtered_mapping.csv
+embedding_file_path: null
 feature_selection_path: null
 selection_method: null
 retrieval_method: null
 target_column: null
-icu_ids: /home/mpham/workspace/source/ehrpfn/data/processed/mimiciv_outcomes/icu_subject_ids.txt
 method: xgboost
 use_best_params: false
 direction: maximize

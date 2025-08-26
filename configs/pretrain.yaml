@@ -20,6 +20,7 @@ model:
   nhead: 8
   nhid_factor: 2
   nlayers: 16
+  freeze_transformer: false
 
 
 training:
@@ -66,13 +67,18 @@ data:
   synthetic:
     input_folder: "/home/mpham/workspace/source/ehrpfn/data/pretraining"
   mimiciv:
-    val_folder: "/home/mpham/workspace/source/ehrpfn/data/processed/mimiciv_outcomes/3.5_feat_engineering"
-    val_label_folder: "/home/mpham/workspace/source/ehrpfn/data/labels"
-    data_output_folder: "/home/mpham/workspace/source/ehrpfn/data/processed/mimiciv_outcomes"
+    val_folder: "/home/mpham/workspace/source/ehrpfn/data/processed/mimiciv"
+    val_label_folder: "/home/mpham/workspace/source/ehrpfn/data/processed/mimiciv"
+    data_output_folder: "/home/mpham/workspace/source/ehrpfn/data/processed/mimicpipe"
+
+    data_csv: "/home/mpham/workspace/source/ehrpfn/data/processed/mimiciv/Readmission/all_data_advanced.csv"
+    train_label_path: "/home/mpham/workspace/source/ehrpfn/data/processed/mimiciv/Readmission/split/train_labels.csv"
+    test_label_path: "/home/mpham/workspace/source/ehrpfn/data/processed/mimiciv/Readmission/split/test_labels.csv"
+
 
 logging:
   eval_every: 10
   save_metrics:
-    - cls-mimiciv-auc
+    - cls-mimicpipe-auc
     - cls-health-auc
     - cls-cc18-auc
