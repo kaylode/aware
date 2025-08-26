@@ -2,7 +2,7 @@ import logging
 import sys
 import os
 from typing import Dict, List
-
+import json
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
@@ -154,7 +154,7 @@ class LoggerObserver(object):
                 if log_type == LoggerObserver.HTML:
                     subscriber.log_html(tag=tag, value=value, **kwargs)
 
-    def text(self, value, level=logging.INFO):
+    def text(self, *value, level=logging.INFO):
         """
         Text logging
         """
@@ -164,6 +164,14 @@ class LoggerObserver(object):
             1:
         ]  # split filename based on project name
         lineno = caller.lineno
+
+        texts = []
+        for v in value:
+            if isinstance(v, dict):
+                texts.append(json.dumps(v, indent=4, default=str))
+            else:
+                texts.append(str(v))
+        value = ' '.join(texts)
 
         self.log(
             [
