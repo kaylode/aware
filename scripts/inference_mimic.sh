@@ -22,9 +22,9 @@ fi
 
 # Loop "ICD SEPSIS" "ICD VAP" "ICD SSI" "ICD UTI" "ICD BSI" 
 # Loop  "Readmission" "Mortality" "Length of Stay"
-for TASK in "Readmission"; do
+for TASK in "ICD UTI" "Mortality" "Length of Stay"; do
     PYTHONPATH=. python ehrpfn/inference.py --config-name mimiciv \
-        data_csv="${ROOT}/data/processed/mimiciv/${TASK}/all_data_advanced.csv" \
+        data_csv="${ROOT}/data/processed/mimiciv/${TASK}/all_data.csv" \
         train_label_path="${ROOT}/data/processed/mimiciv/${TASK}/split/train_labels.csv" \
         test_label_path="${ROOT}/data/processed/mimiciv/${TASK}/split/test_labels.csv" \
         method=$METHOD \
@@ -36,6 +36,6 @@ for TASK in "Readmission"; do
         feature_selection_path="${ROOT}/outputs/tabpfn/selection/mimicpipe/${TASK}" \
         context_size=1024 \
         pretrained_path=${PRETRAIN_PATH} \
-        output_folder="/home/mpham/workspace/source/ehrpfn/outputs/tabpfn-test"
+        output_folder="/home/mpham/workspace/source/ehrpfn/outputs/tabpfn"
         # embedding_file_path="/home/mpham/workspace/source/ehrpfn/data/processed/mimiciv/${TASK}/trajectories" \ 
 done

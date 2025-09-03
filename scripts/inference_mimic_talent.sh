@@ -15,8 +15,10 @@ PRETRAIN_PATH=/home/mpham/workspace/source/ehrpfn/outputs/talent/mimicpipe/Readm
 
 # Loop "ICD SEPSIS" "ICD VAP" "ICD SSI" "ICD UTI" "ICD BSI" 
 # Loop  "Readmission" "Mortality" "Length of Stay"
-for TASK in "Readmission"; do
-    CONFIG_PATH="${ROOT}/outputs/talent/mimicpipe/${TASK}/${METHOD}/args.json"
+    # CONFIG_PATH="${ROOT}/outputs/talent/mimicpipe/${TASK}/${METHOD}/args.json"
+        # +config_path=${CONFIG_PATH}
+        # pretrained_path=${PRETRAIN_PATH}
+for TASK in "ICD SEPSIS" "Readmission"; do
     PYTHONPATH=. python ehrpfn/inference.py --config-name mimiciv \
         data_csv="${ROOT}/data/processed/mimiciv/${TASK}/all_data.csv" \
         train_label_path="${ROOT}/data/processed/mimiciv/${TASK}/split/train_labels.csv" \
@@ -29,7 +31,5 @@ for TASK in "Readmission"; do
         retrieval_method=${RETRIEVAL} \
         feature_selection_path="${ROOT}/outputs/tabpfn/selection/mimicpipe/${TASK}" \
         embedding_file_path=null \
-        context_size=1024 \
-        pretrained_path=${PRETRAIN_PATH} \
-        +config_path=${CONFIG_PATH}
+        context_size=1024
 done

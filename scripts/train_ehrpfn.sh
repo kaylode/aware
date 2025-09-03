@@ -15,7 +15,7 @@ NUM_MODEL_UPDATES=512
 EVAL_EVERY=1
 NUM_EPOCHS=512
 EVAL_ONLY=false
-RESUME=null #/home/mpham/workspace/source/ehrpfn/outputs/pretraining/EHRPFN-MIMICIV-100
+RESUME=/home/mpham/workspace/source/ehrpfn/outputs/pretraining/EHRPFN-MIMICIV-SYNTHETIC-500
 PRETRAINED=null #/home/mpham/workspace/source/ehrpfn/outputs/pretraining/TabDPT-100/tabdpt1_1.pth
 
 MODEL_NAME=TabDPT
