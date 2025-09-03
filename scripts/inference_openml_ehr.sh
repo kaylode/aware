@@ -17,16 +17,17 @@ else
     PRETRAIN_PATH=/home/mpham/workspace/source/ehrpfn/outputs/pretraining/EHRPFN-GENERAL-HEALTH-SYNTHETIC-100/best_cls-health-auc.ckpt
 fi
 
-# Loop  "Readmission"
-PYTHONPATH=. python ehrpfn/inference.py --config-name openml_ehr \
-    method=$METHOD \
-    num_features=500 \
-    n_trials=5 \
-    target_column=openml_ehr \
-    sampling=${SAMPLING} \
-    selection_method=null \
-    retrieval_method=${RETRIEVAL} \
-    feature_selection_path=null \
-    context_size=1024 \
-    pretrained_path=${PRETRAIN_PATH} \
-    seed=1702
+for SEED in 1702 1603 2000; do
+    PYTHONPATH=. python ehrpfn/inference.py --config-name openml_ehr \
+        method=$METHOD \
+        num_features=500 \
+        n_trials=5 \
+        target_column=openml_ehr \
+        sampling=${SAMPLING} \
+        selection_method=null \
+        retrieval_method=${RETRIEVAL} \
+        feature_selection_path=null \
+        context_size=1024 \
+        pretrained_path=${PRETRAIN_PATH} \
+        seed=${SEED}
+done
