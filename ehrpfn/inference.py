@@ -21,7 +21,8 @@ from ehrpfn.utils.metrics import run_binary_classification_metrics, run_regressi
 from ehrpfn.datasets import (
     get_sjh_dataset, 
     get_mimic_dataset, 
-    get_openml_ehr
+    get_openml_ehr,
+    get_eicu
 )
 
 LOGGER = LoggerObserver.getLogger("main")
@@ -342,7 +343,7 @@ def inference(args, data):
         running_time = time.time() - start_time
 
 
-    elif args.method in ['tabr', 'modernNCA', 'tabm', 'tabicl']:
+    elif args.method in ['tabr', 'modernNCA', 'tabm', 'tabicl', 'tabtransformer', 'tabnet', 'excelformer', 'trompt']:
 
         from sklearn.model_selection import train_test_split
         X_train, X_val, y_train, y_val = train_test_split(
@@ -354,8 +355,9 @@ def inference(args, data):
 
         model = TALENTWrapper(
             model_name=args.method,
-            config_path=args.config_path,
+            config_path=getattr(args, 'config_path', None),
             ckpt_path=args.pretrained_path,
+            save_dir=result_folder,
             categorical_feature_indices=categorical_feature_indices,
             valset=[X_val, y_val],
             is_classification=is_classification,
@@ -455,6 +457,17 @@ def run(args: DictConfig):
             feature_selection_path=args.feature_selection_path,
             selection_method=args.selection_method,
             embedding_file_path=args.embedding_file_path,
+        )
+    elif args.data_name == 'eicu':
+        data = get_eicu(
+            task=args.target_column,
+            csv_file=args.data_csv,
+            label_file=args.label_path,
+            train_admission_id_file=args.train_admission_id_file,
+            val_admission_id_file=args.val_admission_id_file,
+            test_admission_id_file=args.test_admission_id_file,
+            selection_method=args.selection_method,
+            feature_selection_path=args.feature_selection_path
         )
     else:
         raise ValueError(f"Data {args.data_name} is not supported. Please choose from ['mimiciv', 'sjh_cpe']")
