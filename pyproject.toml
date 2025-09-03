@@ -3,7 +3,7 @@ requires = ["setuptools==75.8.2", "wheel", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["ehrpfn", "scripts", "traddl"]
+packages = ["ehrpfn", "scripts", "traddl", "preprocess"]
 
 [project]
 name = "ehrpfn"
@@ -58,7 +58,12 @@ dependencies = [
     "lime==0.2.0.1",
     "scikit-plot==0.3.7",
     "kaleido==1.0.0",
-    "tabpfn @ git+https://github.com/PriorLabs/TabPFN.git"
+    "tabpfn @ git+https://github.com/PriorLabs/TabPFN.git",
+    "category_encoders==2.6.3",
+    "delu==0.0.23",
+    "einops==0.8.0",
+    "qhoptim==1.1.0",
+
 ]
 
 [project.optional-dependencies]

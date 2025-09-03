@@ -4,7 +4,7 @@ from importlib.resources import files
 
 from importlib.resources import files
 from pathlib import Path
-MAPPINGS_DIR: Path = files("scripts.tokenization.maps")
+MAPPINGS_DIR: Path = files("preprocess.longitudinal.tokenization.maps")
 
 
 def get_icd_9_to_10_mapping(icd_type="cm") -> dict[str, str]:

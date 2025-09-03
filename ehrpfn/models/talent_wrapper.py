@@ -30,7 +30,8 @@ class TALENTWrapper(BaseEstimator, ClassifierMixin):
 
     def __init__(
         self, model_name:str, 
-        config_path:str=None, ckpt_path:str=None, save_dir:str=None,
+        config_path:str=None, tune_config:str=None,
+        ckpt_path:str=None, save_dir:str=None,
         categorical_feature_indices:List[int]=None, 
         valset=None, is_classification:bool=False, seed:int=None
     ):
@@ -42,6 +43,9 @@ class TALENTWrapper(BaseEstimator, ClassifierMixin):
 
         if config_path is not None:
             args = json.load(open(config_path, 'r'))
+            if tune_config is not None:
+                tune_config = json.load(open(tune_config, 'r'))
+                args['config'] = tune_config
             args = dict_to_namespace(args)
         else:
             config_dir = "/home/mpham/workspace/source/ehrpfn/ehrpfn/models/TALENT/TALENT/configs"
@@ -72,14 +76,20 @@ class TALENTWrapper(BaseEstimator, ClassifierMixin):
                 args['cat_policy'] = "ordinal"
 
             args = dict_to_namespace(args)
-            setattr(args, "config", default_para[model_name])
+
+            if tune_config is not None:
+                tune_config = json.load(open(tune_config, 'r'))
+                args['config'] = tune_config
+                setattr(args, "config", tune_config)
+            else:
+                setattr(args, "config", default_para[model_name])
+
             # args.config = default_para[model_name]
             args.config['training']['n_bins'] = args.n_bins
             # Dump argparse_dict to a JSON file
             argparse_dict = vars(args)
             with open(osp.join(save_dir, 'args.json'), 'w') as f:
                 json.dump(argparse_dict, f, indent=4)
-
 
         self.args = args
         self.method = get_method(model_name)(args, not is_classification)

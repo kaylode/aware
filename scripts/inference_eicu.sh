@@ -19,17 +19,23 @@ fi
 
 
 for TASK in "READMISSION" "MORTALITY"; do
-PYTHONPATH=. python ehrpfn/inference.py --config-name eicu \
-    train_admission_id_file=${ROOT}/data/processed_muse/eicu/task:${TASK}/train_admission_ids.txt \
-    val_admission_id_file=${ROOT}/data/processed_muse/eicu/task:${TASK}/val_admission_ids.txt \
-    test_admission_id_file=${ROOT}/data/processed_muse/eicu/task:${TASK}/test_admission_ids.txt \
-    method=$METHOD \
-    num_features=100 \
-    target_column=${TASK} \
-    sampling=${SAMPLING} \
-    selection_method=${SELECTION} \
-    retrieval_method=${RETRIEVAL} \
-    feature_selection_path="${ROOT}/outputs/tabpfn/selection/eicu/${TASK}" \
-    context_size=1024 \
-    pretrained_path=${PRETRAIN_PATH}
+    CONFIG_PATH="${ROOT}/outputs/talent-tune/eicu/${TASK}/${METHOD}/args.json"
+    TUNE_CONFIG="${ROOT}/outputs/talent-tune/eicu/${TASK}/${METHOD}/${METHOD}-tuned.json"
+    for SEED in 1702 1603 2000; do
+        PYTHONPATH=. python ehrpfn/inference.py --config-name eicu \
+            train_admission_id_file=${ROOT}/data/processed_muse/eicu/task:${TASK}/train_admission_ids.txt \
+            val_admission_id_file=${ROOT}/data/processed_muse/eicu/task:${TASK}/val_admission_ids.txt \
+            test_admission_id_file=${ROOT}/data/processed_muse/eicu/task:${TASK}/test_admission_ids.txt \
+            method=$METHOD \
+            num_features=500 \
+            target_column=${TASK} \
+            sampling=${SAMPLING} \
+            selection_method=${SELECTION} \
+            retrieval_method=${RETRIEVAL} \
+            feature_selection_path="${ROOT}/outputs/tabpfn/selection/eicu/${TASK}" \
+            context_size=1024 \
+            pretrained_path=${PRETRAIN_PATH} \
+            +config_path=${CONFIG_PATH} \
+            +tune_config=${TUNE_CONFIG}
+    done
 done

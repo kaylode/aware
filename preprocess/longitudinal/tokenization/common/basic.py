@@ -4,8 +4,8 @@ from collections.abc import Sequence
 from pathlib import Path
 import polars as pl
 
-from scripts.tokenization.constants import STATIC_DATA_FN
-from scripts.tokenization.constants import SpecialToken as ST
+from preprocess.longitudinal.tokenization.constants import STATIC_DATA_FN
+from preprocess.longitudinal.tokenization.constants import SpecialToken as ST
 from ehrpfn.utils.vocabulary import Vocabulary
 from ..patterns import MatchAndRevise, ScanAndAggregate
 from ..utils import create_prefix_or_chain, static_class

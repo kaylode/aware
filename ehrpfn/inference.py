@@ -356,6 +356,7 @@ def inference(args, data):
         model = TALENTWrapper(
             model_name=args.method,
             config_path=getattr(args, 'config_path', None),
+            tune_config=getattr(args, 'tune_config', None),
             ckpt_path=args.pretrained_path,
             save_dir=result_folder,
             categorical_feature_indices=categorical_feature_indices,
@@ -389,7 +390,7 @@ def inference(args, data):
 
     
     wandb_kwargs = {
-        "name": f"{args['method']}",
+        "name": f"{args['method']}" if args.method not in ['tabdpt', 'tabpfn-retrieval'] else f"{args.method}_{args.retrieval_method}",
         "entity": "kaylode",
         "project": "tabpfn-ehr",
         "reinit": True,

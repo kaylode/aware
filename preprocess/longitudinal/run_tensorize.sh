@@ -45,7 +45,7 @@ export LOGGING_DIR
 script_body="
 set -e
 
-PYTHONPATH=. python scripts/tokenization/run_tensorize.py --config-name=$DATASET \
+PYTHONPATH=. python preprocess/longitudinal/tokenization/run_tensorize.py --config-name=$DATASET \
     -m input_dir=$INPUT_DIR/ \
     vocab=$VOCAB_DIR \
     output_dir=$INPUT_DIR \

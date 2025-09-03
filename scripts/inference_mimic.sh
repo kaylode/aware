@@ -20,22 +20,28 @@ else
     PRETRAIN_PATH=/home/mpham/workspace/source/ehrpfn/outputs/pretraining/EHRPFN-MIMICIV-100/best_cls-mimicpipe-auc.ckpt
 fi
 
-# Loop "ICD SEPSIS" "ICD VAP" "ICD SSI" "ICD UTI" "ICD BSI" 
-# Loop  "Readmission" "Mortality" "Length of Stay"
-for TASK in "ICD UTI" "Mortality" "Length of Stay"; do
-    PYTHONPATH=. python ehrpfn/inference.py --config-name mimiciv \
-        data_csv="${ROOT}/data/processed/mimiciv/${TASK}/all_data.csv" \
-        train_label_path="${ROOT}/data/processed/mimiciv/${TASK}/split/train_labels.csv" \
-        test_label_path="${ROOT}/data/processed/mimiciv/${TASK}/split/test_labels.csv" \
-        method=$METHOD \
-        num_features=100 \
-        target_column="${TASK}" \
-        sampling=${SAMPLING} \
-        selection_method=${SELECTION} \
-        retrieval_method=${RETRIEVAL} \
-        feature_selection_path="${ROOT}/outputs/tabpfn/selection/mimicpipe/${TASK}" \
-        context_size=1024 \
-        pretrained_path=${PRETRAIN_PATH} \
-        output_folder="/home/mpham/workspace/source/ehrpfn/outputs/tabpfn"
-        # embedding_file_path="/home/mpham/workspace/source/ehrpfn/data/processed/mimiciv/${TASK}/trajectories" \ 
+
+for TASK in "Readmission" "Mortality" "Length of Stay" "ICD UTI" "ICD SEPSIS" ; do
+    CONFIG_PATH="${ROOT}/outputs/talent-tune/mimicpipe/${TASK}/${METHOD}/args.json"
+    TUNE_CONFIG="${ROOT}/outputs/talent-tune/mimicpipe/${TASK}/${METHOD}/${METHOD}-tuned.json"
+    for SEED in 1702 1603 2000; do
+        PYTHONPATH=. python ehrpfn/inference.py --config-name mimiciv \
+            data_csv="${ROOT}/data/processed/mimiciv/${TASK}/all_data.csv" \
+            train_label_path="${ROOT}/data/processed/mimiciv/${TASK}/split/train_labels.csv" \
+            test_label_path="${ROOT}/data/processed/mimiciv/${TASK}/split/test_labels.csv" \
+            method=$METHOD \
+            num_features=500 \
+            target_column="${TASK}" \
+            sampling=${SAMPLING} \
+            selection_method=${SELECTION} \
+            retrieval_method=${RETRIEVAL} \
+            feature_selection_path="${ROOT}/outputs/tabpfn/selection/mimicpipe/${TASK}" \
+            context_size=1024 \
+            pretrained_path=${PRETRAIN_PATH} \
+            output_folder="/home/mpham/workspace/source/ehrpfn/outputs/tabpfn" \
+            seed=${SEED} \
+            +config_path=${CONFIG_PATH} \
+            +tune_config=${TUNE_CONFIG}
+            # embedding_file_path="/home/mpham/workspace/source/ehrpfn/data/processed/mimiciv/${TASK}/trajectories" \ 
+    done
 done

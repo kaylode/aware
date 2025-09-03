@@ -57,18 +57,18 @@ pip install \
 script_body="
 set -e
 
-PYTHONPATH=. python scripts/tokenization/run_tokenization.py --config-name=$DATASET \
+PYTHONPATH=. python preprocess/longitudinal/tokenization/run_tokenization.py --config-name=$DATASET \
     -m input_dir=$INPUT_DIR/train \
     output_dir=$OUTPUT_DIR \
     out_fn=train \
     icu_ids_path=$ICU_IDS_PATH
 
-PYTHONPATH=. python scripts/tokenization/build_vocab.py --config-name=$DATASET \
+PYTHONPATH=. python preprocess/longitudinal/tokenization/build_vocab.py --config-name=$DATASET \
     -m vocab=$OUTPUT_DIR/train \
     output_dir=$OUTPUT_DIR \
     out_fn=train
 
-PYTHONPATH=. python scripts/tokenization/run_tokenization.py --config-name=$DATASET \
+PYTHONPATH=. python preprocess/longitudinal/tokenization/run_tokenization.py --config-name=$DATASET \
     -m input_dir=$INPUT_DIR/test \
     vocab=$OUTPUT_DIR/train \
     output_dir=$OUTPUT_DIR \

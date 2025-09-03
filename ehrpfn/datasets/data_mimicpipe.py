@@ -6,7 +6,7 @@ import json
 import numpy as np
 import pandas as pd
 import os.path as osp
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder, StandardScaler
 
 RARE_DISEASE_ICDS = [i for key, i in DISEASE_GROUP_TO_ICDS.items() if key in ['HCAI']]
 RARE_DISEASE_ICDS = [item for sublist in RARE_DISEASE_ICDS for item in sublist]
@@ -110,6 +110,11 @@ def get_mimic_dataset(
     y_train = y_train_df.values
     X_test = X_test_df.values
     y_test = y_test_df.values
+
+    # Fit your data on the scaler object
+    scaler = StandardScaler()
+    X_train = scaler.fit_transform(X_train)
+    X_test = scaler.transform(X_test)
 
     LOGGER.text(f"Train shape: {X_train.shape}, Test shape: {X_test.shape}", level=LoggerObserver.INFO)
     LOGGER.text(f"Train label distribution: {pd.Series(y_train).value_counts(normalize=True)}", level=LoggerObserver.INFO)

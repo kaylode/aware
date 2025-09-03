@@ -20,7 +20,7 @@ fi
 # Loop  "Readmission"
 PYTHONPATH=. python ehrpfn/inference.py --config-name openml_ehr \
     method=$METHOD \
-    num_features=100 \
+    num_features=500 \
     n_trials=5 \
     target_column=openml_ehr \
     sampling=${SAMPLING} \
@@ -28,4 +28,5 @@ PYTHONPATH=. python ehrpfn/inference.py --config-name openml_ehr \
     retrieval_method=${RETRIEVAL} \
     feature_selection_path=null \
     context_size=1024 \
-    pretrained_path=${PRETRAIN_PATH}
+    pretrained_path=${PRETRAIN_PATH} \
+    seed=1702
