@@ -410,8 +410,11 @@ class Tuner:
             figs = self.visualize("all")
             os.makedirs(osp.join(self.save_dir, 'figures'), exist_ok=True)
             for fig_name, fig in figs:
-                fig.write_image(osp.join(self.save_dir, 'figures', f"{fig_name}.png"))
-                LOGGER.text(f"{fig_name} plot saved to {self.save_dir}/{fig_name}.png", level=LoggerObserver.INFO)
+                try:
+                    fig.write_image(osp.join(self.save_dir, 'figures', f"{fig_name}.png"))
+                    LOGGER.text(f"{fig_name} plot saved to {self.save_dir}/{fig_name}.png", level=LoggerObserver.INFO)
+                except:
+                    pass
         
         # Log the best trial to wandb
         if self.wandb_kwargs is not None:
