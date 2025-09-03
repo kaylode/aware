@@ -7,9 +7,6 @@ data_name: openml_ehr
 data_csv: null
 output_folder: /home/mpham/workspace/source/ehrpfn/outputs/tabpfn
 data_folder: /home/mpham/workspace/source/ehrpfn/data/pretraining
-process_file_path: null
-trajectory_file_path: null
-n_process_variants: 50
 feature_selection_path: null
 selection_method: null
 retrieval_method: null
