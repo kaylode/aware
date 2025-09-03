@@ -10,7 +10,7 @@ import plotly.graph_objects as go
 from ehrpfn.utils import LoggerObserver
 from dill import pickle
 from ehrpfn.utils import load_model, save_model
-from ehrpfn.datasets import get_mimic_dataset, get_sjh_dataset, get_mimic_dataset
+from ehrpfn.datasets import get_mimic_dataset, get_sjh_dataset, get_mimic_dataset, get_eicu
 from omegaconf import DictConfig, OmegaConf
 from xgboost import XGBClassifier, XGBRegressor
 from catboost import CatBoostClassifier, CatBoostRegressor
@@ -72,6 +72,17 @@ def extract_top_features(args: DictConfig):
                 max_length=args.max_length,
                 num_chunks=args.num_chunks,
                 patient_ids=None,
+                feature_selection_path=args.feature_selection_path,
+                selection_method=args.selection_method,
+            )
+        elif args.data_name == 'eicu':
+            data = get_eicu(
+                task=args.target_column,
+                csv_file=args.data_csv,
+                label_file=args.label_path,
+                train_admission_id_file=args.train_admission_id_file,
+                val_admission_id_file=args.val_admission_id_file,
+                test_admission_id_file=args.test_admission_id_file,
                 feature_selection_path=args.feature_selection_path,
                 selection_method=args.selection_method,
             )
