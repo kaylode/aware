@@ -50,7 +50,10 @@ class TabNetMethod(Method):
             self.N, self.normalizer = data_norm_process(self.N, self.args.normalization, self.args.seed)
         else:
             N_test, C_test, _, _, _ = data_nan_process(N, C, self.args.num_nan_policy, self.args.cat_nan_policy, self.num_new_value, self.imputer, self.cat_new_value)
-            y_test, _, _ = data_label_process(y, self.is_regression, self.y_info, self.label_encoder)
+            if y is not None:
+                y_test, _, _ = data_label_process(y, self.is_regression, self.y_info, self.label_encoder)
+            else:
+                y_test = None
             N_test,_ = num_enc_process(N_test,num_policy=self.args.num_policy,n_bins = self.args.config['training']['n_bins'],y_train=None,encoder = self.num_encoder)
             N_test, C_test, _, _, _ = data_enc_process(N_test, C_test, self.args.cat_policy, None, self.ord_encoder, self.mode_values, self.cat_encoder)
             N_test, _ = data_norm_process(N_test, self.args.normalization, self.args.seed, self.normalizer)
@@ -60,7 +63,11 @@ class TabNetMethod(Method):
                 self.N_test,self.C_test = None,C_test['test']
             else:
                 self.N_test,self.C_test = N_test['test'],None
-            self.y_test = y_test['test']
+
+            if y_test is not None:
+                self.y_test = y_test['test']
+            else:
+                self.y_test = None
         self.criterion = F.cross_entropy if not self.is_regression else F.mse_loss
 
     def fit(self, data, info, train = True, config = None):
@@ -128,6 +135,28 @@ class TabNetMethod(Method):
         print('Test: loss={:.4f}'.format(vl))
         for name, res in zip(metric_name, vres):
             print('[{}]={:.4f}'.format(name, res))
-
         
         return vl, vres, metric_name, test_logit
+
+    def predict_proba(self, data):
+        """
+        Predict the results of the data.
+
+        :param data: tuple, (N, C)
+        :param model_name: str, name of the model
+        :return: tuple, (loss, metric, metric_name, predictions)
+        """
+        N,C = data
+
+        self.data_format(False, N, C)
+        if self.is_regression:
+            task_type = "regression"
+            test_logit = self.model.predict(self.N_test)
+        else:
+            task_type = "classification"
+            test_logit = self.model.predict_proba(self.N_test)
+                
+        return test_logit
+
+    def load_from(self, ckpt_path:str):
+        self.model.load_model(ckpt_path)

@@ -410,8 +410,13 @@ def get_deep_args():
     parser.add_argument('--save_path', type=str, default=None,
                         help='Path to save the model and data (default: None)')
 
+                        
+    parser.add_argument('--data_name', type=str, default=None,
+                        help='Name of the dataset')
     parser.add_argument('--task', type=str, default=None,
                         help='Task name')
+    parser.add_argument('--data_folder', type=str, default=None,
+                        help='Path to the data folder')
     parser.add_argument('--train_label_path', type=str, default=None,
                         help='Path to the training label CSV file')
     parser.add_argument('--test_label_path', type=str, default=None,
@@ -422,11 +427,21 @@ def get_deep_args():
                         help='Feature selection method')
     parser.add_argument('--feature_selection_path', type=str, default=None,
                         help='Path to the feature selection directory')
+    parser.add_argument('--label_path', type=str, default=None,
+                        help='Path to the label directory')
+    parser.add_argument('--train_admission_id_file', type=str, default=None,
+                        help='Path to the training admission ID file')
+    parser.add_argument('--val_admission_id_file', type=str, default=None,
+                        help='Path to the validation admission ID file')
+    parser.add_argument('--test_admission_id_file', type=str, default=None,
+                        help='Path to the test admission ID file')
+
+
     args = parser.parse_args()
 
     set_gpu(args.gpu)
 
-    args.save_path = osp.join(args.save_path, args.dataset, args.task, args.model_type)
+    args.save_path = osp.join(args.save_path, args.data_name, args.task, args.model_type)
     mkdir(args.save_path)
 
     # load config parameters

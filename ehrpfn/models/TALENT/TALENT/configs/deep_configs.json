@@ -10,7 +10,7 @@
     "num_policy": "none",
     "n_bins": 2,
     "cat_min_frequency": 0.0,
-    "n_trials": 100,
+    "n_trials": 20,
     "seed_num": 15,
     "workers": 0,
     "gpu": "0",

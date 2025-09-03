@@ -388,7 +388,6 @@ class Method(object, metaclass=abc.ABCMeta):
 
         test_logit = []
         with torch.no_grad():
-            breakpoint()
             for i, (X, _) in tqdm(enumerate(self.test_loader)):
                 if self.N is not None and self.C is not None:
                     X_num, X_cat = X[0], X[1]
