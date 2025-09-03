@@ -394,14 +394,22 @@ def inference(args, data):
         "entity": "kaylode",
         "project": "tabpfn-ehr",
         "reinit": True,
-        "group": "ehrpfn-mimicpipe" if args.data_name != 'openml_ehr' else "ehrpfn-openml-ehr",
+        "group": "ehrpfn-mimicpipe",
         "job_type": "test",
         "tags": tags,
         "resume": "allow",
         "dir": osp.join(result_folder),
     }
     wandb.init(**wandb_kwargs)
-    wandb.run.config.update(OmegaConf.to_container(args, resolve=True))
+
+    saved_config = OmegaConf.to_container(args, resolve=True)
+
+
+    if args.data_name == 'openml_ehr':
+        saved_config['target_column'] = data.get('data_name', None)
+
+
+    wandb.run.config.update(saved_config)
     wandb.run.config.update({
         'study_name': study_name,
         'task_name': target_column,

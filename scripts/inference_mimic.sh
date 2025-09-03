@@ -20,8 +20,8 @@ else
     PRETRAIN_PATH=/home/mpham/workspace/source/ehrpfn/outputs/pretraining/EHRPFN-MIMICIV-100/best_cls-mimicpipe-auc.ckpt
 fi
 
-
-for TASK in "Readmission" "Mortality" "Length of Stay" "ICD UTI" "ICD SEPSIS" ; do
+# "Readmission" "Mortality" 
+for TASK in "Length of Stay" "ICD UTI" "ICD SEPSIS" ; do
     CONFIG_PATH="${ROOT}/outputs/talent-tune/mimicpipe/${TASK}/${METHOD}/args.json"
     TUNE_CONFIG="${ROOT}/outputs/talent-tune/mimicpipe/${TASK}/${METHOD}/${METHOD}-tuned.json"
     for SEED in 1702 1603 2000; do
@@ -40,8 +40,8 @@ for TASK in "Readmission" "Mortality" "Length of Stay" "ICD UTI" "ICD SEPSIS" ; 
             pretrained_path=${PRETRAIN_PATH} \
             output_folder="/home/mpham/workspace/source/ehrpfn/outputs/tabpfn" \
             seed=${SEED} \
-            +config_path=${CONFIG_PATH} \
-            +tune_config=${TUNE_CONFIG}
-            # embedding_file_path="/home/mpham/workspace/source/ehrpfn/data/processed/mimiciv/${TASK}/trajectories" \ 
+            +config_path="${CONFIG_PATH}" \
+            +tune_config="${TUNE_CONFIG}"
     done
 done
+            # embedding_file_path="/home/mpham/workspace/source/ehrpfn/data/processed/mimiciv/${TASK}/trajectories" \ 
