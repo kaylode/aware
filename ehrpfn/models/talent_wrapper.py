@@ -7,6 +7,10 @@ import os.path as osp
 from sklearn.base import BaseEstimator, ClassifierMixin
 from argparse import Namespace
 from TALENT.model.methods.base import check_softmax
+from ehrpfn.utils.logger import LoggerObserver
+
+LOGGER = LoggerObserver.getLogger('main')
+    
 
 BINCLASS = 'binclass'
 MULTICLASS = 'multiclass'
@@ -26,7 +30,7 @@ class TALENTWrapper(BaseEstimator, ClassifierMixin):
 
     def __init__(
         self, model_name:str, 
-        config_path:str, ckpt_path:str=None, 
+        config_path:str=None, ckpt_path:str=None, save_dir:str=None,
         categorical_feature_indices:List[int]=None, 
         valset=None, is_classification:bool=False, seed:int=None
     ):
@@ -35,10 +39,49 @@ class TALENTWrapper(BaseEstimator, ClassifierMixin):
         self.is_classification = is_classification
         self.valset = valset
         self.ckpt_path = ckpt_path
-        args = json.load(open(config_path, 'r'))
-        args = dict_to_namespace(args)
-        self.args = args
 
+        if config_path is not None:
+            args = json.load(open(config_path, 'r'))
+            args = dict_to_namespace(args)
+        else:
+            config_dir = "/home/mpham/workspace/source/ehrpfn/ehrpfn/models/TALENT/TALENT/configs"
+            with open(f"{config_dir}/deep_configs.json", "r") as f:
+                args = json.load(f)
+
+            args['use_float'] = False
+            args['save_path'] = save_dir
+
+            with open(f"{config_dir}/default/" + model_name + '.json', "r") as f:
+                default_para = json.load(f)
+
+            args['seed'] = seed
+            args['config'] = None
+
+            if model_name in ["tabr", "modernNCA"]:
+                args['cat_policy'] = "tabr_ohe"
+                args['num_policy'] = "none"
+                args['normalization'] = "none"
+            elif model_name in ['tabicl']:
+                args['cat_policy'] = "indices"
+                args['num_policy'] = "none"
+                args['normalization'] = "none"
+                args['tune'] = False
+            elif model_name in ['tabm','tabtransformer', 'trompt']:
+                args['cat_policy'] = "indices"
+            elif model_name in [ 'excelformer', 'tabnet', 'resnet']:
+                args['cat_policy'] = "ordinal"
+
+            args = dict_to_namespace(args)
+            setattr(args, "config", default_para[model_name])
+            # args.config = default_para[model_name]
+            args.config['training']['n_bins'] = args.n_bins
+            # Dump argparse_dict to a JSON file
+            argparse_dict = vars(args)
+            with open(osp.join(save_dir, 'args.json'), 'w') as f:
+                json.dump(argparse_dict, f, indent=4)
+
+
+        self.args = args
         self.method = get_method(model_name)(args, not is_classification)
 
 
@@ -72,7 +115,10 @@ class TALENTWrapper(BaseEstimator, ClassifierMixin):
         }
         train_val_data = (N_trainval,C_trainval,y_trainval)
 
-        time_cost = self.method.fit(train_val_data, info, train = False) # Not training again, just for constructing model
+        if self.ckpt_path is not None and not osp.isfile(self.ckpt_path):
+            time_cost = self.method.fit(train_val_data, info, train = False) # Not training again, just for constructing model
+        else:
+            time_cost = self.method.fit(train_val_data, info)
 
 
     def predict(self, X):
@@ -84,12 +130,16 @@ class TALENTWrapper(BaseEstimator, ClassifierMixin):
         C_test = {'test': C_X_test}
         test_data = (N_test,C_test)
 
-        try:
-            self.method.model.load_state_dict(
-                torch.load(self.ckpt_path)['params']
-            )
-        except:
-            self.method.load_from(self.ckpt_path)
+        if self.ckpt_path is not None and osp.isfile(self.ckpt_path):
+            try:
+                self.method.model.load_state_dict(
+                    torch.load(self.ckpt_path)['params']
+                )
+            except:
+                try:
+                    self.method.load_from(self.ckpt_path)
+                except:
+                    LOGGER.text("Failed to load trained model", level=LoggerObserver.ERROR)    
 
         predictions = self.method.predict_proba(test_data)
 
