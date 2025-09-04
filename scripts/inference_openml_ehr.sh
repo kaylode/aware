@@ -17,7 +17,28 @@ else
     PRETRAIN_PATH=/home/mpham/workspace/source/ehrpfn/outputs/pretraining/EHRPFN-GENERAL-HEALTH-SYNTHETIC-100/best_cls-health-auc.ckpt
 fi
 
-for SEED in 1702 1603 2000; do
+for SEED in 1702 1603 2000 1992 1963; do
+
+    if [ $SEED = 1702 ]; then
+        TASK="Readmission"
+        DATA='mimicpipe'
+    elif [ $SEED = 1603 ]; then
+        TASK="ICD SEPSIS"
+        DATA='mimicpipe'
+    elif [ $SEED = 2000 ]; then
+        TASK="Mortality"
+        DATA='mimicpipe'
+    elif [ $SEED = 1992 ]; then
+        TASK="READMISSION"
+        DATA='eicu'
+    else
+        TASK="MORTALITY"
+        DATA='eicu'
+    fi
+
+    CONFIG_PATH="${ROOT}/outputs/talent-tune/${DATA}/${TASK}/${METHOD}/args.json"
+    TUNE_CONFIG="${ROOT}/outputs/talent-tune/${DATA}/${TASK}/${METHOD}/${METHOD}-tuned.json"
+
     PYTHONPATH=. python ehrpfn/inference.py --config-name openml_ehr \
         method=$METHOD \
         num_features=500 \
@@ -29,5 +50,7 @@ for SEED in 1702 1603 2000; do
         feature_selection_path=null \
         context_size=1024 \
         pretrained_path=${PRETRAIN_PATH} \
-        seed=${SEED}
+        seed=${SEED} \
+        +config_path="${CONFIG_PATH}" \
+        +tune_config="${TUNE_CONFIG}"
 done
