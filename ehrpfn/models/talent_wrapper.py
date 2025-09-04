@@ -44,6 +44,7 @@ class TALENTWrapper(BaseEstimator, ClassifierMixin):
         if config_path is not None:
             args = json.load(open(config_path, 'r'))
             args['save_path'] = save_dir
+            args['seed'] = seed
             args = dict_to_namespace(args)
             if tune_config is not None:
                 tune_config = json.load(open(tune_config, 'r'))
