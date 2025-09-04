@@ -147,15 +147,6 @@ class OpenMLDataset(Dataset):
 
         self._openml_dataset = dataset
 
-        categorical_inds = []
-        for i, col in enumerate(X.columns):
-            # Convert categorical features to ordinal integers
-            if X[col].dtype == "object" or pd.api.types.is_categorical_dtype(X[col]):
-                enc = OrdinalEncoder()
-                X[[col]] = enc.fit_transform(X[[col]])
-                categorical_inds.append(i)
-
-        self.metadata["categorical_feature_inds"] = categorical_inds
 
         if y is None:
             if manual_target_column is not None:
@@ -169,6 +160,16 @@ class OpenMLDataset(Dataset):
                 self.y = None
                 self.metadata["target_type"] = "none"
                 return
+            
+        categorical_inds = []
+        for i, col in enumerate(X.columns):
+            # Convert categorical features to ordinal integers
+            if X[col].dtype == "object" or pd.api.types.is_categorical_dtype(X[col]):
+                enc = OrdinalEncoder()
+                X[[col]] = enc.fit_transform(X[[col]])
+                categorical_inds.append(i)
+
+        self.metadata["categorical_feature_inds"] = categorical_inds
             
         self.X = X.to_numpy().astype(np.float32)
 

@@ -94,6 +94,10 @@ class OpenMLEHR:
                 num_classes = 0
                 class_distribution = 0
 
+            for i in categorical_feature_indices:
+                if int(i) >= X_train.shape[1]:
+                    raise ValueError(f"Categorical feature index {i} is out of bounds for input with {X_train.shape[1]} features.")
+
             self.datasets[did] = (dataset_name, X_train, X_test, y_train, y_test, categorical_feature_indices, is_classification, feature_names, num_classes, class_distribution)
 
 
