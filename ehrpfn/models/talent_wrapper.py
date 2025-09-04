@@ -100,29 +100,54 @@ class TALENTWrapper(BaseEstimator, ClassifierMixin):
 
         X_val, y_val = self.valset
 
-        C_X_train = X[:, self.categorical_feature_indices].astype(int)
-        N_X_train = X[:, [i for i in range(X.shape[1]) if i not in self.categorical_feature_indices]].astype(float)
-        C_X_val = X_val[:, self.categorical_feature_indices].astype(int)
-        N_X_val = X_val[:, [i for i in range(X_val.shape[1]) if i not in self.categorical_feature_indices]].astype(float)
+        N_trainval, C_trainval = None, None
 
-        N_trainval = {
-            'train': N_X_train,
-            'val': N_X_val
-        } 
-        
-        C_trainval = {
-            'train': C_X_train,
-            'val': C_X_val
-        }
+        if self.categorical_feature_indices is None or len(self.categorical_feature_indices) == 0:
+            C_X_train = None
+            C_X_val = None
+            N_X_train = X.astype(float)
+            N_X_val = X_val.astype(float)
+            N_trainval = {
+                'train': N_X_train,
+                'val': N_X_val
+            } 
+
+        elif len(self.categorical_feature_indices) == X.shape[1]:
+            C_X_train = X.astype(int)
+            C_X_val = X_val.astype(int)
+            N_X_train = None
+            N_X_val = None
+            C_trainval = {
+                'train': C_X_train,
+                'val': C_X_val
+            }
+        else:
+            C_X_train = X[:, self.categorical_feature_indices].astype(int)
+            N_X_train = X[:, [i for i in range(X.shape[1]) if i not in self.categorical_feature_indices]].astype(float)
+            C_X_val = X_val[:, self.categorical_feature_indices].astype(int)
+            N_X_val = X_val[:, [i for i in range(X_val.shape[1]) if i not in self.categorical_feature_indices]].astype(float)
+
+            N_trainval = {
+                'train': N_X_train,
+                'val': N_X_val
+            } 
+            
+            C_trainval = {
+                'train': C_X_train,
+                'val': C_X_val
+            }
 
         y_trainval = {
             'train': y,
             'val': y_val
         }
+
+        num_classes = len(set(y)) if self.is_classification else 1
+
         info = {
-            "task_type": REGRESSION if not self.is_classification else BINCLASS, 
-            "n_num_features": N_X_train.shape[1],
-            "n_cat_features": C_X_train.shape[1]
+            "task_type": REGRESSION if not self.is_classification else BINCLASS if num_classes == 2 else MULTICLASS, 
+            "n_num_features": N_X_train.shape[1] if N_X_train is not None else 0,
+            "n_cat_features": C_X_train.shape[1] if C_X_train is not None else 0,
         }
         train_val_data = (N_trainval,C_trainval,y_trainval)
 
@@ -133,12 +158,22 @@ class TALENTWrapper(BaseEstimator, ClassifierMixin):
 
 
     def predict(self, X):
+        N_test, C_test = None, None
 
-        C_X_test = X[:, self.categorical_feature_indices].astype(int)
-        N_X_test = X[:, [i for i in range(X.shape[1]) if i not in self.categorical_feature_indices]].astype(float)
-
-        N_test = {'test': N_X_test}
-        C_test = {'test': C_X_test}
+        if self.categorical_feature_indices is None or len(self.categorical_feature_indices) == 0:
+            C_X_test = None
+            N_X_test = X.astype(float)
+            N_test = {'test': N_X_test}
+        elif len(self.categorical_feature_indices) == X.shape[1]:
+            C_X_test = X.astype(int)
+            N_X_test = None
+            C_test = {'test': C_X_test}
+        else:
+            C_X_test = X[:, self.categorical_feature_indices].astype(int)
+            N_X_test = X[:, [i for i in range(X.shape[1]) if i not in self.categorical_feature_indices]].astype(float)
+            N_test = {'test': N_X_test}
+            C_test = {'test': C_X_test}
+            
         test_data = (N_test,C_test)
 
         if self.ckpt_path is not None and osp.isfile(self.ckpt_path):

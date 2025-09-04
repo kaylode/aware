@@ -13,8 +13,10 @@ RETRIEVAL=knn #faiss #activities_tfidf_kmeans #trajectories #activities random #
 
 if [ $METHOD = "tabdpt" ]; then
     PRETRAIN_PATH=/home/mpham/workspace/source/ehrpfn/data/checkpoints/tabdpt1_1.pth
-else
+elif [ $METHOD = "ehrpfn" ]; then
     PRETRAIN_PATH=/home/mpham/workspace/source/ehrpfn/outputs/pretraining/EHRPFN-GENERAL-HEALTH-SYNTHETIC-100/best_cls-health-auc.ckpt
+else
+    PRETRAIN_PATH=null
 fi
 
 
@@ -36,6 +38,7 @@ for TASK in "READMISSION" "MORTALITY"; do
             context_size=1024 \
             pretrained_path=${PRETRAIN_PATH} \
             +config_path=${CONFIG_PATH} \
-            +tune_config=${TUNE_CONFIG}
+            +tune_config=${TUNE_CONFIG} \
+            seed=${SEED}
     done
 done

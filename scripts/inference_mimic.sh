@@ -16,8 +16,10 @@ if [ $METHOD = "tabdpt" ]; then
     PRETRAIN_PATH=/home/mpham/workspace/source/ehrpfn/data/checkpoints/tabdpt1_1.pth
 elif [ $METHOD = "tabdptv2" ]; then
     PRETRAIN_PATH=/home/mpham/workspace/source/ehrpfn/data/checkpoints/tabdpt1_1.pth
-else
+elif [ $METHOD = "ehrpfn" ]; then
     PRETRAIN_PATH=/home/mpham/workspace/source/ehrpfn/outputs/pretraining/EHRPFN-MIMICIV-100/best_cls-mimicpipe-auc.ckpt
+else
+    PRETRAIN_PATH=null
 fi
 
 for TASK in "Readmission" "Mortality" "Length of Stay" "ICD UTI" "ICD SEPSIS" ; do

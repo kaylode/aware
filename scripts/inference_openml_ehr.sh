@@ -13,8 +13,10 @@ RETRIEVAL=knn #faiss #activities_tfidf_kmeans #trajectories #activities random #
 
 if [ $METHOD = "tabdpt" ]; then
     PRETRAIN_PATH=/home/mpham/workspace/source/ehrpfn/data/checkpoints/tabdpt1_1.pth
-else
+elif [ $METHOD = "ehrpfn" ]; then
     PRETRAIN_PATH=/home/mpham/workspace/source/ehrpfn/outputs/pretraining/EHRPFN-GENERAL-HEALTH-SYNTHETIC-100/best_cls-health-auc.ckpt
+else
+    PRETRAIN_PATH=null
 fi
 
 for SEED in 1702 1603 2000 1992 1963; do
