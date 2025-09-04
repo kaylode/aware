@@ -460,6 +460,22 @@ def get_deep_args():
 
     args.config['training']['n_bins'] = args.n_bins
 
+
+    if args.model_type in ["tabr", "modernNCA"]:
+        args.cat_policy = "tabr_ohe"
+        args.num_policy = "none"
+        args.normalization = "none"
+    elif args.model_type in ['tabicl']:
+        args.cat_policy = "indices"
+        args.num_policy = "none"
+        args.normalization = "none"
+        args.tune = False
+    elif args.model_type in ['tabm','tabtransformer', 'trompt']:
+        args.cat_policy = "indices"
+    elif args.model_type in [ 'excelformer', 'tabnet', 'resnet']:
+        args.cat_policy = "ordinal"
+
+
     argparse_dict = vars(args)
     # Dump argparse_dict to a JSON file
     with open(osp.join(args.save_path, 'args.json'), 'w') as f:

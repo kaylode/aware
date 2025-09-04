@@ -43,10 +43,11 @@ class TALENTWrapper(BaseEstimator, ClassifierMixin):
 
         if config_path is not None:
             args = json.load(open(config_path, 'r'))
+            args['save_path'] = save_dir
+            args = dict_to_namespace(args)
             if tune_config is not None:
                 tune_config = json.load(open(tune_config, 'r'))
-                args['config'] = tune_config
-            args = dict_to_namespace(args)
+                setattr(args, "config", tune_config)
         else:
             config_dir = "/home/mpham/workspace/source/ehrpfn/ehrpfn/models/TALENT/TALENT/configs"
             with open(f"{config_dir}/deep_configs.json", "r") as f:
@@ -79,7 +80,6 @@ class TALENTWrapper(BaseEstimator, ClassifierMixin):
 
             if tune_config is not None:
                 tune_config = json.load(open(tune_config, 'r'))
-                args['config'] = tune_config
                 setattr(args, "config", tune_config)
             else:
                 setattr(args, "config", default_para[model_name])

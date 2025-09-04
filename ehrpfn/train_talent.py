@@ -90,22 +90,6 @@ if __name__ == '__main__':
     test_data = (N_test,C_test,y_test)
     LOGGER.text(f"Num features: {N_X_train.shape[1]}, Cat features: {C_X_train.shape[1]}")
 
-
-
-    if args.model_type in ["tabr", "modernNCA"]:
-        args.cat_policy = "tabr_ohe"
-        args.num_policy = "none"
-        args.normalization = "none"
-    elif args.model_type in ['tabicl']:
-        args.cat_policy = "indices"
-        args.num_policy = "none"
-        args.normalization = "none"
-        args.tune = False
-    elif args.model_type in ['tabm','tabtransformer', 'trompt']:
-        args.cat_policy = "indices"
-    elif args.model_type in [ 'excelformer', 'tabnet', 'resnet']:
-        args.cat_policy = "ordinal"
-
     if args.tune:
         args = tune_hyper_parameters(args,opt_space,train_val_data,info)
     else:
