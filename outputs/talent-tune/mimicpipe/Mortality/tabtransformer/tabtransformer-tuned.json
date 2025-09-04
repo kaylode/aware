@@ -1,0 +1,15 @@
+{
+    "general": {},
+    "model": {
+        "attn_dropout": 0.4482732979255315,
+        "depth": 6,
+        "dim": 32,
+        "ff_dropout": 0.18378093502394827,
+        "heads": 2
+    },
+    "training": {
+        "lr": 0.0005539361408594062,
+        "n_bins": 181,
+        "weight_decay": 0.0
+    }
+}
