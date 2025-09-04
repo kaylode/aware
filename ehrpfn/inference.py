@@ -343,7 +343,7 @@ def inference(args, data):
         running_time = time.time() - start_time
 
 
-    elif args.method in ['tabr', 'modernNCA', 'tabm', 'tabicl', 'tabtransformer', 'tabnet', 'excelformer', 'trompt']:
+    elif args.method in ['resnet', 'tabr', 'modernNCA', 'tabm', 'tabicl', 'tabtransformer', 'tabnet', 'excelformer', 'trompt']:
 
         from sklearn.model_selection import train_test_split
         X_train, X_val, y_train, y_val = train_test_split(
