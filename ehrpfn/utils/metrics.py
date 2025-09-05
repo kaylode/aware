@@ -20,11 +20,11 @@ def run_binary_classification_metrics(y_pred, y, average='weighted'):
         y_pred = np.array(y_pred)
         try:
             if y_pred.shape[-1] == 2:
-                auc_score = roc_auc_score(y, y_pred[:,1], average=average, multi_class='ovo')
+                auc_score = roc_auc_score(y, y_pred[:,1], average=average, multi_class='ovr')
                 _precision, _recall, thresholds = precision_recall_curve(y, y_pred[:,1])
                 auc_precision_recall = auc(_recall, _precision)
             else:
-                auc_score = roc_auc_score(y, y_pred, average=average, multi_class='ovo')
+                auc_score = roc_auc_score(y, y_pred, average=average, multi_class='ovr')
                 _precision, _recall, thresholds = precision_recall_curve(y, y_pred[:,1])
                 auc_precision_recall = auc(_recall, _precision)
         except ValueError as e:

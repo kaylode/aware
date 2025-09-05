@@ -4,6 +4,7 @@ import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 from ehrpfn.training.tabdpt_datasets.openml import OpenMLDataset
 from ehrpfn.training.utils import DataPreprocessor
+from sklearn.preprocessing import StandardScaler
 
 
 class OpenMLEHR:
@@ -93,6 +94,11 @@ class OpenMLEHR:
             else:
                 num_classes = 0
                 class_distribution = 0
+
+                # If regression, scale the target
+                target_scaler = StandardScaler()
+                y_train = target_scaler.fit_transform(y_train.reshape(-1, 1)).flatten()
+                y_test = target_scaler.transform(y_test.reshape(-1, 1)).flatten()
 
             for i in categorical_feature_indices:
                 if int(i) >= X_train.shape[1]:

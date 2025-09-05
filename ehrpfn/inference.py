@@ -59,7 +59,7 @@ def inference(args, data):
     if args.selection_method is not None:
         study_name += f"_sel:{args.selection_method}"
 
-    if args.method == 'ehrpfn' and args.retrieval_method is not None:
+    if args.method.startswith('ehrpfn') and args.retrieval_method is not None:
         study_name += f"_retrieval:{args.retrieval_method}"
     
 
@@ -285,7 +285,7 @@ def inference(args, data):
             )
         running_time = time.time() - start_time
 
-    elif args.method in ['tabdpt', 'ehrpfn']:
+    elif args.method in ['tabdpt', 'ehrpfn'] or args.method.startswith('ehrpfn'):
         from ehrpfn.models import EHRPFNClassifier, EHRPFNRegressor
 
         if args.pretrained_path is not None:
