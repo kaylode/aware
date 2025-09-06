@@ -16,9 +16,10 @@ class Retriever:
 
 
 class FAISS(Retriever):
-    def __init__(self, k:int, distance:str='L2'):
+    def __init__(self, k:Union[float,int], distance:str='L2', max_context_size:int=None):
         self.k = k
         self.distance = distance
+        self.max_context_size = max_context_size
         self._is_fitted = False
 
     def fit(self, X, y=None, **kwargs):
@@ -46,7 +47,11 @@ class FAISS(Retriever):
         queries = np.ascontiguousarray(queries)
 
         # KNN retrieval
-        knns = self.index.search(queries, self.k)
+        if isinstance(self.k, float) and self.max_context_size is not None:
+            k = min(int(self.k * self.index.ntotal), self.max_context_size)
+        else:
+            k = self.k
+        knns = self.index.search(queries, k)
         indices_Xs = knns[1]
         return indices_Xs
 
@@ -120,7 +125,7 @@ class RandomRetriever(Retriever):
 
 def get_retriever(method:str, k:int, **kwargs):
     if method in ["faiss", 'knn']:
-        retriever = FAISS(k=k, distance=kwargs.get('distance', 'L2'))
+        retriever = FAISS(k=k, distance=kwargs.get('distance', 'L2'), max_context_size=kwargs.get('max_context_size', None))
     elif method in ["dbr", "embeddings"]:
         retriever = EmbeddingRetriever(k=k, distance=kwargs.get('distance', 'L2'))
     elif method in ['weighted']:

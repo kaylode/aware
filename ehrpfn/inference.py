@@ -98,7 +98,7 @@ def inference(args, data):
             retrieval_method, weight_type = args.retrieval_method.split('_')
         else:
             retrieval_method = args.retrieval_method
-        retriever = get_retriever(retrieval_method, k=args.context_size, distance='L2', weights=retrieval_weights)
+        retriever = get_retriever(retrieval_method, k=args.context_size, distance='L2', weights=retrieval_weights, max_context_size=1024)
     else:
         retriever = None
     result_folder = osp.join(result_folder, study_name)
