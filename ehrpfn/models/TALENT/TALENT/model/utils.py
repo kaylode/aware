@@ -764,7 +764,7 @@ def tune_hyper_parameters(args, opt_space, train_val_data, info):
         )
         study.optimize(
             objective,
-            **{'n_trials': args.n_trials},
+            **{'n_trials': args.n_trials, 'timeout': 12*60*60},
             show_progress_bar=True,
         )
         # get best configs
