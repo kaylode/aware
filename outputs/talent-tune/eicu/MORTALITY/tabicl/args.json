@@ -1,7 +1,7 @@
 {
     "dataset": "mimicpipe",
     "model_type": "tabicl",
-    "max_epoch": 100,
+    "max_epoch": 50,
     "batch_size": 32,
     "normalization": "none",
     "num_nan_policy": "mean",

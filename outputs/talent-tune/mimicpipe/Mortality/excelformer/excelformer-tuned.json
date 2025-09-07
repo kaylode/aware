@@ -1,0 +1,22 @@
+{
+    "general": {},
+    "model": {
+        "attention_dropout": 0.21192752427908984,
+        "d_token": 126,
+        "ffn_dropout": 0.3031966070639622,
+        "init_scale": 0.01,
+        "kv_compression": null,
+        "kv_compression_sharing": null,
+        "n_heads": 8,
+        "n_layers": 5,
+        "prenormalization": false,
+        "residual_dropout": 0.05280213914834228,
+        "token_bias": true
+    },
+    "training": {
+        "lr": 1.092411835137167e-05,
+        "mix_type": "none",
+        "n_bins": 111,
+        "weight_decay": 8.030164648270105e-06
+    }
+}

@@ -311,7 +311,7 @@ class Method(object, metaclass=abc.ABCMeta):
             self.val_count = 0
         else:
             self.val_count += 1
-            if self.val_count > 20:
+            if self.val_count > 10:
                 self.continue_training = False
         torch.save(self.trlog, osp.join(self.args.save_path, 'trlog'))   
 
