@@ -145,10 +145,10 @@ def get_retriever(method:str, k:int, **kwargs):
 
 
 
-def get_retrieval_weight(weighted_type:str, task:str, feature_names:Optional[List[str]]):
+def get_retrieval_weight(weighted_type:str, data_name:str, task:str, feature_names:Optional[List[str]]):
 
     if weighted_type == 'feattype':
-        feature_types = json.load(open("/home/mpham/workspace/source/ehrpfn/data/processed/mimiciv/feature_types2.json", 'r'))
+        feature_types = json.load(open(f"/home/mpham/workspace/source/ehrpfn/data/processed/{data_name}/feature_types.json", 'r'))
 
         if task in ['Readmission', 'Length of Stay', 'Mortality']:
             mapping_weights = {
@@ -175,9 +175,12 @@ def get_retrieval_weight(weighted_type:str, task:str, feature_names:Optional[Lis
     
     elif weighted_type == 'logistics':
         retrieval_weights = None
-        retrieval_weights = json.load(open(
-           f"/home/mpham/workspace/source/ehrpfn/outputs/tabpfn/results/mimicpipe/{task}/logistics_mimicpipe_{task}_sel:shap_100/logistics_params.json"
-        ))["coef"][0]
+        try:
+            retrieval_weights = json.load(open(
+            f"/home/mpham/workspace/source/ehrpfn/outputs/tabpfn/results/{data_name}/{task}/logistics_{data_name}_{task}_sel:shap_500/logistics_params.json"
+            ))["coef"][0]
+        except:
+            raise FileNotFoundError("Logistics weights not found, consider running first with method=logistics")
         retrieval_weights = np.absolute(retrieval_weights)
     else:
         raise ValueError(f"Unknown weighted type: {weighted_type}")

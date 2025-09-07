@@ -132,15 +132,19 @@ def fit_adaboost(params, X_train, X_val, y_train, y_val):
     clf.fit(np.concatenate([X_train, X_val], axis=0), np.concatenate([y_train, y_val], axis=0))
     return clf, params
 
-def fit_knn(params, X_train, X_val, y_train, y_val, is_classification=True):
+def fit_knn(params, X_train, X_val, y_train, y_val, is_classification=True, weight_fn=None):
     from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
+    from scipy.spatial import distance
+    if weight_fn is not None:
+        def my_weight_fn(x, y):
+            return distance.minkowski(x, y, p=2, w=weight_fn)
+        params.update(dict(metric=my_weight_fn))
+
     if is_classification:
         # from ehrpfn.utils.retrieval import get_retrieval_weight
         # def my_distance(weights):
-        #     weights = get_retrieval_weight('feattype', 'Readmission', feature_names=None)
+        #     weights = get_retrieval_weight('feattype', 'eicu', 'READMISSION', feature_names=feature_names)
         #     return weights
-        # params.update(dict(weights=my_distance))
-
         clf = KNeighborsClassifier(**params)
     else:
         clf = KNeighborsRegressor(**params)
@@ -165,7 +169,7 @@ def fit_mlp(params, X_train, X_val, y_train, y_val, is_classification=True):
     clf.fit(np.concatenate([X_train, X_val], axis=0), np.concatenate([y_train, y_val], axis=0))
     return clf, params
 
-def objective(trial, X_train, X_val, y_train, y_val, is_classification=True, method="xgboost", cat_features=None):
+def objective(trial, X_train, X_val, y_train, y_val, is_classification=True, method="xgboost", cat_features=None, extra_params:dict={}):
 
     if wandb.run is not None:
         wandb.run.config.update({
@@ -239,7 +243,9 @@ def objective(trial, X_train, X_val, y_train, y_val, is_classification=True, met
             'n_neighbors': trial.suggest_int('n_neighbors', 3, 20),
             'weights': trial.suggest_categorical('weights', ['uniform', 'distance']),
             'p': trial.suggest_int('p', 1, 2),  # 1=manhattan, 2=euclidean
-        }, X_train, X_val, y_train, y_val, is_classification=is_classification)
+        }, X_train, X_val, y_train, y_val, is_classification=is_classification,
+            weight_fn=extra_params.get('weight_fn', None)
+        )
 
     elif method == 'mlp':
         model, params = fit_mlp({
@@ -363,12 +369,13 @@ class Tuner:
             self.WANDB_CALLBACK = None
 
 
-    def tune(self, X_train, X_val, y_train, y_val, is_classification:bool=True, cat_features=None):
+    def tune(self, X_train, X_val, y_train, y_val, is_classification:bool=True, cat_features=None, extra_params:dict={}):
         wrapped_objective = lambda trial: objective(
             trial, X_train, X_val, y_train, y_val, 
             is_classification=is_classification,
             method=self.method, 
-            cat_features=cat_features
+            cat_features=cat_features,
+            extra_params=extra_params
         )
 
         callbacks = None
@@ -442,7 +449,7 @@ class Tuner:
         elif self.method == 'adaboost':
             best_model, params = fit_adaboost(best_trial.params, X_train, X_val, y_train, y_val, is_classification=is_classification)
         elif self.method == "knn":
-            best_model, params = fit_knn(best_trial.params, X_train, X_val, y_train, y_val, is_classification=is_classification)
+            best_model, params = fit_knn(best_trial.params, X_train, X_val, y_train, y_val, is_classification=is_classification, weight_fn=extra_params.get('weight_fn', None))
         elif self.method == "mlp":
             best_model, params = fit_mlp(best_trial.params, X_train, X_val, y_train, y_val, is_classification=is_classification)
         else:

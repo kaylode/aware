@@ -59,7 +59,7 @@ def inference(args, data):
     if args.selection_method is not None:
         study_name += f"_sel:{args.selection_method}"
 
-    if args.method.startswith('ehrpfn') and args.retrieval_method is not None:
+    if (args.method.startswith('ehrpfn') or args.method.startswith('knn')) and args.retrieval_method is not None:
         study_name += f"_retrieval:{args.retrieval_method}"
     
 
@@ -89,7 +89,7 @@ def inference(args, data):
 
     if args.retrieval_method is not None and args.retrieval_method.startswith('weighted'):
         retrieval_method, weight_type = args.retrieval_method.split('_')
-        retrieval_weights = get_retrieval_weight(weight_type, target_column, feature_names=data.get('feature_names', None))
+        retrieval_weights = get_retrieval_weight(weight_type, data_name, target_column, feature_names=data.get('feature_names', None))
     else:
         retrieval_weights = None
 
@@ -146,6 +146,10 @@ def inference(args, data):
         
         from sklearn.model_selection import train_test_split
 
+        if args.method == 'knn':
+            if args.retrieval_method is not None:
+                tags.append(f"RETRIEVAL:{args['retrieval_method']}")
+
         tuner = Tuner(
             storage=osp.join(result_folder, "optuna.log"),
             study_name=study_name,
@@ -169,7 +173,12 @@ def inference(args, data):
             stratify=y_train if is_classification else None
         )
 
-        model = tuner.tune(X_train, X_val, y_train, y_val, is_classification=is_classification, cat_features=categorical_feature_indices)
+        model = tuner.tune(
+            X_train, X_val, y_train, y_val, 
+            is_classification=is_classification, 
+            cat_features=categorical_feature_indices,
+            extra_params={'weight_fn': retrieval_weights}
+        )
         save_model(model, osp.join(result_folder, 'model.pkl'))
         
         LOGGER.text(f"Model saved to {result_folder}/model.pkl", level=LoggerObserver.INFO)
@@ -189,6 +198,32 @@ def inference(args, data):
             )
         running_time = time.time() - start_time
     
+
+    elif args.method == "knn-simple":
+        from ehrpfn.models.knn import SimpleKNNClassifier, SimpleKNNRegressor
+
+        if args.retrieval_method is not None:
+            tags.append(f"RETRIEVAL:{args['retrieval_method']}")
+
+        if is_classification:
+            model = SimpleKNNClassifier(retriever=retriever)
+        else:
+            model = SimpleKNNRegressor(retriever=retriever)
+        model.fit(X_train, y_train)
+        start_time = time.time()
+        if is_classification:
+            y_pred = model.predict_proba(X_test)
+            score = run_binary_classification_metrics(
+                y_pred, 
+                y_test,
+            )
+        else:
+            y_pred = model.predict(X_test)
+            score = run_regression_metrics(
+                y_pred, 
+                y_test,
+            )
+        running_time = time.time() - start_time
 
     elif args.method == "tabpfn":
 
@@ -390,7 +425,7 @@ def inference(args, data):
 
     
     wandb_kwargs = {
-        "name": f"{args['method']}" if args.method not in ['tabdpt', 'tabpfn-retrieval'] else f"{args.method}_{args.retrieval_method}",
+        "name": f"{args['method']}" if args.method not in ['tabdpt', 'tabpfn-retrieval', 'knn', 'knn-simple'] else f"{args.method}_{args.retrieval_method}",
         "entity": "kaylode",
         "project": "tabpfn-ehr",
         "reinit": True,
