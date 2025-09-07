@@ -1,6 +1,7 @@
 from tqdm import tqdm
 from TALENT.model.utils import get_deep_args,show_results,tune_hyper_parameters,get_method,set_seeds
-
+import os.path as osp
+import json
 from ehrpfn.datasets import get_mimic_dataset, get_openml_ehr, get_eicu
 from sklearn.model_selection import train_test_split
 from ehrpfn.utils.logger import LoggerObserver
@@ -57,42 +58,84 @@ if __name__ == '__main__':
         stratify=y_train if is_classification else None
     )
 
-    C_X_train = X_train[:, categorical_feature_indices].astype(int)
-    N_X_train = X_train[:, [i for i in range(X_train.shape[1]) if i not in categorical_feature_indices]].astype(float)
-    C_X_val = X_val[:, categorical_feature_indices].astype(int)
-    N_X_val = X_val[:, [i for i in range(X_val.shape[1]) if i not in categorical_feature_indices]].astype(float)
-    C_X_test = X_test[:, categorical_feature_indices].astype(int)
-    N_X_test = X_test[:, [i for i in range(X_test.shape[1]) if i not in categorical_feature_indices]].astype(float)
+    N_trainval, C_trainval = None, None
 
-    N_trainval = {
-        'train': N_X_train,
-        'val': N_X_val
-    } 
-    N_test = {'test': N_X_test}
+    if categorical_feature_indices is None or len(categorical_feature_indices) == 0:
+        C_X_train = None
+        C_X_val = None
+        N_X_train = X_train.astype(float)
+        N_X_val = X_val.astype(float)
+        N_trainval = {
+            'train': N_X_train,
+            'val': N_X_val
+        } 
 
-    C_trainval = {
-        'train': C_X_train,
-        'val': C_X_val
-    }
-    C_test = {'test': C_X_test}
+    elif len(categorical_feature_indices) == X_train.shape[1]:
+        C_X_train = X_train.astype(int)
+        C_X_val = X_val.astype(int)
+        N_X_train = None
+        N_X_val = None
+        C_trainval = {
+            'train': C_X_train,
+            'val': C_X_val
+        }
+    else:
+        C_X_train = X_train[:, categorical_feature_indices].astype(int)
+        N_X_train = X_train[:, [i for i in range(X_train.shape[1]) if i not in categorical_feature_indices]].astype(float)
+        C_X_val = X_val[:, categorical_feature_indices].astype(int)
+        N_X_val = X_val[:, [i for i in range(X_val.shape[1]) if i not in categorical_feature_indices]].astype(float)
+
+        N_trainval = {
+            'train': N_X_train,
+            'val': N_X_val
+        } 
+        
+        C_trainval = {
+            'train': C_X_train,
+            'val': C_X_val
+        }
 
     y_trainval = {
         'train': y_train,
         'val': y_val
     }
-    y_test = {'test': y_test}
+
+    y_test = {
+        'test': y_test
+    }
+
+    N_test, C_test = None, None
+    if categorical_feature_indices is None or len(categorical_feature_indices) == 0:
+        C_X_test = None
+        N_X_test = X_test.astype(float)
+        N_test = {'test': N_X_test}
+    elif len(categorical_feature_indices) == X_test.shape[1]:
+        C_X_test = X_test.astype(int)
+        N_X_test = None
+        C_test = {'test': C_X_test}
+    else:
+        C_X_test = X_test[:, categorical_feature_indices].astype(int)
+        N_X_test = X_test[:, [i for i in range(X_test.shape[1]) if i not in categorical_feature_indices]].astype(float)
+        N_test = {'test': N_X_test}
+        C_test = {'test': C_X_test}
+        
+    train_val_data = (N_trainval,C_trainval,y_trainval)
+    test_data = (N_test,C_test, y_test)
+
+    n_num_features = N_X_train.shape[1] if N_X_train is not None else 0
+    n_cat_features = C_X_train.shape[1] if C_X_train is not None else 0
     info = {
         "task_type": REGRESSION if not is_classification else BINCLASS, 
-        "n_num_features": N_X_train.shape[1],
-        "n_cat_features": C_X_train.shape[1]
+        "n_num_features": n_num_features,
+        "n_cat_features": n_cat_features
     }
-    train_val_data = (N_trainval,C_trainval,y_trainval)
-    test_data = (N_test,C_test,y_test)
-    LOGGER.text(f"Num features: {N_X_train.shape[1]}, Cat features: {C_X_train.shape[1]}")
+    LOGGER.text(f"Numeric features: {n_num_features}, Cat features: {n_cat_features}")
 
     if args.tune:
         args = tune_hyper_parameters(args,opt_space,train_val_data,info)
     else:
+        best_value = 0
+        best_metric = 'AUC'
         for seed in tqdm(range(args.seed_num)):
             args.seed = seed    # update seed  
             set_seeds(args.seed)
@@ -102,5 +145,14 @@ if __name__ == '__main__':
             loss_list.append(vl)
             results_list.append(vres)
             time_list.append(time_cost)
+
+            if best_metric in metric_name:
+                metric_index = metric_name.index(best_metric)
+                if vres[metric_index] > best_value:
+                    best_value = vres[metric_index]
+                    method.save(name='best')
+                    # save config
+                    with open(osp.join(args.save_path, f'args-best.json'), 'w') as f:
+                        json.dump(args.config, f, sort_keys=True, indent=4)
 
     # show_results(args,info, metric_name,loss_list,results_list,time_list)

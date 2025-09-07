@@ -162,8 +162,8 @@ class TabICLMethod(Method):
 
         return test_logit
 
-    def save(self):
-        with open(osp.join(self.args.save_path, f'epoch-last-{str(self.args.seed)}.dill'), 'wb') as f:
+    def save(self, name='last'):
+        with open(osp.join(self.args.save_path, f'epoch-{name}-{str(self.args.seed)}.dill'), 'wb') as f:
             dill.dump(self.model, f)
 
     def load_from(self, path:str):
