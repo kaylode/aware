@@ -6,7 +6,7 @@ import torch as th
 from torch.utils.data.dataset import Dataset
 from traddl.source.datasets._sharded_data import ShardedData
 from ehrpfn.utils.vocabulary import Vocabulary
-from scripts.tokenization.constants import SpecialToken as ST
+from preprocess.longitudinal.tokenization.constants import SpecialToken as ST
 
 from traddl.source.datasets.masking import ConceptMasker
 

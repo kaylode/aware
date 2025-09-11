@@ -4,7 +4,7 @@ import numpy as np
 import torch as th
 from torch.utils.data.dataset import Dataset
 from ehrpfn.utils.vocabulary import Vocabulary
-from scripts.tokenization.constants import SpecialToken as ST
+from preprocess.longitudinal.tokenization.constants import SpecialToken as ST
 from traddl.source.datasets._sharded_data import ShardedData
 from datetime import timedelta
 from tqdm import tqdm
