@@ -2,14 +2,14 @@ MODEL_NAME=$1
 DATA_NAME=$2
 ROOT=/home/mpham/workspace/source/ehrpfn
 
-selection_method='shap_1024'
+selection_method='shap_500'
 
 set -e  # Exit on error
 set -u  # Treat unset variables as an error 
 
 if [ "$DATA_NAME" = "mimicpipe" ]; then
-    # MIMICIV
-    for TASK in "Readmission" "ICD SEPSIS" "Mortality" "Length of Stay" "ICD UTI"; do
+    # MIMICIV 
+    for TASK in "Length of Stay" "ICD SEPSIS" "Mortality"  "Readmission" ; do
         echo "${TASK}"
         feature_selection_path="${ROOT}/outputs/tabpfn/selection/${DATA_NAME}/${TASK}"
         CUDA_VISIBLE_DEVICES=0 PYTHONPATH=. python ehrpfn/train_talent.py \
