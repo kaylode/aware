@@ -121,6 +121,7 @@ def fit_logistics(params, X_train, X_val, y_train, y_val, is_classification=True
         params.update({'verbose': 1, 'penalty': 'l2',})
         clf = LogisticRegression(**params)  
     else:
+        params.pop('C', None)
         clf = LinearRegression(**params)
     clf.fit(np.concatenate([X_train, X_val], axis=0), np.concatenate([y_train, y_val], axis=0))
     return clf, params
