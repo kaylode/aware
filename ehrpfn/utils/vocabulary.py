@@ -4,7 +4,7 @@ import operator
 from collections.abc import Sequence
 from datetime import timedelta
 from pathlib import Path
-from typing import TypeVar, List
+from typing import TypeVar, List, Union
 
 import polars as pl
 import torch as th
@@ -140,3 +140,9 @@ class Vocabulary:
             ),
             timedelta(0),
         )
+
+    def __getitem__(self, idx: Union[str, int]) -> str:
+        if isinstance(idx, int):
+            return self.itos[idx]
+        else:
+            return self.stoi[idx]

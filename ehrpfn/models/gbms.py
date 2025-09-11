@@ -105,44 +105,86 @@ def fit_rf(params, X_train, X_val, y_train, y_val, is_classification:bool=True):
         clf = RandomForestRegressor(**params)
     else:
         clf = RandomForestClassifier(**params)
-    clf.fit(X_train, y_train)
+    clf.fit(np.concatenate([X_train, X_val], axis=0), np.concatenate([y_train, y_val], axis=0))
     return clf, params
 
 def fit_svm(params, X_train, X_val, y_train, y_val):
     from sklearn.svm import LinearSVC, SVC
     params.update({'kernel': 'linear', 'probability': True, 'verbose': True})
     clf = SVC(**params)  
-    clf.fit(X_train, y_train)
+    clf.fit(np.concatenate([X_train, X_val], axis=0), np.concatenate([y_train, y_val], axis=0))
     return clf, params
 
-def fit_logistics(params, X_train, X_val, y_train, y_val):
-    from sklearn.linear_model import LogisticRegression
-    params.update({'verbose': 1, 'penalty': 'l2',})
-    clf = LogisticRegression(**params)  
-    clf.fit(X_train, y_train)
+def fit_logistics(params, X_train, X_val, y_train, y_val, is_classification=True):
+    from sklearn.linear_model import LogisticRegression, LinearRegression
+    if is_classification:
+        params.update({'verbose': 1, 'penalty': 'l2',})
+        clf = LogisticRegression(**params)  
+    else:
+        params.pop('C', None)
+        clf = LinearRegression(**params)
+    clf.fit(np.concatenate([X_train, X_val], axis=0), np.concatenate([y_train, y_val], axis=0))
     return clf, params
 
 def fit_adaboost(params, X_train, X_val, y_train, y_val):
     from sklearn.ensemble import AdaBoostClassifier
     params.update({'random_state': 0})
     clf = AdaBoostClassifier(**params)
-    clf.fit(X_train, y_train)
+    clf.fit(np.concatenate([X_train, X_val], axis=0), np.concatenate([y_train, y_val], axis=0))
     return clf, params
 
-def objective(trial, X_train, X_val, y_train, y_val, is_classification=True, method="xgboost", cat_features=None):
+def fit_knn(params, X_train, X_val, y_train, y_val, is_classification=True, weight_fn=None):
+    from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
+    from scipy.spatial import distance
+    if weight_fn is not None:
+        def my_weight_fn(x, y):
+            return distance.minkowski(x, y, p=2, w=weight_fn)
+        params.update(dict(metric=my_weight_fn))
 
-    wandb.run.config.update({
-        'MODEL': {
+    if is_classification:
+        # from ehrpfn.utils.retrieval import get_retrieval_weight
+        # def my_distance(weights):
+        #     weights = get_retrieval_weight('feattype', 'eicu', 'READMISSION', feature_names=feature_names)
+        #     return weights
+        clf = KNeighborsClassifier(**params)
+    else:
+        clf = KNeighborsRegressor(**params)
+    clf.fit(np.concatenate([X_train, X_val], axis=0), np.concatenate([y_train, y_val], axis=0))
+    return clf, params
+
+def fit_mlp(params, X_train, X_val, y_train, y_val, is_classification=True):
+    from sklearn.neural_network import MLPClassifier, MLPRegressor
+
+    hidden_layer_sizes = params.pop('type', '2-layer')
+    if hidden_layer_sizes == '2-layer':
+        params['hidden_layer_sizes'] = (X_train.shape[1], 64)
+    elif hidden_layer_sizes == '3-layer':
+        params['hidden_layer_sizes'] = (X_train.shape[1], 128, 64)
+
+    params.update({'early_stopping': True, 'validation_fraction': 0.2,})
+    if is_classification:
+        clf = MLPClassifier(**params)
+    else:
+        clf = MLPRegressor(**params)
+
+    clf.fit(np.concatenate([X_train, X_val], axis=0), np.concatenate([y_train, y_val], axis=0))
+    return clf, params
+
+def objective(trial, X_train, X_val, y_train, y_val, is_classification=True, method="xgboost", cat_features=None, extra_params:dict={}):
+
+    if wandb.run is not None:
+        wandb.run.config.update({
+            'MODEL': {
+                'MODEL_NAME': method,
+            },
             'MODEL_NAME': method,
-        },
-        'MODEL_NAME': method,
-        'FOLD': os.environ.get("FOLD", None),
-        'TASK_NAME': os.environ.get("TASK_NAME", None),
-    })
+            'FOLD': os.environ.get("FOLD", None),
+            'TASK_NAME': os.environ.get("TASK_NAME", None),
+        })
 
     num_classes = len(np.unique(y_train))
 
-    assert method in ["xgboost", "rf", "svm", "logistics", "adaboost", "catboost", "lightgbm"], f"{method} is not supported"
+    assert method in ["xgboost", "rf", "svm", "logistics", "adaboost", "catboost", "lightgbm", "knn", 'mlp'], f"{method} is not supported"
 
     if method == "xgboost":
         model, params = fit_xgboost({
@@ -197,6 +239,24 @@ def objective(trial, X_train, X_val, y_train, y_val, is_classification=True, met
             'learning_rate': trial.suggest_float('learning_rate', 0.001, 1.0), # impact of each tree on the final outcome
         }, X_train, X_val, y_train, y_val, is_classification=is_classification)
 
+    elif method == "knn":
+        model, params = fit_knn({
+            'n_neighbors': trial.suggest_int('n_neighbors', 3, 20),
+            'weights': trial.suggest_categorical('weights', ['uniform', 'distance']),
+            'p': trial.suggest_int('p', 1, 2),  # 1=manhattan, 2=euclidean
+        }, X_train, X_val, y_train, y_val, is_classification=is_classification,
+            weight_fn=extra_params.get('weight_fn', None)
+        )
+
+    elif method == 'mlp':
+        model, params = fit_mlp({
+            'type': trial.suggest_categorical('type', ['2-layer', '3-layer']),
+            'activation': trial.suggest_categorical('activation', ['relu', 'tanh']),
+            'solver': trial.suggest_categorical('solver', ['adam', 'sgd']),
+            'alpha': trial.suggest_float('alpha', 1e-5, 1e-1, log=True),
+            'learning_rate': trial.suggest_categorical('learning_rate', ['constant', 'adaptive']),
+        }, X_train, X_val, y_train, y_val, is_classification=is_classification)
+
     else:
         raise NotImplementedError()
     
@@ -208,31 +268,40 @@ def objective(trial, X_train, X_val, y_train, y_val, is_classification=True, met
         preds = model.predict(X_val)
         pred_labels = preds
 
-    wandb.run.config.update(params)
+    if wandb.run is not None:
+        wandb.run.config.update(params)
 
     # Evaluate the model
     if not is_classification:
         rmse = np.sqrt(np.mean((y_val - pred_labels) ** 2))
         # Log the metrics to wandb
-        wandb.run.log({
-            "Validation/RMSE": rmse,
-        })
+        if wandb.run is not None:
+            wandb.run.log({
+                "Validation/RMSE": rmse,
+            })
         return float(rmse)
     else:
-        f1score = f1_score(y_val, pred_labels, average='binary', pos_label=1)
+        # is_binary = len(np.unique(y_val)) == 2 
+        # if is_binary:
+        #     f1score = f1_score(y_val, pred_labels, average='binary', pos_label=1)
+        #     precision = precision_score(y_val, pred_labels, average='binary', pos_label=1)
+        #     recall = recall_score(y_val, pred_labels, average='binary', pos_label=1)
+        # else:
+        f1score = f1_score(y_val, pred_labels, average='macro')
+        precision = precision_score(y_val, pred_labels, average='macro')
+        recall = recall_score(y_val, pred_labels, average='macro')
         mcc_score = matthews_corrcoef(y_val, pred_labels)
-        precision = precision_score(y_val, pred_labels, average='binary', pos_label=1)
-        recall = recall_score(y_val, pred_labels, average='binary', pos_label=1)
         accuracy = accuracy_score(y_val, pred_labels)
 
         # Log the metrics to wandb
-        wandb.run.log({
-            "Validation/Accuracy": accuracy,
-            "Validation/F1": f1score,
-            "Validation/MCC": mcc_score,
-            "Validation/Precision": precision,
-            "Validation/Recall": recall,
-        })
+        if wandb.run is not None:
+            wandb.run.log({
+                "Validation/Accuracy": accuracy,
+                "Validation/F1": f1score,
+                "Validation/MCC": mcc_score,
+                "Validation/Precision": precision,
+                "Validation/Recall": recall,
+            })
         return float(f1score)
 
 class Tuner:
@@ -248,6 +317,7 @@ class Tuner:
         method: str = "xgboost",
         use_best_params: bool = False,
         wandb_kwargs: dict = None,
+        **kwargs
     ) -> None:
         
         if storage is not None:
@@ -263,6 +333,8 @@ class Tuner:
         self.save_dir = save_dir
         self.method = method
         self.use_best_params = use_best_params
+        self.feature_names = kwargs.get("feature_names", None)
+        self.classnames = kwargs.get("classnames", None)
         if save_dir is not None:
             os.makedirs(save_dir, exist_ok=True)
 
@@ -275,57 +347,67 @@ class Tuner:
             sampler=sampler,
         )
 
-        # Initialise wandb callback
-        self.wandb_kwargs = {
-            "entity": wandb_kwargs.get("entity", "kaylode"),
-            "project": wandb_kwargs.get("project", "tabpfn-ehr"),
-            "reinit": True,
-            "group": "tabpfn-ehr-optuna",
-            "job_type": "optuna",
-            "tags": [self.method, "optuna"] + wandb_kwargs.get("tags", []),
-            "resume": "allow",
-            "name": f"{self.method}",
-            "dir": self.save_dir,
-        }
-        self.WANDB_CALLBACK = WeightsAndBiasesCallback(
-            metric_name="Validation/F1", 
-            wandb_kwargs=self.wandb_kwargs, 
-            as_multirun=True
-        )
+        if wandb_kwargs is not None:
+            # Initialise wandb callback
+            self.wandb_kwargs = {
+                "entity": wandb_kwargs.get("entity", "kaylode"),
+                "project": wandb_kwargs.get("project", "tabpfn-ehr"),
+                "reinit": True,
+                "group": "tabpfn-ehr-optuna",
+                "job_type": "optuna",
+                "tags": [self.method, "optuna"] + wandb_kwargs.get("tags", []),
+                "resume": "allow",
+                "name": f"{self.method}",
+                "dir": self.save_dir,
+            }
+            self.WANDB_CALLBACK = WeightsAndBiasesCallback(
+                metric_name="Validation/F1", 
+                wandb_kwargs=self.wandb_kwargs, 
+                as_multirun=True
+            )
+        else:
+            self.wandb_kwargs = None
+            self.WANDB_CALLBACK = None
 
 
-    def tune(self, X_train, X_val, y_train, y_val, is_classification:bool=True, cat_features=None):
+    def tune(self, X_train, X_val, y_train, y_val, is_classification:bool=True, cat_features=None, extra_params:dict={}):
         wrapped_objective = lambda trial: objective(
             trial, X_train, X_val, y_train, y_val, 
             is_classification=is_classification,
             method=self.method, 
-            cat_features=cat_features
+            cat_features=cat_features,
+            extra_params=extra_params
         )
 
-        decorator = self.WANDB_CALLBACK.track_in_wandb()
-        wrapped_objective = decorator(wrapped_objective)
+        callbacks = None
+        if self.WANDB_CALLBACK is not None:
+            decorator = self.WANDB_CALLBACK.track_in_wandb()
+            wrapped_objective = decorator(wrapped_objective)
+            callbacks = []
+            callbacks.append(self.WANDB_CALLBACK)
 
         if not self.use_best_params:
             try:
-                self.study.optimize(wrapped_objective, n_trials=self.n_trials, callbacks=[self.WANDB_CALLBACK])
+                self.study.optimize(wrapped_objective, n_trials=self.n_trials, callbacks=callbacks)
             except KeyboardInterrupt:
                 LOGGER.text("KeyboardInterrupt", level=LoggerObserver.ERROR)
         best_trial = self.study.best_trial
         self.save_best_config(best_trial.params)
 
-        wandb_kwargs = {
-            "name": f"{self.method}",
-            "entity": self.wandb_kwargs.get("entity", "kaylode"),
-            "project": self.wandb_kwargs.get("project", "tabpfn-ehr"),
-            "reinit": True,
-            "group": "tabpfn-ehr-finetune",
-            "job_type": "train",
-            "tags": list(set([self.method, "optuna", "best"] + self.wandb_kwargs.get("tags", []))),
-            "resume": "allow",
-            "name": f"{self.method}",
-            "dir": self.save_dir,
-        }
-        wandb.init(**wandb_kwargs)
+        if self.wandb_kwargs is not None:
+            wandb_kwargs = {
+                "name": f"{self.method}",
+                "entity": self.wandb_kwargs.get("entity", "kaylode"),
+                "project": self.wandb_kwargs.get("project", "tabpfn-ehr"),
+                "reinit": True,
+                "group": "tabpfn-ehr-finetune",
+                "job_type": "train",
+                "tags": list(set([self.method, "optuna", "best"] + self.wandb_kwargs.get("tags", []))),
+                "resume": "allow",
+                "name": f"{self.method}",
+                "dir": self.save_dir,
+            }
+            wandb.init(**wandb_kwargs)
 
 
         if self.save_dir is not None:
@@ -336,18 +418,22 @@ class Tuner:
             figs = self.visualize("all")
             os.makedirs(osp.join(self.save_dir, 'figures'), exist_ok=True)
             for fig_name, fig in figs:
-                fig.write_image(osp.join(self.save_dir, 'figures', f"{fig_name}.png"))
-                LOGGER.text(f"{fig_name} plot saved to {self.save_dir}/{fig_name}.png", level=LoggerObserver.INFO)
+                try:
+                    fig.write_image(osp.join(self.save_dir, 'figures', f"{fig_name}.png"))
+                    LOGGER.text(f"{fig_name} plot saved to {self.save_dir}/{fig_name}.png", level=LoggerObserver.INFO)
+                except:
+                    pass
         
         # Log the best trial to wandb
-        wandb.run.config.update({
-            'MODEL': {
+        if self.wandb_kwargs is not None:
+            wandb.run.config.update({
+                'MODEL': {
+                    'MODEL_NAME': self.method,
+                },
                 'MODEL_NAME': self.method,
-            },
-            'MODEL_NAME': self.method,
-            'FOLD': os.environ.get("FOLD", None),
-            'TASK_NAME': os.environ.get("TASK_NAME", None),
-        })
+                'FOLD': os.environ.get("FOLD", None),
+                'TASK_NAME': os.environ.get("TASK_NAME", None),
+            })
 
         if self.method == "xgboost":
             best_model, params = fit_xgboost(best_trial.params, X_train, X_val, y_train, y_val, is_classification=is_classification)
@@ -363,10 +449,15 @@ class Tuner:
             best_model, params = fit_logistics(best_trial.params, X_train, X_val, y_train, y_val, is_classification=is_classification)
         elif self.method == 'adaboost':
             best_model, params = fit_adaboost(best_trial.params, X_train, X_val, y_train, y_val, is_classification=is_classification)
+        elif self.method == "knn":
+            best_model, params = fit_knn(best_trial.params, X_train, X_val, y_train, y_val, is_classification=is_classification, weight_fn=extra_params.get('weight_fn', None))
+        elif self.method == "mlp":
+            best_model, params = fit_mlp(best_trial.params, X_train, X_val, y_train, y_val, is_classification=is_classification)
         else:
             raise NotImplementedError()
         
-        wandb.run.config.update(params)
+        if self.wandb_kwargs is not None:
+            wandb.run.config.update(params)
         
         # Evaluate the model
         if not is_classification:
@@ -377,45 +468,66 @@ class Tuner:
             pred_labels = np.argmax(preds, axis=1)
 
         if is_classification:
-            f1score = f1_score(y_val, pred_labels, average='binary', pos_label=1)
+            # is_binary = len(np.unique(y_val)) == 2
+            # if is_binary:
+            #     f1score = f1_score(y_val, pred_labels, average='binary', pos_label=1)
+            #     precision = precision_score(y_val, pred_labels, average='binary', pos_label=1)
+            #     recall = recall_score(y_val, pred_labels, average='binary', pos_label=1)
+            # else:
+            f1score = f1_score(y_val, pred_labels, average='macro')
+            precision = precision_score(y_val, pred_labels, average='macro')
+            recall = recall_score(y_val, pred_labels, average='macro')
             mcc_score = matthews_corrcoef(y_val, pred_labels)
-            precision = precision_score(y_val, pred_labels, average='binary', pos_label=1)
-            recall = recall_score(y_val, pred_labels, average='binary', pos_label=1)
             accuracy = accuracy_score(y_val, pred_labels)
             # Log the metrics to wandb
-            wandb.run.log({
-                "Validation/Accuracy": accuracy,
-                "Validation/F1": f1score,
-                "Validation/MCC": mcc_score,
-                "Validation/Precision": precision,
-                "Validation/Recall": recall,
-            })
+            if self.wandb_kwargs is not None:
+                wandb.run.log({
+                    "Validation/Accuracy": accuracy,
+                    "Validation/F1": f1score,
+                    "Validation/MCC": mcc_score,
+                    "Validation/Precision": precision,
+                    "Validation/Recall": recall,
+                })
         else:
             rmse = np.sqrt(np.mean((y_val - pred_labels) ** 2))
             # Log the metrics to wandb
-            wandb.run.log({
-                "Validation/RMSE": rmse,
+            if self.wandb_kwargs is not None:
+                wandb.run.log({
+                    "Validation/RMSE": rmse,
             })
         LOGGER.text(f"Best trial: {best_trial.number} with value: {best_trial.value}", level=LoggerObserver.INFO)
 
-        # if is_classification:
-        #     fig = visualize_shap(
-        #         best_model, 
-        #         X_val, 
-        #         classnames=['0', '1'],
-        #         plot_type="bar",
-        #         plot_size=(12, 6),
-        #         cross_validation=False
-        #     )
-        #     fig.savefig(osp.join(self.save_dir, 'shap_summary.png'), bbox_inches='tight')
-        #     wandb.log({"Shap Summary": wandb.Image(fig)})
-        #     LOGGER.text(f"Shap Summary plot saved to {self.save_dir}/shap_summary.png", level=LoggerObserver.INFO)
-        # else:
-        #     LOGGER.text("Shap values are not supported for regression tasks.", level=LoggerObserver.WARNING)
+
+        if self.method == 'logistics':
+            # Save coefficient and intercept in json
+            coef = best_model.coef_
+            intercept = best_model.intercept_
+            with open(osp.join(self.save_dir, 'logistics_params.json'), 'w') as f:
+                json.dump({'coef': coef.tolist(), 'intercept': intercept.tolist(), 'feature_names': self.feature_names}, f, indent=4)
+
+        if is_classification and self.feature_names is not None and self.classnames is not None:
+            try:
+                fig = visualize_shap(
+                    best_model, 
+                    X_val, 
+                    feature_names = self.feature_names,
+                    classnames=self.classnames,
+                    plot_type="dot",
+                    plot_size=(12, 6),
+                    cross_validation=False
+                )
+                fig.savefig(osp.join(self.save_dir, 'shap_summary.png'), bbox_inches='tight')
+                if self.wandb_kwargs is not None:
+                    wandb.log({"Shap Summary": wandb.Image(fig)})
+                LOGGER.text(f"Shap Summary plot saved to {self.save_dir}/shap_summary.png", level=LoggerObserver.INFO)
+            except:
+                pass
+        else:
+            LOGGER.text("Shap values are not supported for regression tasks.", level=LoggerObserver.WARN)
 
         
-
-        wandb.finish()
+        if self.wandb_kwargs is not None:
+            wandb.finish()
 
         return best_model
     
@@ -473,7 +585,8 @@ class Tuner:
                 raise ValueError()
 
             if plot != "all":
-                wandb.log({f"Plot/{plot}": fig})
+                if self.wandb_kwargs is not None:
+                    wandb.log({f"Plot/{plot}": fig})
         
         except Exception as e:
             LOGGER.text(f"Plotting error: {e}", level=LoggerObserver.ERROR)

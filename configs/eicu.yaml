@@ -1,0 +1,39 @@
+defaults:
+  - hydra@_here_
+  - _self_
+
+
+data_name: eicu
+data_csv: /home/mpham/workspace/source/ehrpfn/data/processed_muse/eicu/all_data.csv
+output_folder: /home/mpham/workspace/source/ehrpfn/outputs/tabpfn
+label_path: /home/mpham/workspace/source/ehrpfn/data/processed_muse/eicu/all_labels.csv
+embedding_file_path: null
+train_admission_id_file:  null
+val_admission_id_file: null
+test_admission_id_file: null
+feature_selection_path: null
+selection_method: null
+retrieval_method: null
+target_column: null
+method: xgboost
+use_best_params: false
+direction: maximize
+n_trials: 5
+seed: 42
+val_size: 0.1
+balance_negatives: false
+negative_ratio: 1.0
+sampling: null #oversampling_random
+do_remove_no_hcai_cases_in_early_admissions: true
+inf_batch_size: 512
+context_size: 1024
+num_features: 100
+n_ensembles: 8
+pretrained_path: null
+
+wandb:
+  project: tabpfn-ehr
+  entity: kaylode
+
+MODEL: #for wandb logging consistency
+  MODEL_NAME: ${method}

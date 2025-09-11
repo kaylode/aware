@@ -9,7 +9,7 @@ from sklearn.preprocessing import StandardScaler
 from .estimator import TabDPTEstimator
 from sklearn.base import RegressorMixin
 
-from ehrpfn.utils.retrieval import FAISS, ProcessRetriever, TrajectoriesRetriever, ProcessTFIDFRetriever
+from ehrpfn.utils.retrieval import Retriever
 
 
 class EHRPFNRegressor(TabDPTEstimator, RegressorMixin):
@@ -18,13 +18,10 @@ class EHRPFNRegressor(TabDPTEstimator, RegressorMixin):
             device: str = TabDPTEstimator._DEFAULT_DEVICE, 
             use_flash: bool = True, compile: bool = True, 
             categorical_feature_indices: list = None,
-            retrieval_method:str = "faiss", 
+            retriever: Retriever = None
         ):
         super().__init__(mode="reg", pretrained_path=pretrained_path, inf_batch_size=inf_batch_size, device=device, use_flash=use_flash, compile=compile, categorical_feature_indices=categorical_feature_indices)
-        self.retrieval_method = retrieval_method
-
-        assert self.retrieval_method in ["faiss", "trajectories", "random", "activities", "knn"], \
-            "retrieval_method must be one of ['faiss', 'trajectories', 'random', 'activities', 'activities_tfidf_kmeans']"
+        self.retriever = retriever
 
     def fit(self, X, y, **kwargs):
         assert isinstance(X, np.ndarray), "X must be a numpy array"
@@ -46,19 +43,6 @@ class EHRPFNRegressor(TabDPTEstimator, RegressorMixin):
         if self.compile:
             self.model = torch.compile(self.model)
 
-
-        if self.retrieval_method in ['knn', "faiss"]:
-            self.retriever = FAISS(X)
-        elif self.retrieval_method == "activities":
-            self.retriever = ProcessRetriever(X, X_processes=kwargs.get('X_processes', None), pathway_column='pathway_with_prev_2_encoded')
-        elif self.retrieval_method == "random":
-            self.retriever = None
-        elif self.retrieval_method == "trajectories":
-            self.retriever = TrajectoriesRetriever(X, X_traj=kwargs.get('X_traj', None))
-        else:
-            raise ValueError(f"Invalid retrieval method: {self.retrieval_method}")
-
-
     @torch.no_grad()
     def _ensemble_predict(self, X: np.ndarray, n_ensembles:int=1, context_size: int = 128, seed=None, **kwargs):
         train_x, train_y, test_x = self._prepare_prediction(X)
@@ -76,6 +60,9 @@ class EHRPFNRegressor(TabDPTEstimator, RegressorMixin):
             else:
                 X_train = train_x
                 X_test = test_x
+
+            
+            self.retriever.fit(X_train, train_y, X_embs_train=kwargs.get('X_embs_train', None))
 
             if context_size >= self.n_instances:
                 X_train = pad_x(train_x[None, :, :], self.max_features).to(self.device)
@@ -95,24 +82,28 @@ class EHRPFNRegressor(TabDPTEstimator, RegressorMixin):
                     start = b * self.inf_batch_size
                     end = min(len(X_test), (b + 1) * self.inf_batch_size)
 
-                    if self.retrieval_method == "random":
-                        indices_nni = np.random.choice(
-                            self.n_instances, size=context_size, replace=False
-                        )
-                        indices_nni = indices_nni[np.newaxis, ...].repeat(end-start, axis=0)
-                    else:
-                        queries_processes = kwargs.get('X_processes', None)
-                        if queries_processes is not None:
-                            queries_processes = queries_processes[start:end]
-                        queries_traj = kwargs.get('X_traj', None)
-                        if queries_traj is not None:
-                            queries_traj = queries_traj[start:end]
+                    # if self.retrieval_method == "random":
+                    #     indices_nni = np.random.choice(
+                    #         self.n_instances, size=context_size, replace=False
+                    #     )
+                    #     indices_nni = indices_nni[np.newaxis, ...].repeat(end-start, axis=0)
+                    # else:
+                    #     queries_processes = kwargs.get('X_processes', None)
+                    #     if queries_processes is not None:
+                    #         queries_processes = queries_processes[start:end]
+                    #     queries_traj = kwargs.get('X_traj', None)
+                    #     if queries_traj is not None:
+                    #         queries_traj = queries_traj[start:end]
 
-                        indices_nni = self.retriever.retrieve(
-                            X_test[start:end], k=context_size,
-                            queries_processes=queries_processes,
-                            queries_traj=queries_traj
-                        )
+                    #     indices_nni = self.retriever.retrieve(
+                    #         X_test[start:end], k=context_size,
+                    #         queries_processes=queries_processes,
+                    #         queries_traj=queries_traj
+                    #     )
+
+                    X_embs_test = kwargs.get('X_embs_test', None)
+                    X_embs_test = X_embs_test[start:end] if X_embs_test is not None else None
+                    indices_nni = self.retriever.retrieve(X_test[start:end], X_embs_test=X_embs_test)
 
                     if seed is not None:
                         shuffled_indices = generate_random_permutation(indices_nni.shape[1], seed)

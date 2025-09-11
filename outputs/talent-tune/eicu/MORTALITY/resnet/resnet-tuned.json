@@ -1,0 +1,17 @@
+{
+    "general": {},
+    "model": {
+        "activation": "relu",
+        "d": 158,
+        "d_hidden_factor": 1.38677889296456,
+        "hidden_dropout": 0.15771417546209193,
+        "n_layers": 6,
+        "normalization": "batchnorm",
+        "residual_dropout": 0.21930075673116017
+    },
+    "training": {
+        "lr": 0.009228295957427444,
+        "n_bins": 168,
+        "weight_decay": 3.0473936177363887e-06
+    }
+}

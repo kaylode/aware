@@ -22,3 +22,5 @@ notebooks/
 outputs/
 */outputs/*
 */training_deepspeed
+pyrightconfig.json
+.vscode/

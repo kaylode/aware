@@ -19,6 +19,7 @@ from ehrpfn.training.datasets import FullDataset, collate_fn
 from ehrpfn.training.eval_full import FullEval
 from ehrpfn.training.eval_health import FullHealthEval
 from ehrpfn.training.eval_mimic import MIMICIVOutcomesEval
+from ehrpfn.training.eval_mimicpipe import MIMICIVPipeEval
 from ehrpfn.training.model import TabDPTModel
 from ehrpfn.training.utils import (
     cleanup,
@@ -195,6 +196,7 @@ def set_experiment_from_config(config: DictConfig) -> tuple[nn.Module, torch.opt
         ninp=config.model.emsize,
         nlayers=config.model.nlayers,
         num_features=config.model.max_num_features,
+        freeze_transformer=config.model.freeze_transformer
     )
 
     # load the model state if resuming from a saved checkpoint
@@ -261,25 +263,32 @@ def main(config: DictConfig):
     # TODO : make this configurable
 
     vals = [
-        FullEval(
-            device=device,
-            max_feat=config.model.max_num_features,
-            use_retrieval=config.data.eval_retrieval,
-            data_folder=config.data.openml.input_folder,
-        ),
+        # FullEval(
+        #     device=device,
+        #     max_feat=config.model.max_num_features,
+        #     use_retrieval=config.data.eval_retrieval,
+        #     data_folder=config.data.openml.input_folder,
+        # ),
         FullHealthEval(
             device=device,
             max_feat=config.model.max_num_features,
             use_retrieval=config.data.eval_retrieval,
             data_folder=config.data.openml.input_folder,
         ),
-        MIMICIVOutcomesEval(
+        MIMICIVPipeEval(
             device=device,
             max_feat=config.model.max_num_features,
             use_retrieval=config.data.eval_retrieval,
             data_path=config.data.mimiciv.val_folder,
             label_path=config.data.mimiciv.val_label_folder,
-        ),
+        )
+        # MIMICIVOutcomesEval(
+        #     device=device,
+        #     max_feat=config.model.max_num_features,
+        #     use_retrieval=config.data.eval_retrieval,
+        #     data_path=config.data.mimiciv.val_folder,
+        #     label_path=config.data.mimiciv.val_label_folder,
+        # ),
     ]
 
        

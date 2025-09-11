@@ -2,8 +2,6 @@ from tqdm import tqdm
 import numpy as np
 from tabpfn import TabPFNClassifier, TabPFNRegressor
 
-from ehrpfn.utils.retrieval import FAISS, ProcessRetriever, TrajectoriesRetriever, ProcessTFIDFRetriever
-
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
@@ -29,6 +27,8 @@ from ehrpfn.models.TabPFN.utils import (
     default_regressor_preprocessor_configs,
 )
 
+from ehrpfn.utils.retrieval import Retriever
+
 
 @dataclass
 class InferenceWithRetrievalEngineOnDemand(InferenceEngine):
@@ -47,10 +47,9 @@ class InferenceWithRetrievalEngineOnDemand(InferenceEngine):
     n_workers: int
     model: Architecture
     force_inference_dtype: torch.dtype | None
-    context_size: int
-    queries_processes: np.ndarray | None
-    queries_traj: np.ndarray | None
-    retriever: None
+    queries_embs: np.ndarray | None
+    retriever: Retriever | None
+    context_embs: np.ndarray | None
     batch_size: int
 
     @classmethod
@@ -59,10 +58,9 @@ class InferenceWithRetrievalEngineOnDemand(InferenceEngine):
         X_train: np.ndarray,
         y_train: np.ndarray,
         batch_size:int,
-        retriever,
-        context_size,
-        queries_processes,
-        queries_traj,
+        retriever: Retriever,
+        context_embs: np.ndarray | None,
+        queries_embs: np.ndarray | None,
         *,
         cat_ix: list[int],
         model: Architecture,
@@ -94,9 +92,8 @@ class InferenceWithRetrievalEngineOnDemand(InferenceEngine):
             y_train=y_train,
             batch_size=batch_size,
             retriever=retriever,
-            context_size=context_size,
-            queries_processes=queries_processes,
-            queries_traj=queries_traj,
+            context_embs=context_embs,
+            queries_embs=queries_embs,
             ensemble_configs=ensemble_configs,
             cat_ix=cat_ix,
             model=model,
@@ -140,27 +137,17 @@ class InferenceWithRetrievalEngineOnDemand(InferenceEngine):
         )
         for config, preprocessor, X_train, y_train, cat_ix in itr:
             assert X_train.shape[0] == self.X_train.shape[0], "X_train shape mismatch"
+
+            self.retriever.fit(X_train, X_embs_train=self.context_embs)
             X_train = torch.as_tensor(X_train, dtype=torch.float32, device=device)  # noqa: PLW2901
             X_test = preprocessor.transform(X).X
             X_test = torch.as_tensor(X_test, dtype=torch.float32, device=device)
             all_outputs = []
 
-
             for batch_id, query_item in enumerate(X_test):
-                query_item = query_item.unsqueeze(0)  
-                if self.retriever is None:
-                    nn_indices = np.random.choice(
-                        X_train.shape[0], 
-                        size=self.context_size, 
-                        replace=False
-                    )
-                else:
-                    nn_indices_ = self.retriever.retrieve(
-                        query_item, k=self.context_size,
-                        queries_processes=self.queries_processes[batch_id] if self.queries_processes is not None else None,
-                        queries_traj=self.queries_traj[batch_id] if self.queries_traj is not None else None,
-                    )
-                    nn_indices = nn_indices_[0]
+                query_item = query_item.unsqueeze(0)
+                nn_indices_ = self.retriever.retrieve(query_item, X_embs_test=self.queries_embs)
+                nn_indices = nn_indices_[0]
 
                 X_context = X_train[nn_indices, :]
                 y_context = y_train[nn_indices]
@@ -215,28 +202,17 @@ def get_tabpfn_knn_results(
         X_train, y_train, X_test, 
         categorical_feature_indices, 
         is_classification, 
+        retriever:Retriever,
         n_ensembles:int=8,
-        context_size:int=1024,
-        retrieval_method:str="faiss",
         seed:int=42,
         device = 'cuda',
         **kwargs
     ):
 
 
-    if retrieval_method in ["faiss", 'knn']:
-        retriever = FAISS(X_train)
-    elif retrieval_method == "activities":
-        retriever = ProcessRetriever(X_train, X_processes=kwargs.get('X_processes_train', None), pathway_column='pathway_with_prev_2_encoded')
-    elif retrieval_method == "trajectories":
-        retriever = TrajectoriesRetriever(X_train, X_traj=kwargs.get('X_traj_train', None))
-    elif retrieval_method == 'random':
-        retriever=None
-    else:
-        raise ValueError(f"Unknown retrieval method: {retrieval_method}")
-
-    queries_processes = kwargs.get('X_processes_test', None)
-    queries_traj = kwargs.get('X_traj_test', None)
+    # In case retrieval using extra embeddings
+    context_embs = kwargs.get('X_embs_train', None)
+    queries_embs = kwargs.get('X_embs_test', None)
 
 
     if is_classification:
@@ -325,9 +301,8 @@ def get_tabpfn_knn_results(
 
         batch_size=128,
         retriever=retriever,
-        context_size=context_size,
-        queries_processes=queries_processes,
-        queries_traj=queries_traj,
+        context_embs=context_embs,
+        queries_embs=queries_embs,
 
         cat_ix=model.inferred_categorical_indices_,
         ensemble_configs=ensemble_configs,

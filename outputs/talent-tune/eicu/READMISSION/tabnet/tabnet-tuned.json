@@ -1,0 +1,14 @@
+{
+    "general": {},
+    "model": {
+        "gamma": 1.3229868314404845,
+        "lr": 0.004166601734697163,
+        "momentum": 0.03356264528113059,
+        "n_independent": 2,
+        "n_shared": 4,
+        "n_steps": 10
+    },
+    "training": {
+        "n_bins": 202
+    }
+}

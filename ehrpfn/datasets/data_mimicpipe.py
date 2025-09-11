@@ -6,7 +6,7 @@ import json
 import numpy as np
 import pandas as pd
 import os.path as osp
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder, StandardScaler
 
 RARE_DISEASE_ICDS = [i for key, i in DISEASE_GROUP_TO_ICDS.items() if key in ['HCAI']]
 RARE_DISEASE_ICDS = [item for sublist in RARE_DISEASE_ICDS for item in sublist]
@@ -46,11 +46,10 @@ def select_features(x, y, selection_method:str, feature_selection_path:str=None,
     feature_names = x.columns.tolist()
     return x, y, feature_names, selected_indices
 
-def get_mimic_dataset_v2(
-        data_csv:str, train_label_path:str, test_label_path:str,
+def get_mimic_dataset(
+        data_csv:str, train_label_path:str=None, test_label_path:str=None,
         feature_selection_path:str=None, selection_method:str=None,
-        process_file_path:str=None,
-        trajectory_file_path:str=None,
+        embedding_file_path:str=None,
     ):
 
     train_ids_df = pd.read_csv(train_label_path).drop('admission_id', axis=1, errors='ignore').drop_duplicates()
@@ -112,6 +111,11 @@ def get_mimic_dataset_v2(
     X_test = X_test_df.values
     y_test = y_test_df.values
 
+    # Fit your data on the scaler object
+    scaler = StandardScaler()
+    X_train = scaler.fit_transform(X_train)
+    X_test = scaler.transform(X_test)
+
     LOGGER.text(f"Train shape: {X_train.shape}, Test shape: {X_test.shape}", level=LoggerObserver.INFO)
     LOGGER.text(f"Train label distribution: {pd.Series(y_train).value_counts(normalize=True)}", level=LoggerObserver.INFO)
     LOGGER.text(f"Test label distribution: {pd.Series(y_test).value_counts(normalize=True)}", level=LoggerObserver.INFO)
@@ -129,31 +133,8 @@ def get_mimic_dataset_v2(
         "hadm_id": test_df["hadm_id"],
     })
 
-    if process_file_path is not None:
-        X_train_process = pl.read_csv(f"{process_file_path}/process_pathways_encoded_train.csv")
-        X_test_process = pl.read_csv(f"{process_file_path}/process_pathways_encoded_test.csv")
-
-        X_train_process = X_train_process.drop('admission_id', strict=False).unique()
-        X_test_process = X_test_process.drop('admission_id', strict=False).unique()
-
-        # Filter using inner join
-        X_train_process = pl.from_pandas(train_ids_df).join(
-            X_train_process,
-            on=["subject_id", "stay_id", "hadm_id"],
-            how="left"
-        )
-        X_test_process = pl.from_pandas(test_ids_df).join(
-            X_test_process,
-            on=["subject_id", "stay_id", "hadm_id"],
-            how="left"
-        )
-
-    else:
-        X_train_process = None
-        X_test_process = None
-
-    if trajectory_file_path is not None:
-        X_train_traj = np.load(f"{trajectory_file_path}/trajectories_hist2_train_embeddings.npz")
+    if embedding_file_path is not None:
+        X_train_traj = np.load(f"{embedding_file_path}/train_embeddings.npz")
         train_metadata_ids = X_train_traj['metadata'] # "subject_id", "hadm_id", "stay_id", "admission_id"
         train_embeddings = X_train_traj['embeddings']
         
@@ -185,7 +166,7 @@ def get_mimic_dataset_v2(
         X_train_traj = train_embedding_matrix
 
         # Same logic for test data
-        X_test_traj = np.load(f"{trajectory_file_path}/trajectories_hist2_test_embeddings.npz")
+        X_test_traj = np.load(f"{embedding_file_path}/test_embeddings.npz")
         test_metadata_ids = X_test_traj['metadata']
         test_embeddings = X_test_traj['embeddings']
         
@@ -220,10 +201,8 @@ def get_mimic_dataset_v2(
     return {
         'X_train': X_train, 'y_train': y_train,  
         'X_test': X_test, 'y_test': y_test, 
-        'X_train_process': X_train_process,
-        'X_test_process': X_test_process,
-        'X_train_traj': X_train_traj,
-        'X_test_traj': X_test_traj,
+        'X_embs_train': X_train_traj,
+        'X_embs_test': X_test_traj,
         'categorical_feature_indices': categorical_feature_indices,
         'feature_names': feature_names,
         'train_ids': train_ids_df,

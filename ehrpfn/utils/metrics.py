@@ -20,11 +20,11 @@ def run_binary_classification_metrics(y_pred, y, average='weighted'):
         y_pred = np.array(y_pred)
         try:
             if y_pred.shape[-1] == 2:
-                auc_score = roc_auc_score(y, y_pred[:,1], average=average, labels=[0,1])
+                auc_score = roc_auc_score(y, y_pred[:,1], average=average, multi_class='ovr')
                 _precision, _recall, thresholds = precision_recall_curve(y, y_pred[:,1])
                 auc_precision_recall = auc(_recall, _precision)
             else:
-                auc_score = roc_auc_score(y, y_pred, average=average, labels=[0,1])
+                auc_score = roc_auc_score(y, y_pred, average=average, multi_class='ovr')
                 _precision, _recall, thresholds = precision_recall_curve(y, y_pred[:,1])
                 auc_precision_recall = auc(_recall, _precision)
         except ValueError as e:
@@ -54,7 +54,7 @@ def run_binary_classification_metrics(y_pred, y, average='weighted'):
     
 
     blacc_score = balanced_accuracy_score(y, y_pred)
-    cfm = confusion_matrix(y, y_pred, labels=[0,1])
+    cfm = confusion_matrix(y, y_pred)
 
     sen, spec, precision, f1 = binary_sensitivity_specificity_precision_f1(cfm)
     mcc = matthews_corrcoef(y, y_pred)

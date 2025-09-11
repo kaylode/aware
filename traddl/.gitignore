@@ -1,0 +1,16 @@
+*.pyc
+*/__pycache__/
+*.egg-info/
+ark/
+*/runs/
+catboost_info/
+runs/
+__pycache__/
+.cache/
+.env
+.ipynb_checkpoints/
+credentials.json
+gh_token.txt
+*.job
+*.txt
+data/

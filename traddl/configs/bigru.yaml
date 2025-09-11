@@ -1,0 +1,67 @@
+defaults:
+  - base/hydra@_here_
+  - base/lightning@_here_
+  - base/transform@_here_
+  - base/finetune@_here_
+  - _self_
+
+data:
+  dataset:
+    train:
+      name: PatientOutcomeDataset
+      args:
+        input_dir: ??
+        n_positions: 512
+        vocab_path: null
+        padding_side: right
+        append_cls: true
+    val:
+      name: PatientOutcomeDataset
+      args:
+        input_dir: ??
+        n_positions: ${data.dataset.train.args.n_positions}
+        vocab_path: ${data.dataset.train.args.vocab_path}
+        padding_side: right
+        append_cls: true
+    test:
+      name: PatientOutcomeDataset
+      args:
+        input_dir: ??
+        n_positions: ${data.dataset.train.args.n_positions}
+        vocab_path: ${data.dataset.train.args.vocab_path}
+        padding_side: right
+        append_cls: true
+
+
+  dataloader:
+    train:
+      name: DataLoaderWithCollator
+      args:
+        batch_size: 256
+        drop_last: true
+        shuffle: false
+        num_workers: 4
+        sampler:
+          name: BalanceSampler
+          args:
+    val:
+      name: DataLoaderWithCollator
+      args:
+        batch_size: 256
+        drop_last: false
+        num_workers: 4
+        shuffle: false
+    test:
+      name: DataLoaderWithCollator
+      args:
+        batch_size: 1
+        drop_last: false
+        num_workers: 1
+        shuffle: false
+
+model:
+  name: BiGRU
+  args:
+    hidden_size: 768
+    num_hidden_layers: 6
+    hidden_dropout_prob: 0.1
