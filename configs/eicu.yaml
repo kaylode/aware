@@ -7,6 +7,7 @@ data_name: eicu
 data_csv: /home/mpham/workspace/source/ehrpfn/data/processed_muse/eicu/all_data.csv
 output_folder: /home/mpham/workspace/source/ehrpfn/outputs/tabpfn
 label_path: /home/mpham/workspace/source/ehrpfn/data/processed_muse/eicu/all_labels.csv
+embedding_file_path: null
 train_admission_id_file:  null
 val_admission_id_file: null
 test_admission_id_file: null
