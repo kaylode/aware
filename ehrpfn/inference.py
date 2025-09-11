@@ -93,12 +93,17 @@ def inference(args, data):
     else:
         retrieval_weights = None
 
+    distance = None
     if args.retrieval_method is not None:
         if args.retrieval_method.startswith('weighted'):
             retrieval_method, weight_type = args.retrieval_method.split('_')
         else:
             retrieval_method = args.retrieval_method
-        retriever = get_retriever(retrieval_method, k=args.context_size, distance='L2', weights=retrieval_weights, max_context_size=1024)
+        if args.retrieval_method in ['dbr', 'embeddings']:
+            distance = 'cosine'
+        else:
+            distance = 'L2'
+        retriever = get_retriever(retrieval_method, k=args.context_size, distance=distance, weights=retrieval_weights, max_context_size=1024)
     else:
         retriever = None
     result_folder = osp.join(result_folder, study_name)
@@ -140,6 +145,10 @@ def inference(args, data):
         tags.append(f"SAMPLING:{args['sampling']}")
     if args.selection_method is not None:
         tags.append(f"SELECTION:{args['selection_method']}")
+
+    if distance is not None:
+        if distance == 'cosine':
+            tags.append(f"RETRIEVAL:cosine")
     
 
     if args.method in ['xgboost', 'rf', 'catboost', 'lightgbm', 'knn', 'mlp', 'logistics']:
@@ -209,16 +218,19 @@ def inference(args, data):
             model = SimpleKNNClassifier(retriever=retriever)
         else:
             model = SimpleKNNRegressor(retriever=retriever)
-        model.fit(X_train, y_train)
+        model.fit(
+            X_train, y_train,
+            X_embs_train=X_embs_train, 
+        )
         start_time = time.time()
         if is_classification:
-            y_pred = model.predict_proba(X_test)
+            y_pred = model.predict_proba(X_test, X_embs_test=X_embs_test)
             score = run_binary_classification_metrics(
                 y_pred, 
                 y_test,
             )
         else:
-            y_pred = model.predict(X_test)
+            y_pred = model.predict(X_test, X_embs_test=X_embs_test)
             score = run_regression_metrics(
                 y_pred, 
                 y_test,
@@ -511,7 +523,8 @@ def run(args: DictConfig):
             val_admission_id_file=args.val_admission_id_file,
             test_admission_id_file=args.test_admission_id_file,
             selection_method=args.selection_method,
-            feature_selection_path=args.feature_selection_path
+            feature_selection_path=args.feature_selection_path,
+            embedding_file_path=args.embedding_file_path,
         )
     else:
         raise ValueError(f"Data {args.data_name} is not supported. Please choose from ['mimiciv', 'sjh_cpe']")
