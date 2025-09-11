@@ -13,6 +13,8 @@ from torch.utils.data import DataLoader, Dataset
 from ehrpfn.utils.seed import seed_everything
 from ehrpfn.utils.logger import LoggerObserver
 from ehrpfn.trajectories.cohort import DISEASE_GROUP_TO_ICDS
+import pandas as pd
+
 
 RARE_DISEASE_ICDS = [i for key, i in DISEASE_GROUP_TO_ICDS.items() if key in ['HCAI']]
 RARE_DISEASE_ICDS = [item for sublist in RARE_DISEASE_ICDS for item in sublist]
@@ -30,7 +32,7 @@ seed_everything(42)
 MIMICIV_MAPPING_JSON = "/home/mpham/workspace/source/ehrpfn/data/embeddings/mimic4_diagnoses.json"
 EMBEDDING_PICKLE = "/home/mpham/workspace/source/ehrpfn/data/embeddings/glove_emb_128d_579epoch_patient0.pkl"
 PROCESSED_DATA_PATH = "/home/mpham/workspace/source/ehrpfn/data/processed/mimiciv"
-
+PROCESSED_EICU_DATA_PATH = "/home/mpham/workspace/source/ehrpfn/data/processed_muse/eicu"
 
 class NTXentLoss(torch.nn.Module):
     """
@@ -520,7 +522,7 @@ def train(
     save_path = osp.join(processed_data_path, data_name)
     os.makedirs(save_path, exist_ok=True)
     model.save(osp.join(save_path, f"{model_name}.pt"))
-    LOGGER.text("Finished training and saved model for retrieval indexing.")
+    LOGGER.text("Finished training and saved model for retrieval indexing. Saved at " + osp.join(save_path, f"{model_name}.pt"), level=LoggerObserver.SUCCESS)
     return model
 
 def generate_embeddings(model, dataloader, device, dataset_name="dataset"):
@@ -577,19 +579,20 @@ def save_embeddings(
     )
     train_dataloader = DataLoader(train_dataset, batch_size=64, shuffle=False, collate_fn=train_dataset.collate_fn, drop_last=False)
     test_dataloader = DataLoader(test_dataset, batch_size=64, shuffle=False, collate_fn=test_dataset.collate_fn, drop_last=False)
+    breakpoint()
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    model = VisitPoolingGRUEncoder.load_from(f'{processed_data_path}/{data_name}/visit_pooling_encoder_mlm_ohem_procicd.pt').to(device)
+    model = VisitPoolingGRUEncoder.load_from(f'{processed_data_path}/visit_pooling_encoder_mlm_ohem_procicd.pt').to(device)
 
     LOGGER.text("Loaded trained model successfully", level=LoggerObserver.SUCCESS)
     train_embeddings, train_metadata = generate_embeddings(model, train_dataloader, device, "training set")
     test_embeddings, test_metadata = generate_embeddings(model, test_dataloader, device, "test set")
     if use_histories is not None and use_histories > 0:
-        np.savez(f'{processed_data_path}/{data_name}/trajectories/trajectories_hist{use_histories}_train_embeddings.npz', embeddings=train_embeddings, data=train_data, metadata=train_metadata)
-        np.savez(f'{processed_data_path}/{data_name}/trajectories/trajectories_hist{use_histories}_test_embeddings.npz', embeddings=test_embeddings, data=test_data, metadata=test_metadata)
+        np.savez(f'{processed_data_path}/{data_name}/trajectories/train_embeddings.npz', embeddings=train_embeddings, data=train_data, metadata=train_metadata)
+        np.savez(f'{processed_data_path}/{data_name}/trajectories/test_embeddings.npz', embeddings=test_embeddings, data=test_data, metadata=test_metadata)
     else:
-        np.savez(f'{processed_data_path}/{data_name}/trajectories/trajectories_train_embeddings.npz', embeddings=train_embeddings, data=train_data, metadata=train_metadata)
-        np.savez(f'{processed_data_path}/{data_name}/trajectories/trajectories_test_embeddings.npz', embeddings=test_embeddings, data=test_data, metadata=test_metadata)
+        np.savez(f'{processed_data_path}/{data_name}/trajectories/train_embeddings.npz', embeddings=train_embeddings, data=train_data, metadata=train_metadata)
+        np.savez(f'{processed_data_path}/{data_name}/trajectories/test_embeddings.npz', embeddings=test_embeddings, data=test_data, metadata=test_metadata)
     return train_embeddings, test_embeddings
 
 def preprocess_data_mimic(
@@ -602,9 +605,9 @@ def preprocess_data_mimic(
     metadata = []
     for SPLIT in ["train", "test"]:
         id_df = pl.read_csv(f"{processed_data_path}/{data_name}/split/{SPLIT}_labels.csv")
-        df_codes = pl.read_csv(f"{processed_data_path}/{data_name}/features/preproc_diag_icu.csv.gz")
+        df_codes = pl.read_csv(f"{processed_data_path}/Readmission/features/preproc_diag_icu.csv.gz")
         if use_proc_icd:
-            df_proc_codes = pl.read_csv(f"{processed_data_path}/{data_name}/features/preproc_proc_icd_icu.csv.gz")
+            df_proc_codes = pl.read_csv(f"{processed_data_path}/Readmission/features/preproc_proc_icd_icu.csv.gz")
             df_codes = pl.concat([df_codes, df_proc_codes], how="vertical")
         traj_df = df_codes.group_by(["subject_id", "hadm_id", 'stay_id']).agg(
             pl.col("new_icd_code").str.join(",").alias("trajectories"),
@@ -655,9 +658,164 @@ def preprocess_data_mimic(
         metadata.append(meta_list)
     return data[0], metadata[0], data[1], metadata[1]
 
+
+
+def preprocess_data_eicu(
+    data_name: str,
+    use_histories: int = None,
+    use_proc_icd: bool = False,
+    processed_data_path: str = PROCESSED_EICU_DATA_PATH,
+):
+
+    from ehrpfn.models.MUSE.src.utils import load_pickle
+    import sys
+    sys.path.append('/home/mpham/workspace/source/ehrpfn/ehrpfn/models/MUSE')
+
+    # Convert ICD-9 to ICD-10   
+    icd9toicd10 = {}
+    df = pd.read_csv("/home/mpham/workspace/source/ehrpfn/preprocess/mimiciv/mimicpipe/utils/mappings/ICD9_to_ICD10_mapping.txt", delimiter='\t')
+    df3 = pd.read_csv("/home/mpham/workspace/source/ehrpfn/preprocess/mimiciv/mimicpipe/utils/mappings/icd_pcs_9_to_10_mapping.csv.gz")
+    mapping = {row['diagnosis_code']: row['icd10cm'] for index, row in df.iterrows()}
+    mapping3 = {row['icd_9']: row['icd_10'] for index, row in df3.iterrows()}
+    icd9toicd10.update(mapping)
+    icd9toicd10.update(mapping3)
+    all_hosp_adm_dict = load_pickle(
+        "/home/mpham/workspace/source/ehrpfn/data/processed_muse/eicu/icu_stay_dict.pkl"
+    )
+
+    train_data = []
+    train_metadata = []
+    test_data = []
+    test_metadata = []
+    train_id_df = pl.read_csv(f"{processed_data_path}/task:{data_name}/train_admission_ids.txt")
+    test_id_df = pl.read_csv(f"{processed_data_path}/task:{data_name}/test_admission_ids.txt")
+
+    train_ids = train_id_df.to_numpy().flatten().tolist()
+    test_ids = test_id_df.to_numpy().flatten().tolist()
+
+    train_ids = list(map(str, train_ids))
+    test_ids = list(map(str, test_ids))
+
+    train_dfs = {
+        'patient_id': [],
+        'admission_id': [],
+        'icu_id': [],
+        'hospital_id': [],
+        'trajectories': [],
+    }
+    test_dfs = {
+        'patient_id': [],
+        'admission_id': [],
+        'icu_id': [],
+        'hospital_id': [],
+        'trajectories': [],
+    }
+
+    for icu_id in all_hosp_adm_dict.keys():
+        icu_stay = all_hosp_adm_dict[icu_id]
+        codes = icu_stay.diagnosis_codes
+
+        admission_id = icu_stay.admission_id 
+        patient_id = icu_stay.patient_id  # str
+        hospital_id = icu_stay.hospital_id  # int
+
+        all_codes = []
+        for c in codes:
+            all_codes.extend(c[-1])
+
+        clean_codes = []
+        for code in all_codes:
+            plain = code.replace('.', '')
+            if plain == 'nan': continue
+            if code  in icd9toicd10.keys():
+                clean_codes.append(icd9toicd10[code])
+            elif code  in icd9toicd10.values():
+                clean_codes.append(code)
+            elif plain  in icd9toicd10.keys():
+                clean_codes.append(icd9toicd10[plain])
+            elif plain  in icd9toicd10.values():
+                clean_codes.append(plain)
+            else:
+                clean_codes.append(code)
+        
+        clean_codes = list(set(clean_codes))
+        if len(clean_codes) == 0:
+            clean_code = 'None'
+        else:
+            clean_code = ','.join(clean_codes)
+
+        if icu_id in train_ids:
+            train_dfs["admission_id"].append(admission_id)
+            train_dfs["patient_id"].append(patient_id)
+            train_dfs["icu_id"].append(icu_id)
+            train_dfs["hospital_id"].append(hospital_id)
+            train_dfs["trajectories"].append(clean_code)
+            train_metadata.append([patient_id, admission_id, icu_id])
+        elif icu_id in test_ids:
+            test_dfs["admission_id"].append(admission_id)
+            test_dfs["patient_id"].append(patient_id)
+            test_dfs["hospital_id"].append(hospital_id)
+            test_dfs["icu_id"].append(icu_id)
+            test_dfs["trajectories"].append(clean_code)
+        else:
+            continue
+
+
+    train_df = pl.DataFrame(train_dfs)
+    test_df = pl.DataFrame(test_dfs)
+
+    def get_trajectories(traj_df, SPLIT):
+        traj_df = traj_df.sort(["patient_id", "admission_id"])
+        if use_histories is not None and use_histories > 0:
+            traj_df = traj_df.with_columns([
+                pl.col("trajectories").shift(1).over("patient_id").alias("prev_trajectories_1"),
+                pl.col("trajectories").shift(2).over("patient_id").alias("prev_trajectories_2")
+            ]).with_columns([
+                pl.when(pl.col("prev_trajectories_1").is_null())
+                .then(pl.col("trajectories"))
+                .otherwise(pl.col("prev_trajectories_1") + pl.lit(",") + pl.col("trajectories"))
+                .alias("trajectories_with_prev_1"),
+                pl.when(pl.col("prev_trajectories_2").is_null() | pl.col("prev_trajectories_1").is_null())
+                .then(
+                    pl.when(pl.col("prev_trajectories_1").is_null())
+                    .then(pl.col("trajectories"))
+                    .otherwise(pl.col("prev_trajectories_1") + pl.lit(";") + pl.col("trajectories"))
+                )
+                .otherwise(
+                    pl.col("prev_trajectories_2") + pl.lit(";") + 
+                    pl.col("prev_trajectories_1") + pl.lit(";") + 
+                    pl.col("trajectories")
+                )
+                .alias("trajectories_with_prev_2"),
+                pl.when(pl.col("prev_trajectories_2").is_null() | pl.col("prev_trajectories_1").is_null())
+                .then(
+                    pl.when(pl.col("prev_trajectories_1").is_null())
+                    .then(None)
+                    .otherwise(pl.col("prev_trajectories_1"))
+                )
+                .otherwise(
+                    pl.col("prev_trajectories_2") + pl.lit(";") + 
+                    pl.col("prev_trajectories_1")
+                )
+                .alias("trajectories_with_prev_2_only_history"),
+            ])
+            if SPLIT == 'train':
+                traj_list = traj_df.select("trajectories_with_prev_2").to_numpy().flatten().tolist()
+            else:
+                traj_list = traj_df.select("trajectories_with_prev_2_only_history").to_numpy().flatten().tolist()
+        else:
+            traj_list = traj_df.select("trajectories").to_numpy().flatten().tolist()
+        meta_list = traj_df.select(["patient_id", "admission_id", "icu_id"]).to_numpy().tolist()
+        return traj_list, meta_list
+
+    train_traj_list, train_meta_list = get_trajectories(train_df, "train")
+    test_traj_list, test_meta_list = get_trajectories(test_df, "test")
+
+    return train_traj_list, train_meta_list, test_traj_list, test_meta_list
+
 if __name__ == "__main__":
     # --- All parameters exposed here ---
-    data_name = 'Readmission'
+    data_name = 'MORTALITY'
     embed_dim = 128
     latent_dim = 64
     num_epochs = 1024
@@ -668,29 +826,35 @@ if __name__ == "__main__":
     use_hard_negatives = True
     mapping_json = MIMICIV_MAPPING_JSON
     embedding_pickle = EMBEDDING_PICKLE
-    processed_data_path = PROCESSED_DATA_PATH
+    processed_data_path = PROCESSED_EICU_DATA_PATH
 
-    train_data, train_metadata, test_data, test_metadata = preprocess_data_mimic(
+    # train_data, train_metadata, test_data, test_metadata = preprocess_data_mimic(
+    #     data_name,
+    #     use_histories=use_histories,
+    #     use_proc_icd=use_proc_icd,
+    #     processed_data_path=processed_data_path,
+    # )
+    train_data, train_metadata, test_data, test_metadata = preprocess_data_eicu(
         data_name,
         use_histories=use_histories,
         use_proc_icd=use_proc_icd,
         processed_data_path=processed_data_path,
     )
-    model = train(
-        train_data, train_metadata, test_data, test_metadata,
-        data_name=data_name,
-        embed_dim=embed_dim,
-        latent_dim=latent_dim,
-        num_epochs=num_epochs,
-        use_histories=use_histories,
-        use_proc_icd=use_proc_icd,
-        use_mlm=use_mlm,
-        mlm_weight=mlm_weight,
-        use_hard_negatives=use_hard_negatives,
-        mapping_json=mapping_json,
-        embedding_pickle=embedding_pickle,
-        processed_data_path=processed_data_path,
-    )
+    # model = train(
+    #     train_data, train_metadata, test_data, test_metadata,
+    #     data_name=data_name,
+    #     embed_dim=embed_dim,
+    #     latent_dim=latent_dim,
+    #     num_epochs=num_epochs,
+    #     use_histories=use_histories,
+    #     use_proc_icd=use_proc_icd,
+    #     use_mlm=use_mlm,
+    #     mlm_weight=mlm_weight,
+    #     use_hard_negatives=use_hard_negatives,
+    #     mapping_json=mapping_json,
+    #     embedding_pickle=embedding_pickle,
+    #     processed_data_path=processed_data_path,
+    # )
 
     save_embeddings(
         train_data,

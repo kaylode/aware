@@ -42,6 +42,7 @@ def get_eicu(
         test_admission_id_file:str,
         selection_method:str,
         feature_selection_path:str,
+        embedding_file_path:str=None,
         impute_method="mean",
     ):
         """Initialize the FullEval class for evaluating tabular data.
@@ -66,6 +67,8 @@ def get_eicu(
         X_test = df[df['ICU_ID'].isin(test_ids)].reset_index(drop=True)
         y_train = label_df[label_df['ICU_ID'].isin(train_ids)][task].reset_index(drop=True)
         y_test = label_df[label_df['ICU_ID'].isin(test_ids)][task].reset_index(drop=True)
+        train_ids_df = X_train[['PATIENT_ID', 'ADMISSION_ID', 'ICU_ID']].drop_duplicates().reset_index(drop=True)
+        test_ids_df = X_test[['PATIENT_ID', 'ADMISSION_ID', 'ICU_ID']].drop_duplicates().reset_index(drop=True)
         X_train = X_train.drop(['ADMISSION_ID', 'ICU_ID', 'PATIENT_ID', 'HOSPITAL_ID'], axis=1)
         X_test = X_test.drop(['ADMISSION_ID', 'ICU_ID', 'PATIENT_ID', 'HOSPITAL_ID'], axis=1)
         
@@ -107,6 +110,80 @@ def get_eicu(
         is_classification = True
         num_classes = 2
 
+        if embedding_file_path is not None:
+            X_train_traj = np.load(f"{embedding_file_path}/train_embeddings.npz")
+            train_metadata_ids = X_train_traj['metadata'] # "subject_id", "hadm_id", "stay_id", "admission_id"
+            train_embeddings = X_train_traj['embeddings']
+
+            # Get embedding dimension
+            embedding_dim = train_embeddings.shape[1]
+
+            train_ids_df = train_ids_df.astype(
+                {"PATIENT_ID": str, "ADMISSION_ID": str, "ICU_ID": str}
+            )
+
+            # Use left join to keep all patients from train_ids_df
+            sub_train_df = pd.DataFrame({
+                "PATIENT_ID": train_metadata_ids[:, 0],
+                "ADMISSION_ID": train_metadata_ids[:, 2],
+                "ICU_ID": train_metadata_ids[:, 1]
+            }).drop_duplicates().reset_index()
+            
+            filtered_train_ids = pd.merge(
+                train_ids_df,
+                sub_train_df,
+                on=["PATIENT_ID", "ADMISSION_ID", "ICU_ID"],
+                how="left"  # Changed from "inner" to "left"
+            )
+
+            # Create embeddings array with zeros for missing patients
+            train_embedding_matrix = np.zeros((len(filtered_train_ids), embedding_dim))
+            
+            # Fill in embeddings for patients that have them
+            valid_indices = filtered_train_ids['index'].to_numpy()
+            valid_mask = ~np.isnan(valid_indices.astype(float))  # Check for non-null indices
+            
+            if valid_mask.any():
+                train_embedding_matrix[valid_mask] = train_embeddings[valid_indices[valid_mask].astype(int)]
+            
+            X_train_traj = train_embedding_matrix
+
+            # Same logic for test data
+            X_test_traj = np.load(f"{embedding_file_path}/test_embeddings.npz")
+            test_metadata_ids = X_test_traj['metadata']
+            test_embeddings = X_test_traj['embeddings']
+
+            test_ids_df = test_ids_df.astype(
+                {"PATIENT_ID": str, "ADMISSION_ID": str, "ICU_ID": str}
+            )
+            
+            filtered_test_ids = pd.merge(
+                test_ids_df,
+                pd.DataFrame({
+                    "PATIENT_ID": test_metadata_ids[:, 0],
+                    "ADMISSION_ID": test_metadata_ids[:, 2],
+                    "ICU_ID": test_metadata_ids[:, 1]
+                }).drop_duplicates().reset_index(),
+                on=["PATIENT_ID", "ADMISSION_ID", "ICU_ID"],
+                how="left"  # Changed from "inner" to "left"
+            )
+            
+            # Create embeddings array with zeros for missing patients
+            test_embedding_matrix = np.zeros((len(filtered_test_ids), embedding_dim))
+            
+            # Fill in embeddings for patients that have them
+            valid_indices = filtered_test_ids['index'].to_numpy()
+            valid_mask = ~np.isnan(valid_indices.astype(float))  # Check for non-null indices
+            
+            if valid_mask.any():
+                test_embedding_matrix[valid_mask] = test_embeddings[valid_indices[valid_mask].astype(int)]
+            
+            X_test_traj = test_embedding_matrix
+
+        else:
+            X_train_traj = None
+            X_test_traj = None
+
 
         return {
             'data_name': 'eicu',
@@ -114,6 +191,8 @@ def get_eicu(
             'y_train': y_train,
             'X_test': X_test,
             'y_test': y_test,
+            'X_embs_train': X_train_traj,
+            'X_embs_test': X_test_traj,
             'categorical_feature_indices': categorical_feature_indices,
             'is_classification': is_classification,
             'feature_names': feature_names,
