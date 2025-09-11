@@ -1,0 +1,12 @@
+did,tid,target_column,type
+43759,,is_patient,cls
+945,3808,binaryClass,cls
+46860,363571,death,cls
+46853,363565,hospital_outcome_1alive_0dead,cls
+46848,363556,Recurred,cls
+45950,,DEATH_EVENT,cls
+46846,363555,Grade,cls
+46076,,infected,cls
+4531,,total_UPDRS,rgr
+40683,146210,class,cls
+1097,5341,LOC,rgr

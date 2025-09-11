@@ -1,3 +1,6 @@
 [submodule "ehrpfn-aaai"]
 	path = ehrpfn-aaai
-	url = ./ehrpfn-aaai
+	url = https://github.com/kaylode/ehrpfn-aaai.git
+[submodule "theseus"]
+	path = theseus
+	url = https://github.com/kaylode/theseus.git

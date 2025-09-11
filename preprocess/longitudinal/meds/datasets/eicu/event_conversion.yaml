@@ -1,0 +1,161 @@
+# Note that there is no "subject_id" for eICU -- patients are only differentiable during the course of a
+# single health system stay. Accordingly, we set the "patient" id here as the "patientHealthSystemStayID"
+
+subject_id_col: subject_id
+
+### 
+# PATIENTS
+###
+
+patient:
+  gender:
+    code: 
+      - "GENDER"
+      - "col(gender)"
+    time: null
+    hadm_id: "patientunitstayid"
+  racial:
+    code: 
+      - "RACE"
+      - col(ethnicity)
+    time: null
+    hadm_id: "patientunitstayid"
+  dob:
+    code: "MEDS_BIRTH" # This is the MEDS official code for BIRTH.
+    time: col(dateofbirth)
+    hadm_id: "patientunitstayid"
+  death:
+    code: MEDS_DEATH # This is the MEDS official code for death.
+    time: col(dod)
+    time_format:
+      - "%Y-%m-%d %H:%M:%S"
+      - "%Y-%m-%d"
+    hadm_id: "patientunitstayid"
+  hosp_admission:
+    code:
+      - "HOSPITAL_ADMISSION"
+      - col(unitadmitsource)
+    time: col(hospitaladmittimestamp)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    hadm_id: "patientunitstayid"
+    text_value: hospitaladmitsource
+  hosp_discharge:
+    code:
+      - "HOSPITAL_DISCHARGE"
+      - col(unitdischargelocation)
+    time: col(hospitaldischargetimestamp)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    hadm_id: "patientunitstayid"
+    text_value: hospitaldischargelocation
+
+carePlanInfectiousDisease:
+  cplInfectDisease:
+    code:
+      - "INFECTIOUS_DISEASE"
+      - col(infectdiseasesite)
+    time: col(carePlanInfectDiseaseEnteredTimestamp)
+    hadm_id: "patientunitstayid"
+    text_value: infectdiseasesite
+
+###
+# Diagnosis
+###
+
+diagnosis:
+  diagnosis:
+    code:
+      - "DIAGNOSIS"
+      - ICD
+      - "9"
+      - col(icd9code)
+    time: col(diagnosisEnteredTimestamp)
+    hadm_id: "patientunitstayid"
+    time_format: "%Y-%m-%d %H:%M:%S"
+    text_value: diagnosispriority
+
+
+###
+# VITALS
+###
+
+vitalAperiodic:
+  non_invasive_systolic:
+    code: "NONINVASIVE_SYSTOLIC"
+    time: col(observationEnteredTimestamp)
+    hadm_id: "patientunitstayid"
+    numeric_value: "noninvasivesystolic"
+  non_invasive_diastolic:
+    code: "NONINVASIVE_DIASTOLIC"
+    time: col(observationEnteredTimestamp)
+    hadm_id: "patientunitstayid"
+    numeric_value: "noninvasivediastolic"
+vitalPeriodic:
+  temperature:
+    code: "TEMPERATURE"
+    time: col(observationEnteredTimestamp)
+    hadm_id: "patientunitstayid"
+    numeric_value: "temperature"
+  saO2:
+    code: "O2_SATURATION"
+    time: col(observationEnteredTimestamp)
+    hadm_id: "patientunitstayid"
+    numeric_value: "sao2"
+  heartRate:
+    code: "HEART_RATE"
+    time: col(observationEnteredTimestamp)
+    hadm_id: "patientunitstayid"
+    numeric_value: "heartrate"
+  respiration:
+    code: "RESPIRATORY_RATE"
+    time: col(observationEnteredTimestamp)
+    hadm_id: "patientunitstayid"
+    numeric_value: "respiration"
+
+
+###
+# ICU INFUSIONS
+###
+
+infusionDrug:
+  infusion:
+    code:
+      - "INFUSION"
+      - col(drugname)
+      - col(valueuom)
+    time: col(infusionEnteredTimestamp)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    hadm_id: "patientunitstayid"
+    numeric_value: drugrate
+    text_value: drugamount
+
+###
+# LABORATORY RESULTS
+###
+
+lab:
+  lab:
+    code:
+      - "LAB"
+      - col(labname)
+      - col(labmeasurenamesystem)
+    time: col(labResultDrawnTimestamp)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    numeric_value: "labresult"
+    hadm_id: "patientunitstayid"
+    text_value: labmeasurenameinterface
+
+
+###
+# MEDICATIONS
+###
+
+medication:
+  drug_started:
+    code:
+      - "MEDICATION"
+      - "START"
+      - col(drugname)
+    time: col(drugstarttimestamp)
+    time_format: "%Y-%m-%d %H:%M:%S"
+    hadm_id: "patientunitstayid"
+    text_value: frequency

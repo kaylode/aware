@@ -1,0 +1,27 @@
+{
+    "general": {},
+    "model": {
+        "activation": "ReLU",
+        "context_dropout": 0.16968417754584575,
+        "d_main": 107,
+        "d_multiplier": 2.0,
+        "dropout0": 0.07123663137254643,
+        "dropout1": 0.0,
+        "encoder_n_blocks": 0,
+        "mixer_normalization": "auto",
+        "normalization": "LayerNorm",
+        "num_embeddings": {
+            "d_embedding": 19,
+            "frequency_scale": 0.4539959494059676,
+            "lite": true,
+            "n_frequencies": 41,
+            "type": "PLREmbeddings"
+        },
+        "predictor_n_blocks": 1
+    },
+    "training": {
+        "lr": 0.00034015145030810744,
+        "n_bins": 135,
+        "weight_decay": 0.0
+    }
+}

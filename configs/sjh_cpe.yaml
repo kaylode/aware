@@ -3,12 +3,13 @@ defaults:
   - _self_
 
 data_name: sjh_cpe
-input_folder: /home/mpham/workspace/source/tabpfn-ehr/data/sjh-cpe
-output_folder: /home/mpham/workspace/source/tabpfn-ehr/outputs/tabpfn
+input_folder: /home/mpham/workspace/source/ehrpfn/data/processed/sjh_cpe
+data_folder: /home/mpham/workspace/source/ehrpfn/data/processed
+output_folder: /home/mpham/workspace/source/ehrpfn/outputs/tabpfn
 
-process_file_path: /home/mpham/workspace/source/tabpfn-ehr/outputs/tabpfn/data/sjh_cpe/process
+process_file_path: /home/mpham/workspace/source/ehrpfn/data/processed/sjh_cpe/process
 n_process_variants: 50
-trajectory_file_path: /home/mpham/workspace/source/tabpfn-ehr/outputs/tabpfn/data/sjh_cpe/process
+trajectory_file_path: /home/mpham/workspace/source/ehrpfn/data/processed/sjh_cpe/process
 feature_selection_path: null
 selection_method: null
 retrieval_method: null
@@ -32,7 +33,7 @@ inf_batch_size: 512
 context_size: 1024
 num_features: 100
 n_ensembles: 8
-pretrain_mode: DEFAULT
+pretrained_path: null
 
 wandb:
   project: tabpfn-ehr
