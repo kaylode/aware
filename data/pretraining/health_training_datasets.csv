@@ -1,7 +1,6 @@
 did,tid,target_column,type
 43759,,is_patient,cls
 945,3808,binaryClass,cls
-46750,363449,Expert_Diagnose,cls
 46860,363571,death,cls
 46853,363565,hospital_outcome_1alive_0dead,cls
 46848,363556,Recurred,cls
