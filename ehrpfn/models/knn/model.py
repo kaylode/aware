@@ -9,17 +9,17 @@ class SimpleKNNClassifier(ClassifierMixin):
         self.retriever = retriever
         self._is_fitted = False
 
-    def fit(self, X: np.ndarray, y: np.ndarray):
+    def fit(self, X: np.ndarray, y: np.ndarray, **kwargs):
         self.X = X
         self.y = y
-        self.retriever.fit(X)
+        self.retriever.fit(X, **kwargs)
         self._is_fitted = True
         return self
 
-    def predict(self, X: np.ndarray) -> np.ndarray:
+    def predict(self, X: np.ndarray, **kwargs) -> np.ndarray:
         if not self._is_fitted:
             raise RuntimeError("KNNClassifier is not fitted yet.")
-        indices = self.retriever.retrieve(X)
+        indices = self.retriever.retrieve(X, **kwargs)
         # indices shape: (n_samples, k)
         if indices.ndim == 1:
             indices = indices[None, :]
@@ -28,10 +28,10 @@ class SimpleKNNClassifier(ClassifierMixin):
         preds = np.array([np.bincount(row.astype(int)).argmax() for row in neighbor_labels])
         return preds
 
-    def predict_proba(self, X: np.ndarray) -> np.ndarray:
+    def predict_proba(self, X: np.ndarray, **kwargs) -> np.ndarray:
         if not self._is_fitted:
             raise RuntimeError("KNNClassifier is not fitted yet.")
-        indices = self.retriever.retrieve(X)
+        indices = self.retriever.retrieve(X, **kwargs)
         if indices.ndim == 1:
             indices = indices[None, :]
         neighbor_labels = self.y[indices]
@@ -48,17 +48,17 @@ class SimpleKNNRegressor(RegressorMixin):
         self.retriever = retriever
         self._is_fitted = False
 
-    def fit(self, X: np.ndarray, y: np.ndarray):
+    def fit(self, X: np.ndarray, y: np.ndarray, **kwargs):
         self.X = X
         self.y = y
-        self.retriever.fit(X)
+        self.retriever.fit(X, **kwargs)
         self._is_fitted = True
         return self
 
-    def predict(self, X: np.ndarray) -> np.ndarray:
+    def predict(self, X: np.ndarray, **kwargs) -> np.ndarray:
         if not self._is_fitted:
             raise RuntimeError("KNNRegressor is not fitted yet.")
-        indices = self.retriever.retrieve(X)
+        indices = self.retriever.retrieve(X, **kwargs)
         if indices.ndim == 1:
             indices = indices[None, :]
         neighbor_targets = self.y[indices]

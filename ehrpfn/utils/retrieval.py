@@ -71,7 +71,7 @@ class WeightedRetriever(Retriever):
         if isinstance(X, torch.Tensor):
             X = X.cpu().numpy()
         assert isinstance(X, np.ndarray), f"X must be a numpy array. Got {type(X)}"
-        assert X.shape[1] == self.weights.shape[0], "weights must match feature dimension"
+        assert X.shape[1] == self.weights.shape[0], f"weights must match feature dimension. Got {self.weights.shape[0]} weights for {X.shape[1]} features"
 
         # scale features by sqrt(weights) so that l2 distance corresponds to weighted l2
         self.X_scaled = X * np.sqrt(self.weights)
@@ -121,7 +121,7 @@ class RandomRetriever(Retriever):
     def retrieve(self, queries, **kwargs):
         if not self._is_fitted:
             raise RuntimeError("RandomRetriever is not fitted yet.")
-        return np.random.choice(self.context.shape[0], size=self.k, replace=False)
+        return np.random.choice(self.context.shape[0], size=self.k, replace=False).reshape(1, -1).repeat(queries.shape[0], axis=0)
 
 def get_retriever(method:str, k:int, **kwargs):
     if method in ["faiss", 'knn']:
@@ -148,9 +148,12 @@ def get_retriever(method:str, k:int, **kwargs):
 def get_retrieval_weight(weighted_type:str, data_name:str, task:str, feature_names:Optional[List[str]]):
 
     if weighted_type == 'feattype':
-        feature_types = json.load(open(f"/home/mpham/workspace/source/ehrpfn/data/processed/{data_name}/feature_types.json", 'r'))
+        if data_name == 'mimicpipe':
+            feature_types = json.load(open(f"/home/mpham/workspace/source/ehrpfn/data/processed/mimiciv/feature_types_all.json", 'r'))
+        else:
+            feature_types = json.load(open(f"/home/mpham/workspace/source/ehrpfn/data/processed_muse/eicu/feature_types.json", 'r'))
 
-        if task in ['Readmission', 'Length of Stay', 'Mortality']:
+        if task not in ['Readmission', 'Length of Stay', 'Mortality', 'READMISSION', 'MORTALITY']:
             mapping_weights = {
                 "Diagnosis":0.15,
                 "Procedure":0.15,
@@ -158,7 +161,8 @@ def get_retrieval_weight(weighted_type:str, data_name:str, task:str, feature_nam
                 "Infusion":0.05,
                 "Chart":0.40,
                 "Demographics":0.10, 
-                "Procedure ICD": 0.15
+                "Procedure ICD": 0.15,
+                "Vital": 0.40
             }
         else:
             mapping_weights = {
@@ -168,7 +172,8 @@ def get_retrieval_weight(weighted_type:str, data_name:str, task:str, feature_nam
                 "Infusion":0.05,
                 "Chart":0.20,
                 "Demographics":0.10,
-                "Procedure ICD": 0.35
+                "Procedure ICD": 0.35,
+                "Vital": 0.2
             }
 
         retrieval_weights = [mapping_weights[feature_types[name]] for name in feature_names]
@@ -176,12 +181,17 @@ def get_retrieval_weight(weighted_type:str, data_name:str, task:str, feature_nam
     elif weighted_type == 'logistics':
         retrieval_weights = None
         try:
-            retrieval_weights = json.load(open(
+            retrieval_dict = json.load(open(
             f"/home/mpham/workspace/source/ehrpfn/outputs/tabpfn/results/{data_name}/{task}/logistics_{data_name}_{task}_sel:shap_500/logistics_params.json"
-            ))["coef"][0]
+            ))
+            retrieval_weights = retrieval_dict["coef"][0]
+            retrieval_weights = np.absolute(retrieval_weights)
+            retrieval_names = retrieval_dict["feature_names"]
         except:
             raise FileNotFoundError("Logistics weights not found, consider running first with method=logistics")
-        retrieval_weights = np.absolute(retrieval_weights)
+        # retrieval_weights = [retrieval_weights[i] for i in range(len(feature_names))]
+        retrieval_weights = [retrieval_weights[retrieval_names.index(name)] if name in retrieval_names else 0.0 for name in feature_names]
+
     else:
         raise ValueError(f"Unknown weighted type: {weighted_type}")
     
