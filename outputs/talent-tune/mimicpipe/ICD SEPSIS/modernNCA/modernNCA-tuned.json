@@ -1,0 +1,22 @@
+{
+    "general": {},
+    "model": {
+        "d_block": 264,
+        "dim": 512,
+        "dropout": 0.051022405374014035,
+        "n_blocks": 0,
+        "num_embeddings": {
+            "d_embedding": 21,
+            "frequency_scale": 0.016739148737342394,
+            "lite": true,
+            "n_frequencies": 35,
+            "type": "PLREmbeddings"
+        },
+        "sample_rate": 0.4109812742059003
+    },
+    "training": {
+        "lr": 3.570522756718288e-05,
+        "n_bins": 26,
+        "weight_decay": 0.0002903886846508794
+    }
+}
