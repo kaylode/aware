@@ -2,7 +2,7 @@
     "dataset": "mimicpipe",
     "model_type": "tabr",
     "max_epoch": 50,
-    "batch_size": 4,
+    "batch_size": 32,
     "normalization": "none",
     "num_nan_policy": "mean",
     "cat_nan_policy": "new",

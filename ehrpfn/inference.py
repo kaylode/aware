@@ -533,10 +533,10 @@ def run(args: DictConfig):
 
     if isinstance(data, list):
         for d in data:
-            # try:
-            inference(args, d)
-            # except Exception as e:
-            #     LOGGER.text(f"Error occurred while processing {d['data_name']}: {e}", level=LoggerObserver.ERROR)
+            try:
+                inference(args, d)
+            except Exception as e:
+                LOGGER.text(f"Error occurred while processing {d['data_name']}: {e}", level=LoggerObserver.ERROR)
             #     breakpoint()
     else:
         inference(args, data)

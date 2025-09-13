@@ -151,7 +151,7 @@ class TALENTWrapper(BaseEstimator, ClassifierMixin):
         }
         train_val_data = (N_trainval,C_trainval,y_trainval)
 
-        if self.ckpt_path is not None and not osp.isfile(self.ckpt_path):
+        if self.ckpt_path is not None and osp.isfile(self.ckpt_path):
             time_cost = self.method.fit(train_val_data, info, train = False) # Not training again, just for constructing model
         else:
             time_cost = self.method.fit(train_val_data, info)
