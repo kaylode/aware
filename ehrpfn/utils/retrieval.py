@@ -71,10 +71,18 @@ class WeightedRetriever(Retriever):
         if isinstance(X, torch.Tensor):
             X = X.cpu().numpy()
         assert isinstance(X, np.ndarray), f"X must be a numpy array. Got {type(X)}"
-        assert X.shape[1] == self.weights.shape[0], f"weights must match feature dimension. Got {self.weights.shape[0]} weights for {X.shape[1]} features"
+
+
+        feature_order = kwargs.get('feature_order', None)
+        if feature_order is not None:
+            weights = self.weights[feature_order]
+        else:
+            weights = self.weights
+
+        assert X.shape[1] == weights.shape[0], f"weights must match feature dimension. Got {weights.shape[0]} weights for {X.shape[1]} features"
 
         # scale features by sqrt(weights) so that l2 distance corresponds to weighted l2
-        self.X_scaled = X * np.sqrt(self.weights)
+        self.X_scaled = X * np.sqrt(weights)
         self.retriever.fit(self.X_scaled)
         self._is_fitted = True
 
@@ -86,10 +94,16 @@ class WeightedRetriever(Retriever):
         """
         if isinstance(queries, torch.Tensor):
             queries = queries.cpu().numpy()
-        assert queries.shape[1] == self.weights.shape[0], "Query feature dimension must match weights"
+
+        feature_order = kwargs.get('feature_order', None)
+        if feature_order is not None:
+            weights = self.weights[feature_order]
+        else:
+            weights = self.weights
+        assert queries.shape[1] == weights.shape[0], "Query feature dimension must match weights"
 
         # scale queries the same way as database
-        queries_scaled = queries * np.sqrt(self.weights)
+        queries_scaled = queries * np.sqrt(weights)
         indices = self.retriever.retrieve(queries_scaled)
 
         return indices

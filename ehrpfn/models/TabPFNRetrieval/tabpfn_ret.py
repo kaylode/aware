@@ -138,7 +138,7 @@ class InferenceWithRetrievalEngineOnDemand(InferenceEngine):
         for config, preprocessor, X_train, y_train, cat_ix in itr:
             assert X_train.shape[0] == self.X_train.shape[0], "X_train shape mismatch"
 
-            self.retriever.fit(X_train, X_embs_train=self.context_embs)
+            self.retriever.fit(X_train, X_embs_train=self.context_embs, feature_order=preprocessor.feature_order)
             X_train = torch.as_tensor(X_train, dtype=torch.float32, device=device)  # noqa: PLW2901
             X_test = preprocessor.transform(X).X
             X_test = torch.as_tensor(X_test, dtype=torch.float32, device=device)
@@ -146,7 +146,7 @@ class InferenceWithRetrievalEngineOnDemand(InferenceEngine):
 
             for batch_id, query_item in enumerate(X_test):
                 query_item = query_item.unsqueeze(0)
-                nn_indices_ = self.retriever.retrieve(query_item, X_embs_test=self.queries_embs)
+                nn_indices_ = self.retriever.retrieve(query_item, X_embs_test=self.queries_embs, feature_order=preprocessor.feature_order)
                 nn_indices = nn_indices_[0]
 
                 X_context = X_train[nn_indices, :]
