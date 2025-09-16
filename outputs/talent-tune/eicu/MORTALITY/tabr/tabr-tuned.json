@@ -14,7 +14,7 @@
             "d_embedding": 19,
             "frequency_scale": 0.4539959494059676,
             "lite": true,
-            "n_frequencies": 41,
+            "n_frequencies": 26,
             "type": "PLREmbeddings"
         },
         "predictor_n_blocks": 1
