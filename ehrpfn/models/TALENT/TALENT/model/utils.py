@@ -373,7 +373,7 @@ def get_deep_args():
                                  'dnnr', 'switchtab', 'grownet', 'tabr', 'modernNCA',
                                  'hyperfast', 'bishop', 'realmlp', 'protogate', 'mlp_plr',
                                  'excelformer', 'grande', 'amformer', 'tabptm', 'trompt', 'tabm',
-                                 'PFN-v2', 't2gformer', 'tabautopnpnet','tabicl'
+                                 'PFN-v2', 't2gformer', 'tabautopnpnet','tabicl','beta'
                                  ])
 
     # optimization parameters
@@ -474,6 +474,12 @@ def get_deep_args():
         args.cat_policy = "indices"
     elif args.model_type in [ 'excelformer', 'tabnet', 'resnet']:
         args.cat_policy = "ordinal"
+    elif args.model_type in ['beta']:
+        args.cat_policy = "indices"
+        args.num_policy = "none"
+        args.normalization = "standard"
+        args.num_nan_policy = 'mean'
+        args.cat_nan_policy = 'new'
 
 
     argparse_dict = vars(args)
@@ -724,6 +730,15 @@ def tune_hyper_parameters(args, opt_space, train_val_data, info):
             config['model'].setdefault("cluster", True)
             config['model'].setdefault("target_mode", "mix")
             config['model'].setdefault("token_descent", False)
+        
+        if args.model_type in ['beta']:
+            config['model']["num_embeddings"].setdefault('type', 'PLREmbeddings')
+            config['model']["num_embeddings"].setdefault('lite', True)
+            config['model']['backbone'].setdefault('type', 'MLP')
+            config['model'].setdefault("arch_type", "tabm-mini")
+            config['model'].setdefault("k", 16)
+            config['model']['backbone'].setdefault("d_block", 100) # tabpfn limit
+
 
         if config.get('config_type') == 'trv4':
             if config['model']['activation'].endswith('glu'):
@@ -734,12 +749,12 @@ def tune_hyper_parameters(args, opt_space, train_val_data, info):
         trial_configs.append(config)
         # method.fit(train_val_data, info, train=True, config=config)  
         # run with this config
-        try:
-            method.fit(train_val_data, info, train=True, config=config)
-            return method.trlog['best_res']
-        except Exception as e:
-            LOGGER.text(e,level=LoggerObserver.ERROR)
-            return 1e9 if info['task_type'] == 'regression' else 0.0
+        # try:
+        method.fit(train_val_data, info, train=True, config=config)
+        return method.trlog['best_res']
+        # except Exception as e:
+            # LOGGER.text(e,level=LoggerObserver.ERROR)
+            # return 1e9 if info['task_type'] == 'regression' else 0.0
 
     if osp.exists(osp.join(args.save_path, '{}-tuned.json'.format(args.model_type))) and args.retune == False:
         with open(osp.join(args.save_path, '{}-tuned.json'.format(args.model_type)), 'rb') as fp:
@@ -923,5 +938,8 @@ def get_method(model):
     elif model == 'tabautopnpnet':
         from TALENT.model.methods.tabautopnpnet import TabAutoPNPNetMethod
         return TabAutoPNPNetMethod
+    elif model == 'beta':
+        from TALENT.model.methods.beta import BetaMethod
+        return BetaMethod
     else:
         raise NotImplementedError("Model \"" + model + "\" not yet implemented")

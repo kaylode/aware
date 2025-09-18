@@ -76,7 +76,14 @@ class TALENTWrapper(BaseEstimator, ClassifierMixin):
                 args['cat_policy'] = "indices"
             elif model_name in [ 'excelformer', 'tabnet', 'resnet']:
                 args['cat_policy'] = "ordinal"
+            elif model_name in ['beta']:
+                args['cat_policy'] = "indices"
+                args['num_policy'] = "none"
+                args['normalization'] = "standard"
+                args['num_nan_policy'] = 'mean'
+                args['cat_nan_policy'] = 'new'
 
+            
             args = dict_to_namespace(args)
 
             if tune_config is not None:
