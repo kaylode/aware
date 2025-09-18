@@ -119,7 +119,7 @@ def get_mimic_dataset(
     LOGGER.text(f"Train shape: {X_train.shape}, Test shape: {X_test.shape}", level=LoggerObserver.INFO)
     LOGGER.text(f"Train label distribution: {pd.Series(y_train).value_counts(normalize=True)}", level=LoggerObserver.INFO)
     LOGGER.text(f"Test label distribution: {pd.Series(y_test).value_counts(normalize=True)}", level=LoggerObserver.INFO)
-
+    label_dist = np.bincount(np.concatenate([y_train, y_test]))
 
     train_ids_df = pd.DataFrame({
         "subject_id": train_df["subject_id"],
@@ -206,5 +206,6 @@ def get_mimic_dataset(
         'categorical_feature_indices': categorical_feature_indices,
         'feature_names': feature_names,
         'train_ids': train_ids_df,
-        'test_ids': test_ids_df
+        'test_ids': test_ids_df,
+        'class_distribution': label_dist,
     }

@@ -25,8 +25,8 @@ if [ "$DATA_NAME" = "mimicpipe" ]; then
             --tune
     done
 elif [ "$DATA_NAME" = "eicu" ]; then
-    # eICU
-    for TASK in "READMISSION" "MORTALITY"; do
+    # eICU 
+    for TASK in "READMISSION" "MORTALITY" ; do
         feature_selection_path="${ROOT}/outputs/tabpfn/selection/${DATA_NAME}/${TASK}"
         CUDA_VISIBLE_DEVICES=0 PYTHONPATH=. python ehrpfn/train_talent.py \
             --data_name $DATA_NAME \

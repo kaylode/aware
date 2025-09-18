@@ -24,7 +24,7 @@ class OpenMLEHR:
         # loading classification dataset
         df_train = pd.read_csv(f"{data_folder}/health_training_datasets.csv")
         df_eval = pd.read_csv(f"{data_folder}/health_val_datasets.csv")
-        df_eval = pd.concat([df_eval, df_train], axis=0)
+        df_eval = pd.concat([df_eval, df_train], axis=0).drop_duplicates()
         df_eval_cls = df_eval[df_eval["type"] == "cls"]
         df_eval_rgr = df_eval[df_eval["type"] == "rgr"]
 
