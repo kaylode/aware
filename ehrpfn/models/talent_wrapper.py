@@ -191,8 +191,8 @@ class TALENTWrapper(BaseEstimator, ClassifierMixin):
             except:
                 try:
                     self.method.load_from(self.ckpt_path)
-                except:
-                    LOGGER.text("Failed to load trained model", level=LoggerObserver.ERROR)    
+                except Exception as e:
+                    LOGGER.text(f"Failed to load trained model. {e}", level=LoggerObserver.ERROR)
 
         predictions = self.method.predict_proba(test_data)
 

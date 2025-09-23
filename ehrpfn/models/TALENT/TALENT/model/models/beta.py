@@ -233,8 +233,8 @@ class Beta(nn.Module):
             input = torch.permute(input, (1, 0, 2)).to(torch.float32)
             y_input = torch.permute(y_input, (1, 0)).to(torch.float32)
             
-            from torch.cuda.amp import autocast
-            with autocast():
+            from torch.amp import autocast
+            with autocast('cuda', enabled=True):
                 logits=self.TabPFN((None, input, y_input), single_eval_pos=y_input.shape[0]-x.shape[0])[:, :, :self.d_out].to(torch.float)
             # print(logits.dtype)
         else:

@@ -95,27 +95,29 @@ class BetaMethod(Method):
         )
         self.train_size = self.N['train'].shape[0] if self.N is not None else self.C['train'].shape[0]
         self.train_indices = torch.arange(self.train_size, device=self.args.device)
-        # if not train, skip the training process. such as load the checkpoint and directly predict the results
-        if not train:
-            return
+        
         
         time_cost = 0
         try:
             self.pre_validate()
-        except:
-            print('Pre-validation failed.')
+        except Exception as e:
+            print('Pre-validation failed:', e)
         self.N_train = self.N['train'].cpu().numpy() if self.N is not None else None
         self.C_train = self.C['train'].cpu().numpy() if self.C is not None else None
         self.y_train = self.y['train'].cpu().numpy()
         self.N_val = self.N['val'].cpu().numpy() if self.N is not None else None
         self.C_val = self.C['val'].cpu().numpy() if self.C is not None else None
         self.y_val = self.y['val'].cpu().numpy()
+
+        # if not train, skip the training process. such as load the checkpoint and directly predict the results
+        if not train:
+            return
         
         loss_list = []
         
         N_train_size = len(self.y_train)
         
-        from torch.cuda.amp import autocast, GradScaler
+        from torch.amp import autocast, GradScaler
         scaler = GradScaler()
         for epoch in range(self.args.max_epoch):
             tic = time.time()
@@ -127,7 +129,7 @@ class BetaMethod(Method):
                 
                 self.model.train()
                 self.optimizer.zero_grad()
-                with autocast(enabled=True, dtype=torch.float32):
+                with autocast('cuda', enabled=True, dtype=torch.float32):
                     train_logit,train_label = self.model.train_step(self.N_train, self.C_train, self.y_train,min(self.args.batch_size,N_train_size))
                     loss = loss_fn(self.criterion, train_logit, train_label)
                 loss_list.append(loss.item())
@@ -187,7 +189,7 @@ class BetaMethod(Method):
 
     def pre_validate(self):
         epoch =-1
-        from model.models.tabpfn import TabPFNClassifier
+        from ehrpfn.models.TALENT.TALENT.model.models.tabpfn import TabPFNClassifier
         self.PFN_model = TabPFNClassifier(device = self.args.device,seed = self.args.seed,N_ensemble_configurations=self.args.config['model']['k'])
         if self.N is not None and self.C is not None:
             X_train = np.concatenate((self.N['train'].cpu().numpy(), self.C['train'].cpu().numpy()), axis=1)
@@ -292,3 +294,54 @@ class BetaMethod(Method):
         for name, res in zip(metric_name, vres):
             print('[{}]={:.4f}'.format(name, res))
         return vl, vres, metric_name, test_logit
+
+    def load_from(self, ckpt_path):
+        from pathlib import Path
+        ckpt_path = Path(ckpt_path)
+        saved_state_dict = torch.load(ckpt_path)['params']
+        filtered_saved_state_dict = {k: v for k, v in saved_state_dict.items() if 'TabPFN' not in k}
+        self.model.load_state_dict(filtered_saved_state_dict, strict=False)
+
+        index_path = ckpt_path.parent / f"best-val-indexs-{self.args.seed}.npy"
+        self.indexs = np.load(index_path, allow_pickle=True)
+
+    def predict_proba(self, data):
+        """
+        Predict the results of the data.
+
+        :param data: tuple, (N, C, y)
+        :param info: dict, information about the data
+        :param model_name: str, name of the model
+        :return: tuple, (loss, metric, metric_name, predictions)
+        """
+        N,C = data
+
+        if getattr(self, 'indexs', None) is None:
+            self.indexs = np.load(osp.join(self.args.save_path, 'best-val-indexs-{}.npy'.format(str(self.args.seed))), allow_pickle=True)
+
+        ## Evaluation Stage
+        self.model.eval()
+
+        self.data_format(False, N, C)
+
+        self.model.eval()
+        batch_size = 4096
+        with torch.no_grad():
+            num_test_samples = len(self.N_test)#.size(0)
+            
+            all_test_logit = []
+            
+            for start_idx in range(0, num_test_samples, batch_size):
+                end_idx = min(start_idx + batch_size, num_test_samples)
+                
+                batch_N_test = self.N_test[start_idx:end_idx] if self.N_test is not None else None
+                batch_C_test = self.C_test[start_idx:end_idx] if self.C_test is not None else None
+                batch_logit = self.model(batch_N_test, batch_C_test ,self.N_train, self.C_train, self.y_train, is_test=True,indexs = self.indexs).cpu()
+                
+                all_test_logit.append(batch_logit)
+            
+            test_logit = torch.cat(all_test_logit, dim=0)
+            test_logit = test_logit.mean(1).to(torch.float32)
+            # normalize by sum
+            test_logit = test_logit / test_logit.sum(dim=1, keepdim=True)
+        return test_logit
