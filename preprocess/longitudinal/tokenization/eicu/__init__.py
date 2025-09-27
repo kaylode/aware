@@ -1,2 +1,2 @@
 from .preprocessors import *
-from scripts.tokenization.mimic.label_generators import LabelGenerator
+from preprocess.longitudinal.tokenization.mimic.label_generators import LabelGenerator

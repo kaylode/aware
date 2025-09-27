@@ -1,6 +1,6 @@
 import polars as pl
 
-from scripts.tokenization.constants import SpecialToken as ST
+from preprocess.longitudinal.tokenization.constants import SpecialToken as ST
 from ..patterns import MatchAndRevise
 from .preprocessors import DemographicData
 

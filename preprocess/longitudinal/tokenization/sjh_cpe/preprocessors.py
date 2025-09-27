@@ -3,7 +3,7 @@ from datetime import time
 import numpy as np
 import polars as pl
 
-from scripts.tokenization.constants import SpecialToken as ST, TOKEN_TYPES_IDS, TensorizedColumns
+from preprocess.longitudinal.tokenization.constants import SpecialToken as ST, TOKEN_TYPES_IDS, TensorizedColumns
 from ..patterns import MatchAndRevise
 from ..utils import apply_vocab_to_multitoken_codes, unify_code_names
 

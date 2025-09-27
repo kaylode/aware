@@ -15,9 +15,9 @@ case $DATASET in
 mimiciv*)
     DATASET_VERSION="3.1"
     N_SUBJECTS_PER_SHARD=20000
-    input_dir="${DATA_PATH}/mimic/mimiciv/${DATASET_VERSION}"
+    input_dir="${DATA_PATH}/raw/mimic/mimiciv/${DATASET_VERSION}"
     suffix="ed"
-    output_dir="${DATA_PATH}/ehrfm/${DATASET}-${DATASET_VERSION}"
+    output_dir="${DATA_PATH}/raw/ehrfm/${DATASET}-${DATASET_VERSION}"
     ;;
 
 eicu*)

@@ -197,8 +197,8 @@ dataset:
           - ICD//PCS
           # - ICU_ADMISSION
           # - ICU_DISCHARGE
-          - LAB
-          - INFUSION//
+          # - LAB
+          # - INFUSION//
           # - INSURANCE//
           # - MARITAL//
           # - MEDS_BIRTH 

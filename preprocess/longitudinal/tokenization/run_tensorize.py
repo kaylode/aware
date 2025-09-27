@@ -8,7 +8,7 @@ import polars as pl
 import os
 import os.path as osp
 from safetensors.torch import save_file
-from scripts.tokenization.constants import TensorizedColumns
+from preprocess.longitudinal.tokenization.constants import TensorizedColumns
 from ehrpfn.utils.vocabulary import Vocabulary
 from sklearn.model_selection import train_test_split
 

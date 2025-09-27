@@ -5,7 +5,7 @@ from pathlib import Path
 import polars as pl
 import polars.selectors as cs
 
-from scripts.tokenization.constants import SpecialToken as ST
+from preprocess.longitudinal.tokenization.constants import SpecialToken as ST
 from ..patterns import MatchAndRevise, ScanAndAggregate
 from ..utils import static_class
 

@@ -1,9 +1,9 @@
 import polars as pl
 import json
-from scripts.tokenization.constants import SpecialToken as ST
+from preprocess.longitudinal.tokenization.constants import SpecialToken as ST
 from ..patterns import MatchAndRevise
 from ..utils import  unify_code_names
-import scripts.tokenization.mimic as mimiciv
+import preprocess.longitudinal.tokenization.mimic as mimiciv
 
 class AdmissionData(mimiciv.AdmissionData):
     pass
@@ -29,7 +29,7 @@ class DiagnosesData(mimiciv.DiagnosesData):
     @staticmethod
     @MatchAndRevise(prefix="ICD//")
     def convert_icd_9_to_10(df: pl.DataFrame) -> pl.DataFrame:
-        from scripts.tokenization.mappings import (
+        from preprocess.longitudinal.tokenization.mappings import (
             JSON_ICD_CM_MAPPING,
             JSON_ICD_PCS_MAPPING
         )

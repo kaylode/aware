@@ -5,8 +5,8 @@ import hydra
 from loguru import logger
 from omegaconf import DictConfig, OmegaConf
 
-from scripts.tokenization.run_stage import run_stage
-from scripts.tokenization.utils import load_function
+from preprocess.longitudinal.tokenization.run_stage import run_stage
+from preprocess.longitudinal.tokenization.utils import load_function
 
 OmegaConf.register_new_resolver("default_if_null", lambda a, b: b if a is None else a)
 OmegaConf.register_new_resolver("is_not_null", lambda v: v is not None)
@@ -47,13 +47,13 @@ def main(cfg: DictConfig):
         transform_fns = []
         if "transforms" in stage_cfg:
             for transform_name in stage_cfg.transforms:
-                func = load_function(transform_name, f"scripts.tokenization.{dataset}")
+                func = load_function(transform_name, f"preprocess.longitudinal.tokenization.{dataset}")
                 transform_fns.append(func)
         else:
             try:
-                func = load_function(stage_cfg.name, "scripts.tokenization.common")
+                func = load_function(stage_cfg.name, "preprocess.longitudinal.tokenization.common")
             except AttributeError:
-                func = load_function(stage_cfg.name, f"scripts.tokenization.{dataset}")
+                func = load_function(stage_cfg.name, f"preprocess.longitudinal.tokenization.{dataset}")
             transform_fns.append(func)
 
         logger.info(f"Running stage='{stage_cfg}'")

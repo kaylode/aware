@@ -3,7 +3,7 @@ import polars as pl
 from pathlib import Path
 import pickle
 from ehrpfn.utils.vocabulary import Vocabulary
-from scripts.tokenization.constants import STATIC_DATA_FN, SpecialToken as ST
+from preprocess.longitudinal.tokenization.constants import STATIC_DATA_FN, SpecialToken as ST
 
 
 @hydra.main(version_base=None, config_path="./configs", config_name="mimiciv")

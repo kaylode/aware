@@ -88,11 +88,6 @@ dataset:
         top_n: 200
       vocab: ${vocab}
 
-    - name: reassign_admission_id # This is optional for BEHRT, to determine <SEP> token
-      transforms:
-        - InpatientData.reassign_admission_id
-      vocab: ${vocab}
-
     - name: CodeCounter
       agg_to: ${output_dir}/${code_counts_fn}
 
@@ -100,7 +95,7 @@ dataset:
       params:
         columns: 
           - subject_id
-          - admission_id
+          - hadm_id
           - time
           - code
           - numeric_value
