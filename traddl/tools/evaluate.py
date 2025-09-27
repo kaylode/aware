@@ -81,19 +81,19 @@ def main(config: DictConfig):
     model.eval()
     LOGGER.text(f"Model loaded", level=LoggerObserver.INFO)
 
-    # wandb_kwargs = {
-    #     "name": f"{config['global']['exp_name']}",
-    #     "entity": "kaylode",
-    #     "project": "nosos-meds",
-    #     "reinit": True,
-    #     "group": "mimiciv-hcai-test",
-    #     "job_type": "test",
-    #     "tags": [f"{config['global']['exp_name']}", 'icu', "mimiciv-hcai", f"task:{os.environ.get('TASK_NAME')}"],
-    #     "resume": "allow",
-    #     "dir": config['global'].save_dir,
-    # }
-    # wandb.init(**wandb_kwargs)
-    # wandb.run.config.update(OmegaConf.to_container(config, resolve=True))
+    wandb_kwargs = {
+        "name": f"{config['global']['exp_name']}",
+        "entity": "kaylode",
+        "project": "nosos-meds",
+        "reinit": True,
+        "group": "mimiciv-hcai-test",
+        "job_type": "test",
+        "tags": [f"{config['global']['exp_name']}", 'icu', "mimiciv-hcai", f"task:{os.environ.get('TASK_NAME')}"],
+        "resume": "allow",
+        "dir": config['global'].save_dir,
+    }
+    wandb.init(**wandb_kwargs)
+    wandb.run.config.update(OmegaConf.to_container(config, resolve=True))
 
     pbar = tqdm(total=len(dataset))
     probs = []
@@ -131,7 +131,7 @@ def main(config: DictConfig):
         }, f)
 
     results = run_binary_classification_metrics(probs, targets)
-    # wandb.run.log(results)
+    wandb.run.log(results)
 
     LOGGER.text(f"Evaluation finished", level=LoggerObserver.INFO)
     LOGGER.text(json.dumps(results, indent=4), level=LoggerObserver.SUCCESS)
@@ -141,7 +141,7 @@ def main(config: DictConfig):
     with open(results_path, 'w') as f:
         json.dump(results, f, indent=4)
     LOGGER.text(f"Results saved to {config['global'].save_dir}", level=LoggerObserver.INFO)
-    # wandb.finish()
+    wandb.finish()
 
 if __name__ == "__main__":
     main()

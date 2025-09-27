@@ -42,7 +42,9 @@ class LightningPipeline(BasePipeline):
                 "tag": "model_num_params",
                 "value": num_params,
                 "type": LoggerObserver.SCALAR,
-                "kwargs": {},
+                "kwargs": {
+                    'step': 0
+                },
             }
         ]
 
