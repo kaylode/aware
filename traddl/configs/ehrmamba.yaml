@@ -41,7 +41,7 @@ data:
 model:
   name: MambaFinetune
   args:
-    hidden_size: 768
+    hidden_size: 512
     time_embeddings_size: 32
     visit_order_size: 3
     type_vocab_size: 10
@@ -54,4 +54,4 @@ model:
     dropout_prob: 0.1
     use_mambapy: True
     classifier_dropout: 0.1
-    freeze_backbone: true
+    freeze_backbone: false

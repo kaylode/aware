@@ -32,12 +32,12 @@ data:
 model:
   name: CorebehrtForPretraining
   args:
-    hidden_size: 768 # word embedding and seg embedding hidden size
+    hidden_size: 512 # word embedding and seg embedding hidden size
     type_vocab_size: 10
     max_position_embeddings: ${data.dataset.train.args.n_positions} #global_params[max_len_seq] # maximum number of tokens
-    num_hidden_layers: 6 # number of multi-head attention layers required
-    num_attention_heads: 12 # number of attention heads
-    intermediate_size: 3072 # the size of the "intermediate" layer in the transformer encoder
+    num_hidden_layers: 4 # number of multi-head attention layers required
+    num_attention_heads: 4 # number of attention heads
+    intermediate_size: 2048 # the size of the "intermediate" layer in the transformer encoder
     embedding_dropout: 0.1 
     age_scale: 1e-2 # 100 -> 1
     abspos_scale: 1e-5 # 400k -> 4

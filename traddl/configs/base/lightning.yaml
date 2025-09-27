@@ -14,6 +14,11 @@ callbacks:
       monitor: weighted-f1
       mode: max
       every_n_train_steps: 1000
+  - name: EarlyStopping
+    args:
+      monitor: "CE"
+      mode: min
+      patience: 2
   - name: RichModelSummary
     args:
   - name: TensorboardCallback

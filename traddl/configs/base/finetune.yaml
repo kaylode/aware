@@ -5,7 +5,7 @@ trainer:
     accelerator: gpu
     enable_progress_bar: true
     use_nccl_strategy: false
-    max_epochs: 20
+    max_epochs: 10
     num_sanity_val_steps: 0
     gradient_clip_val: 1.0
     deterministic: True
