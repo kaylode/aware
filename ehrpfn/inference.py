@@ -93,7 +93,7 @@ def inference(args, data):
     else:
         retrieval_weights = None
 
-    distance = None
+    distance = None #"cosine"
     if args.retrieval_method is not None:
         if args.retrieval_method.startswith('weighted'):
             retrieval_method, weight_type = args.retrieval_method.split('_')
@@ -150,7 +150,7 @@ def inference(args, data):
         if distance == 'cosine':
             tags.append(f"RETRIEVAL:cosine")
     
-
+    training_time = None
     if args.method in ['xgboost', 'rf', 'catboost', 'lightgbm', 'knn', 'mlp', 'logistics']:
         
         from sklearn.model_selection import train_test_split
@@ -181,13 +181,14 @@ def inference(args, data):
             random_state=args.seed, 
             stratify=y_train if is_classification else None
         )
-
+        start_time = time.time()
         model = tuner.tune(
             X_train, X_val, y_train, y_val, 
             is_classification=is_classification, 
             cat_features=categorical_feature_indices,
             extra_params={'weight_fn': retrieval_weights}
         )
+        training_time = time.time() - start_time
         save_model(model, osp.join(result_folder, 'model.pkl'))
         
         LOGGER.text(f"Model saved to {result_folder}/model.pkl", level=LoggerObserver.INFO)
@@ -218,10 +219,12 @@ def inference(args, data):
             model = SimpleKNNClassifier(retriever=retriever)
         else:
             model = SimpleKNNRegressor(retriever=retriever)
+        start_time = time.time()
         model.fit(
             X_train, y_train,
             X_embs_train=X_embs_train, 
         )
+        training_time = time.time() - start_time
         start_time = time.time()
         if is_classification:
             y_pred = model.predict_proba(X_test, X_embs_test=X_embs_test)
@@ -284,7 +287,10 @@ def inference(args, data):
                     "PREPROCESS_TRANSFORMS": default_regressor_preprocessor_configs(),
                 }  # Needs to be set low so that not OOM on fitting intermediate nodes
             )
+
+        start_time = time.time()
         model.fit(X_train, y_train)
+        training_time = time.time() - start_time
         # save_fitted_tabpfn_model(model, osp.join(result_folder, 'model.tabpfn_fit'))
         
         start_time = time.time()
@@ -390,7 +396,7 @@ def inference(args, data):
         running_time = time.time() - start_time
 
 
-    elif args.method in ['resnet', 'tabr', 'modernNCA', 'tabm', 'tabicl', 'tabtransformer', 'tabnet', 'excelformer', 'trompt']:
+    elif args.method in ['beta', 'resnet', 'tabr', 'modernNCA', 'tabm', 'tabicl', 'tabtransformer', 'tabnet', 'excelformer', 'trompt']:
 
         from sklearn.model_selection import train_test_split
         X_train, X_val, y_train, y_val = train_test_split(
@@ -411,8 +417,9 @@ def inference(args, data):
             is_classification=is_classification,
             seed=args.seed
         )
-
+        start_time = time.time()
         model.fit(X_train, y_train)
+        training_time = time.time() - start_time
 
         start_time = time.time()
         y_pred = model.predict(X_test)
@@ -469,7 +476,7 @@ def inference(args, data):
     })
     # Log the metrics to wandb
     wandb.run.log(score)
-    wandb.run.log({"inference_time": running_time})
+    wandb.run.log({"inference_time": running_time, 'training_time': training_time})
     wandb.finish()
 
     # Dump score into JSON
@@ -529,18 +536,14 @@ def run(args: DictConfig):
     else:
         raise ValueError(f"Data {args.data_name} is not supported. Please choose from ['mimiciv', 'sjh_cpe']")
 
-
-
     if isinstance(data, list):
         for d in data:
             try:
                 inference(args, d)
             except Exception as e:
                 LOGGER.text(f"Error occurred while processing {d['data_name']}: {e}", level=LoggerObserver.ERROR)
-            #     breakpoint()
     else:
         inference(args, data)
-
 
 if __name__ == "__main__":
     run()

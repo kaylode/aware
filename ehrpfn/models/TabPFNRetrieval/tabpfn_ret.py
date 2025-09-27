@@ -262,7 +262,7 @@ def get_tabpfn_knn_results(
 
         if not hasattr(model, "model_") or not model.differentiable_input:
             byte_size, rng = model._initialize_model_variables()
-            ensemble_configs, X_train, y_train, model.bardist_ = (
+            ensemble_configs, X_train, y_train, model.znorm_space_bardist_ = (
                 model._initialize_dataset_preprocessing(X_train, y_train, rng)
             )
         else:  # already fitted and prompt_tuning mode: no cat. features
@@ -277,22 +277,20 @@ def get_tabpfn_knn_results(
         model.constant_value_ = y_train[0] if model.is_constant_target_ else None
 
         if model.is_constant_target_:
-            model.bardist_ = FullSupportBarDistribution(
+            model.znorm_space_bardist_ = FullSupportBarDistribution(
                 borders=torch.tensor(
                     [model.constant_value_ - 1e-5, model.constant_value_ + 1e-5]
                 )
             )
             # No need to create an inference engine for a constant prediction
-            return model
-
-        mean, std = np.mean(y_train), np.std(y_train)
-        model.y_train_std_ = std.item() + 1e-20
-        model.y_train_mean_ = mean.item()
-        y_train = (y_train - model.y_train_mean_) / model.y_train_std_
-        model.normalized_bardist_ = FullSupportBarDistribution(
-            model.bardist_.borders * model.y_train_std_ + model.y_train_mean_,
-        ).float()
-        
+        else:
+            mean, std = np.mean(y_train), np.std(y_train)
+            model.y_train_std_ = std.item() + 1e-20
+            model.y_train_mean_ = mean.item()
+            y_train = (y_train - model.y_train_mean_) / model.y_train_std_
+            model.raw_space_bardist_ = FullSupportBarDistribution(
+                model.znorm_space_bardist_.borders * model.y_train_std_ + model.y_train_mean_,
+            ).float()
 
     # Override inference engine
     model.executor_ = InferenceWithRetrievalEngineOnDemand.prepare(

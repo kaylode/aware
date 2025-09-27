@@ -327,7 +327,7 @@ class BetaMethod(Method):
         self.model.eval()
         batch_size = 4096
         with torch.no_grad():
-            num_test_samples = len(self.N_test)#.size(0)
+            num_test_samples = len(self.N_test) if self.N_test is not None else len(self.C_test)
             
             all_test_logit = []
             
