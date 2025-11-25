@@ -21,7 +21,7 @@ if [ "$DATA_NAME" = "mimicpipe" ]; then
             --selection_method "${selection_method}" \
             --feature_selection_path "${feature_selection_path}" \
             --model_type "${MODEL_NAME}" \
-            --save_path /home/mpham/workspace/source/ehrpfn/outputs/talent-tune \
+            --save_path /home/mpham/workspace/source/ehrpfn/outputs/all/hyp-tune \
             --tune
     done
 elif [ "$DATA_NAME" = "eicu" ]; then
@@ -39,7 +39,21 @@ elif [ "$DATA_NAME" = "eicu" ]; then
             --selection_method $selection_method \
             --feature_selection_path $feature_selection_path \
             --model_type $MODEL_NAME \
-            --save_path /home/mpham/workspace/source/ehrpfn/outputs/talent-tune \
+            --save_path /home/mpham/workspace/source/ehrpfn/outputs/all/hyp-tune \
+            --tune
+    done
+elif [ "$DATA_NAME" = "sjh_cpe" ]; then
+    # SJH CPE "EPISODE_CPE_INFECTION_FLAGGED" 
+    for TASK in "WILL_READMIT_WITHIN_30_DAYS" ; do
+        feature_selection_path="${ROOT}/outputs/all/selection/sjh_cpe/${TASK}"
+        CUDA_VISIBLE_DEVICES=0 PYTHONPATH=. python ehrpfn/train_talent.py \
+            --data_name "${DATA_NAME}" \
+            --task "${TASK}" \
+            --data_folder /home/mpham/workspace/source/ehrpfn/data/raw/hipe-processed-ultimate \
+            --selection_method "${selection_method}" \
+            --feature_selection_path "${feature_selection_path}" \
+            --model_type "${MODEL_NAME}" \
+            --save_path /home/mpham/workspace/source/ehrpfn/outputs/all/hyp-tune \
             --tune
     done
 else
@@ -49,7 +63,9 @@ else
         --task openml_ehr \
         --data_folder "/home/mpham/workspace/source/ehrpfn/data/pretraining" \
         --selection_method null \
-        --feature_selection_path null
+        --feature_selection_path null \
+        --save_path /home/mpham/workspace/source/ehrpfn/outputs/all/hyp-tune \
+        --tune
 fi
 
 # tabr & modernNCA

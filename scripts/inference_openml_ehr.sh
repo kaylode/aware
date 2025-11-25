@@ -19,7 +19,9 @@ else
     PRETRAIN_PATH=null
 fi
 
-for SEED in 1702 1603 2000 1992 1963; do
+
+for SEED in 1992 1963 1702 ; do
+    # PRETRAIN_PATH="/home/mpham/workspace/source/ehrpfn/outputs/tabpfn/results/openml_ehr/COVID-19-Hospitals-Treatment-Plan/beta_COVID-19-Hospitals-Treatment-Plan_COVID-19-Hospitals-Treatment-Plan/best-val-${SEED}.pth"
 
     if [ $SEED = 1702 ]; then
         TASK="Readmission"
@@ -38,10 +40,12 @@ for SEED in 1702 1603 2000 1992 1963; do
         DATA='eicu'
     fi
 
-    CONFIG_PATH="${ROOT}/outputs/talent-tune/${DATA}/${TASK}/${METHOD}/args.json"
-    TUNE_CONFIG="${ROOT}/outputs/talent-tune/${DATA}/${TASK}/${METHOD}/${METHOD}-tuned.json"
+    CONFIG_PATH="${ROOT}/outputs/all/hyp-tune/${DATA}/${TASK}/${METHOD}/args.json"
+    TUNE_CONFIG="${ROOT}/outputs/all/hyp-tune/${DATA}/${TASK}/${METHOD}/${METHOD}-tuned.json"
 
-    PYTHONPATH=. python ehrpfn/inference.py --config-name openml_ehr \
+    PYTHONPATH=. python ehrpfn/inference.py \
+        --config-dir ${ROOT}/configs/data \
+        --config-name openml_ehr \
         method=$METHOD \
         num_features=500 \
         n_trials=5 \
@@ -52,6 +56,7 @@ for SEED in 1702 1603 2000 1992 1963; do
         feature_selection_path=null \
         context_size=1024 \
         pretrained_path=${PRETRAIN_PATH} \
+        output_folder="/home/mpham/workspace/source/ehrpfn/outputs/all/results" \
         seed=${SEED} \
         +config_path="${CONFIG_PATH}" \
         +tune_config="${TUNE_CONFIG}"

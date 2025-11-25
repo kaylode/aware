@@ -9,38 +9,48 @@ set -u  # Treat unset variables as an error
 
 SELECTION=shap
 SAMPLING=null
-RETRIEVAL=dbr #knn dbr weighted random # weighted_logistics # weighted_feattype
+RETRIEVAL=knn #knn dbr weighted random # weighted_logistics # weighted_feattype
 NUM_FEATURES=500
 
 if [ $METHOD = "tabdpt" ]; then
     PRETRAIN_PATH=/home/mpham/workspace/source/ehrpfn/data/checkpoints/tabdpt1_1.pth
     NUM_FEATURES=100
-elif [ $METHOD = "ehrpfn" ]; then
-    PRETRAIN_PATH=/home/mpham/workspace/source/ehrpfn/outputs/pretraining/EHRPFN-GENERAL-HEALTH-SYNTHETIC-100/best_cls-health-auc.ckpt
-    NUM_FEATURES=100
+elif [ $METHOD = "ehrpfn500" ]; then
+    PRETRAIN_PATH=/home/mpham/workspace/source/ehrpfn/outputs/pretraining/TabDPT-GENERAL-500/best_cls-cc18-auc.ckpt
+    NUM_FEATURES=500
 elif [ $METHOD = "ehrpfn-mimiciv-synthetic" ]; then
-    PRETRAIN_PATH=/home/mpham/workspace/source/ehrpfn/outputs/pretraining/EHRPFN-MIMICIV-SYNTHETIC-500/best_cls-mimicpipe-auc.ckpt
-    NUM_FEATURES=100
+    PRETRAIN_PATH=/home/mpham/workspace/source/ehrpfn/outputs/pretraining/EHRPFN-GENERAL-HEALTH-MIMICIV-SYNTHETIC-500/best_cls-cc18-auc.ckpt
+    NUM_FEATURES=500
+elif [ $METHOD = "ehrpfn-synthetic" ]; then
+    PRETRAIN_PATH=/home/mpham/workspace/source/ehrpfn/outputs/all/training/pretrain/EHRPFN-GENERAL-SYNTHETIC-500/best_auc.ckpt
+    NUM_FEATURES=500
+elif [ $METHOD = "ehrpfn-finetune" ]; then
+    PRETRAIN_PATH=/home/mpham/workspace/source/ehrpfn/outputs/all/training/finetune/eicu/READMISSION/tabdpt_11/best_auc.ckpt
+    NUM_FEATURES=500
 else
     PRETRAIN_PATH=null
 fi
-
-for SEED in 1702 1603 2000   ; do
-    for TASK in "READMISSION" "MORTALITY" ; do
-        CONFIG_PATH="${ROOT}/outputs/talent-tune/eicu/${TASK}/${METHOD}/args.json"
-        TUNE_CONFIG="${ROOT}/outputs/talent-tune/eicu/${TASK}/${METHOD}/${METHOD}-tuned.json"
-        PYTHONPATH=. python ehrpfn/inference.py --config-name eicu \
-            train_admission_id_file=${ROOT}/data/processed_muse/eicu/task:${TASK}/train_admission_ids.txt \
-            val_admission_id_file=${ROOT}/data/processed_muse/eicu/task:${TASK}/val_admission_ids.txt \
-            test_admission_id_file=${ROOT}/data/processed_muse/eicu/task:${TASK}/test_admission_ids.txt \
+# 2000  1603  "MORTALITY" 
+# PRETRAIN_PATH="/home/mpham/workspace/source/ehrpfn/outputs/tabpfn/results/eicu/MORTALITY/beta_eicu_MORTALITY_sel:shap_500/best-val-2000.pth"
+for SEED in  1702 ; do
+    for TASK in "READMISSION" ; do
+        CONFIG_PATH="${ROOT}/outputs/all/hyp-tune/eicu/${TASK}/${METHOD}/args.json"
+        TUNE_CONFIG="${ROOT}/outputs/all/hyp-tune/eicu/${TASK}/${METHOD}/${METHOD}-tuned.json"
+        PYTHONPATH=. python ehrpfn/inference.py \
+            --config-dir ${ROOT}/configs/data \
+            --config-name eicu \
+            train_admission_id_file=${ROOT}/data/processed/eicu/task:${TASK}/train_admission_ids.txt \
+            val_admission_id_file=${ROOT}/data/processed/eicu/task:${TASK}/val_admission_ids.txt \
+            test_admission_id_file=${ROOT}/data/processed/eicu/task:${TASK}/test_admission_ids.txt \
             method=$METHOD \
             num_features=${NUM_FEATURES} \
             target_column=${TASK} \
             sampling=${SAMPLING} \
             selection_method=${SELECTION} \
             retrieval_method=${RETRIEVAL} \
-            feature_selection_path="${ROOT}/outputs/tabpfn/selection/eicu/${TASK}" \
-            embedding_file_path="${ROOT}/data/processed_muse/eicu/${TASK}/trajectories" \
+            feature_selection_path="${ROOT}/outputs/all/selection/eicu/${TASK}" \
+            embedding_file_path="${ROOT}/data/processed/eicu/task:${TASK}/trajectories" \
+            output_folder="/home/mpham/workspace/source/ehrpfn/outputs/all" \
             context_size=1024 \
             pretrained_path=${PRETRAIN_PATH} \
             +config_path=${CONFIG_PATH} \
