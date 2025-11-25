@@ -109,11 +109,13 @@ class InferenceWithRetrievalEngineOnDemand(InferenceEngine):
         self,
         X: np.ndarray,
         *,
-        device: torch.device,
+        devices: Sequence[torch.device],
         autocast: bool,
         only_return_standard_out: bool = True,
     ) -> Iterator[tuple[torch.Tensor | dict, EnsembleConfig]]:
         rng = np.random.default_rng(self.static_seed)
+
+        device = devices[0]
 
         self.model = self.model.to(device)
         if self.force_inference_dtype is not None:
@@ -138,7 +140,7 @@ class InferenceWithRetrievalEngineOnDemand(InferenceEngine):
         for config, preprocessor, X_train, y_train, cat_ix in itr:
             assert X_train.shape[0] == self.X_train.shape[0], "X_train shape mismatch"
 
-            self.retriever.fit(X_train, X_embs_train=self.context_embs, feature_order=preprocessor.feature_order)
+            self.retriever.fit(X_train, y=y_train, X_embs_train=self.context_embs)#, feature_order=preprocessor.feature_order
             X_train = torch.as_tensor(X_train, dtype=torch.float32, device=device)  # noqa: PLW2901
             X_test = preprocessor.transform(X).X
             X_test = torch.as_tensor(X_test, dtype=torch.float32, device=device)
@@ -146,7 +148,7 @@ class InferenceWithRetrievalEngineOnDemand(InferenceEngine):
 
             for batch_id, query_item in enumerate(X_test):
                 query_item = query_item.unsqueeze(0)
-                nn_indices_ = self.retriever.retrieve(query_item, X_embs_test=self.queries_embs, feature_order=preprocessor.feature_order)
+                nn_indices_ = self.retriever.retrieve(query_item, X_embs_test=self.queries_embs)#, feature_order=preprocessor.feature_order
                 nn_indices = nn_indices_[0]
 
                 X_context = X_train[nn_indices, :]

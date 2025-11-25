@@ -113,13 +113,13 @@ class ExcelFormerMethod(Method):
                 preds, feat_masks, shuffled_ids = self.model(X_num, X_cat,mix_up=True)
                 if self.mix_type == 'feat_mix':
                     lambdas = (self.sorted_mi_scores * feat_masks).sum(1) # bs
-                    lambdas2 = 1 - lambdas
+                    lambdas2 = 1.0 - lambdas.float()
                 elif self.mix_type == 'hidden_mix':
                     lambdas = feat_masks
-                    lambdas2 = 1 - lambdas
+                    lambdas2 = 1.0 - lambdas.float()
                 elif self.mix_type == 'niave_mix':
                     lambdas = feat_masks
-                    lambdas2 = 1 - lambdas
+                    lambdas2 = 1.0 - lambdas.float()
                 if self.is_regression:
                     mix_y = lambdas * y + lambdas2 * y[shuffled_ids]
                     loss = self.criterion(preds, mix_y)
