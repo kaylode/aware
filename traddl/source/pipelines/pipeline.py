@@ -8,6 +8,7 @@ from source.metrics import METRIC_REGISTRY
 from theseus.base.pipeline import BasePipeline
 from theseus.base.utilities.getter import get_instance_recursively
 from theseus.base.utilities.loggers import LoggerObserver
+from theseus.base.utilities.seed import seed_everything
 
 
 class LightningPipeline(BasePipeline):
@@ -16,6 +17,8 @@ class LightningPipeline(BasePipeline):
     def __init__(self, opt: DictConfig):
         super(LightningPipeline, self).__init__(opt)
         self.opt = opt
+        self.seed = self.opt["global"].get("seed", 1702)
+        seed_everything(self.seed)
 
     def init_registry(self):
         super().init_registry()

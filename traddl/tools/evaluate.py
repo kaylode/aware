@@ -84,11 +84,15 @@ def main(config: DictConfig):
     wandb_kwargs = {
         "name": f"{config['global']['exp_name']}",
         "entity": "kaylode",
-        "project": "nosos-meds",
+        "project": "tabpfn-ehr",
         "reinit": True,
-        "group": "mimiciv-hcai-test",
+        "group": "inference",
         "job_type": "test",
-        "tags": [f"{config['global']['exp_name']}", 'icu', "mimiciv-hcai", f"task:{os.environ.get('TASK_NAME')}"],
+        "tags": [
+            f"METHOD:{os.environ.get('MODEL_NAME')}", 
+            f"TASK:{os.environ.get('TASK_NAME')}", 
+            f"CONTEXT_LENGTH:{config.data.dataset.train.args.n_positions}"
+        ],
         "resume": "allow",
         "dir": config['global'].save_dir,
     }

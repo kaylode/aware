@@ -1,5 +1,6 @@
 import matplotlib as mpl
-
+import torch._dynamo
+torch._dynamo.config.suppress_errors = True
 mpl.use("Agg")
 from source.pipelines import LightningPipeline
 from omegaconf import DictConfig
