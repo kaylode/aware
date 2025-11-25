@@ -2,7 +2,7 @@ from tqdm import tqdm
 from TALENT.model.utils import get_deep_args,show_results,tune_hyper_parameters,get_method,set_seeds
 import os.path as osp
 import json
-from ehrpfn.datasets import get_mimic_dataset, get_openml_ehr, get_eicu
+from ehrpfn.datasets import get_mimic_dataset, get_openml_ehr, get_eicu, get_sjh_dataset
 from sklearn.model_selection import train_test_split
 from ehrpfn.utils.logger import LoggerObserver
 
@@ -29,6 +29,15 @@ if __name__ == '__main__':
         )
     elif args.data_name == 'openml_ehr':
         data = get_openml_ehr(args.data_folder)
+    elif args.data_name == 'sjh_cpe':
+        data = get_sjh_dataset(
+            input_folder=args.data_folder,
+            output_folder=None,
+            target_col=args.task,
+            patient_ids=None,
+            feature_selection_path=args.feature_selection_path,
+            selection_method=args.selection_method,
+        )
     elif args.data_name == 'eicu':
         data = get_eicu(
             task=args.task,

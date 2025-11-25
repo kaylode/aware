@@ -8,19 +8,21 @@ import faiss
 class Retriever:
     k: int = 1024
     _is_fitted: bool = False
+    return_distances: bool = False
     def fit(self, X, y, **kwargs):
         raise NotImplementedError("Subclasses must implement this method")
 
-    def retrieve(self, queries,  **kwargs):
+    def retrieve(self, queries, **kwargs):
         raise NotImplementedError("Subclasses must implement this method")
 
 
 class FAISS(Retriever):
-    def __init__(self, k:Union[float,int], distance:str='L2', max_context_size:int=None):
+    def __init__(self, k:Union[float,int], distance:str='L2', max_context_size:int=None, return_distances:bool=False):
         self.k = k
         self.distance = distance
         self.max_context_size = max_context_size
         self._is_fitted = False
+        self.return_distances = return_distances
 
     def fit(self, X, y=None, **kwargs):
         if isinstance(X, torch.Tensor):
@@ -52,17 +54,22 @@ class FAISS(Retriever):
         else:
             k = self.k
         knns = self.index.search(queries, k)
-        indices_Xs = knns[1]
-        return indices_Xs
+
+        if self.return_distances:
+            distances_Xs, indices_Xs = knns
+            return distances_Xs, indices_Xs
+        else:
+            indices_Xs = knns[1]
+            return indices_Xs
 
 class WeightedRetriever(Retriever):
     """
     Retrieve similar instances based on a weighted distance metric.
     Weights are applied as feature scaling before indexing in FAISS.
     """
-    def __init__(self, k:int, weights: np.ndarray, distance: str = 'L2'):
+    def __init__(self, k:int, weights: np.ndarray, distance: str = 'L2', return_distances: bool = False):
         self.k = k
-        self.retriever = FAISS(k=k, distance=distance)
+        self.retriever = FAISS(k=k, distance=distance, return_distances=return_distances)
         self.weights = weights
         if isinstance(weights, list):
             self.weights = np.array(weights)
@@ -109,10 +116,10 @@ class WeightedRetriever(Retriever):
         return indices
 
 class EmbeddingRetriever(Retriever):
-    def __init__(self, k:int, distance:str='L2'):
+    def __init__(self, k:int, distance:str='L2', return_distances:bool=False):
         self.k = k
         self.distance = distance
-        self.retriever = FAISS(k=k, distance=distance)
+        self.retriever = FAISS(k=k, distance=distance, return_distances=return_distances)
         self._is_fitted = False
 
     def fit(self, X, y=None, **kwargs):
@@ -125,7 +132,7 @@ class EmbeddingRetriever(Retriever):
         return self.retriever.retrieve(kwargs.get('X_embs_test', queries))
 
 class RandomRetriever(Retriever):
-    def __init__(self, k:int):
+    def __init__(self, k:int, **kwargs):
         self.k = k
 
     def fit(self,X, y=None, **kwargs):
@@ -139,15 +146,23 @@ class RandomRetriever(Retriever):
 
 def get_retriever(method:str, k:int, **kwargs):
     if method in ["faiss", 'knn']:
-        retriever = FAISS(k=k, distance=kwargs.get('distance', 'L2'), max_context_size=kwargs.get('max_context_size', None))
+        retriever = FAISS(
+            k=k, distance=kwargs.get('distance', 'L2'), 
+            max_context_size=kwargs.get('max_context_size', None),
+            return_distances=kwargs.get('return_distances', False)
+        )
     elif method in ["dbr", "embeddings"]:
-        retriever = EmbeddingRetriever(k=k, distance=kwargs.get('distance', 'L2'))
+        retriever = EmbeddingRetriever(
+            k=k, distance=kwargs.get('distance', 'L2'),
+            return_distances=kwargs.get('return_distances', False)
+        )
     elif method in ['weighted']:
         assert 'weights' in kwargs, "weights must be provided for weighted retrieval"
         retriever = WeightedRetriever(
             k=k,
             weights=kwargs.get('weights'),
-            distance=kwargs.get('distance', 'L2')
+            distance=kwargs.get('distance', 'L2'),
+            return_distances=kwargs.get('return_distances', False)
         )
     elif method == 'random':
         retriever = RandomRetriever(k=k)
@@ -165,7 +180,7 @@ def get_retrieval_weight(weighted_type:str, data_name:str, task:str, feature_nam
         if data_name == 'mimicpipe':
             feature_types = json.load(open(f"/home/mpham/workspace/source/ehrpfn/data/processed/mimiciv/feature_types_all.json", 'r'))
         else:
-            feature_types = json.load(open(f"/home/mpham/workspace/source/ehrpfn/data/processed_muse/eicu/feature_types.json", 'r'))
+            feature_types = json.load(open(f"/home/mpham/workspace/source/ehrpfn/data/processed/eicu/feature_types.json", 'r'))
 
         if task not in ['Readmission', 'Length of Stay', 'Mortality', 'READMISSION', 'MORTALITY']:
             mapping_weights = {
@@ -196,7 +211,7 @@ def get_retrieval_weight(weighted_type:str, data_name:str, task:str, feature_nam
         retrieval_weights = None
         try:
             retrieval_dict = json.load(open(
-            f"/home/mpham/workspace/source/ehrpfn/outputs/tabpfn/results/{data_name}/{task}/logistics_{data_name}_{task}_sel:shap_500/logistics_params.json"
+            f"/home/mpham/workspace/source/ehrpfn/outputs/all/results/{data_name}/{task}/logistics_{data_name}_{task}_sel:shap_500/logistics_params.json"
             ))
             retrieval_weights = retrieval_dict["coef"][0]
             retrieval_weights = np.absolute(retrieval_weights)

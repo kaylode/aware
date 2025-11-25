@@ -22,6 +22,7 @@ from ehrpfn.datasets import (
     get_sjh_dataset, 
     get_mimic_dataset, 
     get_openml_ehr,
+    get_openml_ehr_imbalance,
     get_eicu
 )
 
@@ -33,15 +34,17 @@ def inference(args, data):
     (
         X_train, y_train, 
         X_test, y_test, 
-        categorical_feature_indices
+        categorical_feature_indices,
+        feature_names 
     ) = (
         data['X_train'], data['y_train'], 
         data['X_test'], data['y_test'], 
-        data['categorical_feature_indices']
+        data['categorical_feature_indices'],
+        data.get('feature_names', None)
     )
 
     data_name = data.get('data_name', args.data_name)
-    target_column = args.target_column if args.data_name != 'openml_ehr' else data_name
+    target_column = args.target_column if not args.data_name.startswith('openml_ehr') else data_name
 
     result_folder = osp.join(args.output_folder, "results", args.data_name, target_column)
     os.makedirs(result_folder, exist_ok=True)
@@ -61,7 +64,22 @@ def inference(args, data):
 
     if (args.method.startswith('ehrpfn') or args.method.startswith('knn')) and args.retrieval_method is not None:
         study_name += f"_retrieval:{args.retrieval_method}"
+
+    if args.get('imbalance_ratio', None) is not None:
+        study_name += f"_imbalance:{args.imbalance_ratio}"
     
+
+    remove_aggregated_time_series = True
+    if remove_aggregated_time_series:
+        time_series_cols = [col for col in feature_names if col.endswith(('_mean', '_min', '_max', '_std', '_last'))]
+        breakpoint()
+        LOGGER.text(f"Removing aggregated time series columns: {time_series_cols}", level=LoggerObserver.DEBUG)
+        X_train = X_train.drop(columns=time_series_cols)
+        X_test = X_test.drop(columns=time_series_cols)
+        categorical_feature_indices = [i for i in categorical_feature_indices if i < X_train.shape[1]]
+
+        study_name += "_noaggts"
+        
 
     if args.sampling is not None:
         LOGGER.text(f"================= Performing SYNTHESIS SAMPLING =================", level=LoggerObserver.DEBUG)
@@ -137,7 +155,7 @@ def inference(args, data):
         }, f, indent=4, default=str)
 
     tags = [f"METHOD:{args['method']}", f"FEAT:{args.num_features}"]
-    if args.data_name != 'openml_ehr':
+    if not args.data_name.startswith('openml_ehr'):
         tags.append(f"TASK:{args['target_column']}")
     else:
         tags.append(f"TASK:{data_name}")
@@ -146,9 +164,15 @@ def inference(args, data):
     if args.selection_method is not None:
         tags.append(f"SELECTION:{args['selection_method']}")
 
+    if remove_aggregated_time_series:
+        tags.append(f"NOAGGTS")
+
     if distance is not None:
         if distance == 'cosine':
             tags.append(f"RETRIEVAL:cosine")
+
+    if args.get('imbalance_ratio', None) is not None:
+        tags.append(f"IMBALANCE_RATIO:{args.imbalance_ratio}")
     
     training_time = None
     if args.method in ['xgboost', 'rf', 'catboost', 'lightgbm', 'knn', 'mlp', 'logistics']:
@@ -159,6 +183,15 @@ def inference(args, data):
             if args.retrieval_method is not None:
                 tags.append(f"RETRIEVAL:{args['retrieval_method']}")
 
+        if args.use_wandb:
+            wandb_kwargs={
+                "project": args.wandb.project,
+                "entity": args.wandb.entity,
+                "tags": tags,
+            }
+        else:
+            wandb_kwargs = None
+
         tuner = Tuner(
             storage=osp.join(result_folder, "optuna.log"),
             study_name=study_name,
@@ -167,11 +200,7 @@ def inference(args, data):
             save_dir=result_folder,
             method=args.method,
             use_best_params=args.use_best_params,
-            wandb_kwargs={
-                "project": args.wandb.project,
-                "entity": args.wandb.entity,
-                "tags": tags,
-            },
+            wandb_kwargs=wandb_kwargs,
             feature_names=data.get('feature_names', None),
             classnames=['0', '1'] if is_classification else None
         )
@@ -442,42 +471,43 @@ def inference(args, data):
     LOGGER.text(f"Score: {score}", level=LoggerObserver.SUCCESS)
 
 
-    
-    wandb_kwargs = {
-        "name": f"{args['method']}" if args.method not in ['tabdpt', 'tabpfn-retrieval', 'knn', 'knn-simple'] else f"{args.method}_{args.retrieval_method}",
-        "entity": "kaylode",
-        "project": "tabpfn-ehr",
-        "reinit": True,
-        "group": "ehrpfn-mimicpipe",
-        "job_type": "test",
-        "tags": tags,
-        "resume": "allow",
-        "dir": osp.join(result_folder),
-    }
-    wandb.init(**wandb_kwargs)
+    if args.use_wandb:
+        wandb_kwargs = {
+            "name": f"{args['method']}" if args.method not in ['tabdpt', 'tabpfn-retrieval', 'knn', 'knn-simple'] else f"{args.method}_{args.retrieval_method}",
+            "entity": "kaylode",
+            "project": "tabpfn-ehr",
+            "reinit": True,
+            "group": "inference",
+            "job_type": "test",
+            "tags": tags,
+            "resume": "allow",
+            "dir": osp.join(result_folder),
+        }
+        wandb.init(**wandb_kwargs)
 
     saved_config = OmegaConf.to_container(args, resolve=True)
 
 
-    if args.data_name == 'openml_ehr':
+    if args.data_name.startswith('openml_ehr'):
         saved_config['target_column'] = data.get('data_name', None)
 
 
-    wandb.run.config.update(saved_config)
-    wandb.run.config.update({
-        'study_name': study_name,
-        'task_name': target_column,
-        'is_classification': is_classification,
-        'num_classes': data.get('num_classes', None),
-        'dataset_name': data.get('data_name', None),
-        'num_data_features': data.get('num_features', None),
-        'data_size': X_train.shape[0] + X_test.shape[0],
-        'class_distribution': data.get('class_distribution', None)
-    })
-    # Log the metrics to wandb
-    wandb.run.log(score)
-    wandb.run.log({"inference_time": running_time, 'training_time': training_time})
-    wandb.finish()
+    if args.use_wandb:
+        wandb.run.config.update(saved_config)
+        wandb.run.config.update({
+            'study_name': study_name,
+            'task_name': target_column,
+            'is_classification': is_classification,
+            'num_classes': data.get('num_classes', None),
+            'dataset_name': data.get('data_name', None),
+            'num_data_features': data.get('num_features', None),
+            'data_size': X_train.shape[0] + X_test.shape[0],
+            'class_distribution': data.get('class_distribution', None)
+        })
+        # Log the metrics to wandb
+        wandb.run.log(score)
+        wandb.run.log({"inference_time": running_time, 'training_time': training_time})
+        wandb.finish()
 
     # Dump score into JSON
     with open(osp.join(result_folder, 'score.json'), 'w') as f:
@@ -507,19 +537,16 @@ def run(args: DictConfig):
         )
     elif args.data_name == 'openml_ehr':
         data = get_openml_ehr(args.data_folder)
+    elif args.data_name == 'openml_ehr_imbalance':
+        data = get_openml_ehr_imbalance(args.data_folder, ratio=args.imbalance_ratio, seed=args.seed)
     elif args.data_name == 'sjh_cpe':
-        data_output_folder = osp.join(args.data_folder, args.data_name)
-        os.makedirs(data_output_folder, exist_ok=True)
         data = get_sjh_dataset(
             input_folder=args.input_folder,
-            output_folder=data_output_folder,
+            output_folder=None,
             target_col=args.target_column,
-            max_length=args.max_length,
-            num_chunks=args.num_chunks,
             patient_ids=None,
             feature_selection_path=args.feature_selection_path,
             selection_method=args.selection_method,
-            embedding_file_path=args.embedding_file_path,
         )
     elif args.data_name == 'eicu':
         data = get_eicu(

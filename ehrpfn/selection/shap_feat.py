@@ -64,13 +64,10 @@ def extract_top_features(args: DictConfig):
                 embedding_file_path=args.embedding_file_path
             )
         elif args.data_name == 'sjh_cpe':
-            data_output_folder = osp.join(args.data_folder, args.data_name)
             data = get_sjh_dataset(
                 input_folder=args.input_folder,
-                output_folder=data_output_folder,
+                output_folder=args.output_folder,
                 target_col=args.target_column,
-                max_length=args.max_length,
-                num_chunks=args.num_chunks,
                 patient_ids=None,
                 feature_selection_path=args.feature_selection_path,
                 selection_method=args.selection_method,

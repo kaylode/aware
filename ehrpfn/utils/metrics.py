@@ -19,19 +19,27 @@ def run_binary_classification_metrics(y_pred, y, average='weighted'):
     if isinstance(y_pred[0], abc.Iterable):
         y_pred = np.array(y_pred)
         try:
-            if y_pred.shape[-1] == 2:
+            if y_pred.shape[-1] == 2 or len(np.unique(y)) == 2:
                 auc_score = roc_auc_score(y, y_pred[:,1], average=average, multi_class='ovr')
+        
+            else:
+                auc_score = roc_auc_score(y, y_pred, average=average, multi_class='ovo')
+        except ValueError as e:
+            # If the prediction is not valid for AUC, set it to None
+            LOGGER.text(f"Error calculating AUROC: {e}", level=LoggerObserver.WARN)
+            auc_score = None
+
+        try:
+            if y_pred.shape[-1] == 2 or len(np.unique(y)) == 2:
                 _precision, _recall, thresholds = precision_recall_curve(y, y_pred[:,1])
                 auc_precision_recall = auc(_recall, _precision)
             else:
-                auc_score = roc_auc_score(y, y_pred, average=average, multi_class='ovr')
-                _precision, _recall, thresholds = precision_recall_curve(y, y_pred[:,1])
+                _precision, _recall, thresholds = precision_recall_curve(y, y_pred)
                 auc_precision_recall = auc(_recall, _precision)
         except ValueError as e:
-            # If the prediction is not valid for AUC, set it to None
-            LOGGER.text(f"Error calculating AUC: {e}", level=LoggerObserver.WARN)
-            auc_score = None
+            LOGGER.text(f"Error calculating AUPRC: {e}", level=LoggerObserver.WARN)
             auc_precision_recall = None
+
         y_pred = np.argmax(y_pred, axis=1).tolist()
     else:
         auc_score = None
@@ -93,7 +101,7 @@ def run_regression_metrics(y_pred, y):
     mae = np.mean(np.abs(y - y_pred))
     r2 = 1 - (np.sum((y - y_pred) ** 2) / np.sum((y - np.mean(y)) ** 2))
     rmse = np.sqrt(mse)
-    mape = np.mean(np.abs((y - y_pred) / y)) * 100 if np.any(y) else np.nan
+    # mape = np.mean(np.abs((y - y_pred) / y)) * 100 if np.any(y) else np.nan
     evs = explained_variance_score(y, y_pred)
     medae = median_absolute_error(y, y_pred)
     msle = mean_squared_log_error(y, y_pred) if np.all(y >= 0) and np.all(y_pred >= 0) else np.nan
@@ -103,7 +111,7 @@ def run_regression_metrics(y_pred, y):
         'mae': float(mae),
         'r2': float(r2),
         'rmse': float(rmse),
-        'mape': float(mape),
+        # 'mape': float(mape),
         'evs': float(evs),
         'medae': float(medae),
         'msle': float(msle),
