@@ -1,0 +1,119 @@
+defaults:
+  - tokenization@_here_
+  - _self_
+
+use_vocab: true
+tensorize: true
+add_static_data_to_vocab: true
+manually_added_tokens:
+  - "[MASK]"
+  - "[CLS]"
+  - "[SEP]"
+  - "[PAD]"
+  - "[UNK]"
+
+tensorize_with_labels: false
+label_folder: null
+split_train_val: false
+train_ratio: null
+required_codes_fn: null
+
+dataset:
+  name: sjh_cpe
+  stages:
+
+    - name: filter_codes_retain
+      params:
+        codes_to_keep:
+          - MEDS_BIRTH
+          - MEDS_DEATH
+          - ICD//CM
+          - ICD//PCS
+          - DRG
+          - MDC
+          - CPE_SCREEN
+          - INFECTIOUS_DISEASE
+          - GENDER
+          - RESIDENCY
+          - HOSPITAL_ADMISSION
+          - HOSPITAL_DISCHARGE
+          - DISCHARGE_LOCATION
+          - TRANSFER_TO
+        is_prefix: true
+
+    # - name: remove_empty_codes
+    - name: reassign_admission_id # This is optional for BEHRT, to determine <SEP> token
+      transforms:
+        - InpatientData.reassign_admission_id
+      vocab: ${vocab}
+
+    - name: remove_consecutive_same_codes
+    - name: add_admission_time_offsets_as_column
+      transforms:
+        - AdmissionData.add_admission_time_offsets_as_column
+
+    - name: preprocessing
+      transforms:
+        - TransferData.unify_transfer_names
+        - DemographicData.process_gender
+        - DemographicData.process_residency
+        - InpatientData.process_drg_codes
+        - DeathData.place_death_before_dc_if_same_time
+      vocab: ${vocab}
+
+    - name: CodeCounter
+      agg_to: ${output_dir}/${code_counts_fn}_1
+      skip: ${is_not_null:${vocab}}
+
+    - name: reassign_admission_id # This is optional for BEHRT, to determine <SEP> token
+      transforms:
+        - InpatientData.reassign_admission_id
+      vocab: ${vocab}
+
+    - name: remove_consecutive_same_codes
+
+    - name: add_missing_hospital_admission
+      transforms:
+        - AdmissionData.add_missing_hospital_admission
+
+    - name: add_admission_time_offsets_as_column
+      transforms:
+        - AdmissionData.add_admission_time_offsets_as_column
+
+    - name: add_age_offsets_as_column # Age as columns for BEHRT-based approaches
+      transforms:
+        - DemographicData.add_age_offsets_as_column
+
+    - name: add_ehrmamba_required_columns
+      transforms:
+        - TokenTypeIDs.add_token_type_ids
+        - AdmissionData.add_admission_time_offsets_as_column
+
+    - name: filter_codes_retain
+      params:
+        codes_to_keep:
+
+          - HOSPITAL_ADMISSION
+          - HOSPITAL_DISCHARGE
+          - ICD//CM 
+          - ICD//PCS
+
+        is_prefix: true
+
+    - name: CodeCounter
+      agg_to: ${output_dir}/${code_counts_fn}
+
+    - name: FinalizeData
+      params:
+        columns: 
+          - subject_id
+          - admission_id
+          - hadm_id
+          - patientid
+          - time
+          - code
+          - numeric_value
+          - text_value
+          - age_offset
+          - token_type_ids
+          - adm_time_offset

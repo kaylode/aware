@@ -12,8 +12,8 @@ manually_added_tokens:
   - "[PAD]"
   - "[UNK]"
 
-tensorize_with_labels: true
-label_folder: /home/mpham/workspace/source/ehrpfn/data/processed/mimiciv
+tensorize_with_labels: false
+label_folder: null
 split_train_val: false
 train_ratio: null
 required_codes_fn: null

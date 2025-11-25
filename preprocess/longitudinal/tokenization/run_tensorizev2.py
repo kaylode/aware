@@ -364,6 +364,131 @@ def main_eicu():
             save_file(tensors, (Path(save_path)/split).with_suffix(".safetensors"))
 
 
+
+
+def main_sjh():
+    worker = 1
+    logger.info(f"Running tensorization on '{worker}' workers...")
+    
+    # Update the real output directory path
+
+    input_dirs = []
+    for split in ['train', 'test']:
+        input_dir = Path("/home/mpham/workspace/source/ehrpfn/data/processed_meds/sjh-cpe") / split
+        folder_names = os.listdir(input_dir)
+        for folder_name in folder_names:
+            if 'FinalizeData' in folder_name:
+                input_dir = input_dir / folder_name
+                in_fps = list(input_dir.glob("*.parquet"))
+                input_dirs.extend(in_fps)
+                logger.info(f"Using input directory: {input_dir}")
+                break
+
+    in_fps = input_dirs
+    logger.info(f"Tensorizing '{len(input_dirs)} files'")
+
+    vocab = Vocabulary.from_path("/home/mpham/workspace/source/ehrpfn/data/processed_meds/sjh-cpe/train")
+    all_dfs = []
+    for in_fp in in_fps:
+        selected_columns = ["subject_id", "patientid", "times", "tokens"]
+        df = pl.scan_parquet(in_fp)
+        for column in list(set(["admission_id"] + TensorizedColumns.list())):
+            if column in df.columns:
+                selected_columns.append(column)
+        df = (
+            df
+            .with_columns(
+                tokens=pl.col("code").replace_strict(vocab.stoi, return_dtype=pl.Int64, default=None),
+                times=pl.col("time").cast(pl.Int64),
+            )
+            .select(*selected_columns)
+            # Filter out negative times, dates before 1970 are most likely errors
+            .filter(pl.col("times") >= 0).drop_nulls(["subject_id", "times", "tokens"])
+            .collect()
+        )
+        all_dfs.append(df)
+
+    df = pl.concat(all_dfs)
+    df = df.sort(["subject_id", "admission_id"])
+
+    # Split train val
+    label_folder = "/home/mpham/workspace/source/ehrpfn/data/raw/hipe-processed-ultimate/splits"
+    task_names = [
+        "WILL_READMIT_WITHIN_30_DAYS",
+        # "WILL_READMIT_WITHIN_7_DAYS",
+        # "NEXT_LOS",
+        # "DECEASED_NEXT_EPISODE",
+        "EPISODE_CPE_INFECTION_FLAGGED"
+    ]
+
+    all_labels = pl.read_csv("/home/mpham/workspace/source/ehrpfn/data/raw/hipe-processed-ultimate/clean/episodes.csv")
+    for task_name in task_names:
+        train_label_csv = osp.join(label_folder, "train_episodes_all.txt")
+        train_labels = pl.read_csv(train_label_csv, has_header=False).unique()
+        train_labels = all_labels.filter(pl.col("HIPE_PATIENTID").is_in(train_labels))
+        train_labels = train_labels.select([
+            "PIN_NO", "HIPE_PATIENTID", task_name
+        ])
+        train_labels = train_labels.rename({f"{task_name}": "label"})
+
+        val_label_csv = osp.join(label_folder, "val_episodes_all.txt")
+        val_labels = pl.read_csv(val_label_csv, has_header=False).unique()
+        val_labels = all_labels.filter(pl.col("HIPE_PATIENTID").is_in(val_labels))
+        val_labels = val_labels.select([
+            "PIN_NO", "HIPE_PATIENTID", task_name
+        ])
+        val_labels = val_labels.rename({f"{task_name}": "label"})
+      
+        test_label_csv = osp.join(label_folder, "test_episodes.txt")
+        test_labels = pl.read_csv(test_label_csv, has_header=False).unique()
+        test_labels = all_labels.filter(pl.col("HIPE_PATIENTID").is_in(test_labels))
+        test_labels = test_labels.select([
+            "PIN_NO", "HIPE_PATIENTID", task_name
+        ])
+        test_labels = test_labels.rename({f"{task_name}": "label"})
+
+        # Group by subject_id, aggregate by label with max, then train_test_split based on labels
+        # _labels = labels.group_by("subject_id").agg(pl.col("label").max().alias("label"))
+        out_dir = "/home/mpham/workspace/source/ehrpfn/data/processed_meds/sjh-cpe/Tensors"
+        save_path = Path(out_dir) / task_name
+        save_path.mkdir(parents=True, exist_ok=True)
+        for split, labels in [('train', train_labels), ('val', val_labels), ('test', test_labels)]:
+
+            # Filter the main DataFrame based on the task labels
+            new_df = df.join(
+                labels,
+                left_on=["subject_id",  'patientid'],
+                right_on=["PIN_NO", "HIPE_PATIENTID"],
+                how="inner",
+            )
+            if new_df.is_empty():
+                return
+
+            patient_id_col = "subject_id"
+            patient_df = (
+                new_df.set_sorted(patient_id_col)
+                .group_by(patient_id_col, maintain_order=True)
+                .agg(len=pl.len())
+                .select(patient_id_col, offsets=pl.col("len").cum_sum().shift(1, fill_value=0))
+            )
+            
+            tensors = {
+                "subject_ids": new_df["subject_id"].to_torch(),
+                "tokens": new_df["tokens"].to_torch(),
+                "times": new_df["times"].to_torch(),
+                "labels": new_df["label"].to_torch(),
+                "patient_ids": patient_df[patient_id_col].to_torch(),
+                "patient_offsets": patient_df["offsets"].to_torch(),
+            }
+
+            # TODO: This is extremely memory-inefficient.
+            for mimic_col in list(set(["hadm_id",  "admission_id", "patientid"] + TensorizedColumns.list())):
+                if mimic_col in new_df.columns:
+                    tensors[mimic_col] = new_df[mimic_col].to_torch()
+
+            save_file(tensors, (Path(save_path)/split).with_suffix(".safetensors"))
+
+
 if __name__ == "__main__":
-    main_eicu()
+    main_sjh()
     # main_mimic()

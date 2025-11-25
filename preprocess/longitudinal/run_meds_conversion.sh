@@ -23,14 +23,14 @@ mimiciv*)
 eicu*)
     DATASET_VERSION="2.0"
     N_SUBJECTS_PER_SHARD=5000
-    input_dir="${DATA_PATH}/eicu-crd/${DATASET_VERSION}/"
+    input_dir="${DATA_PATH}/raw/eicu-crd/${DATASET_VERSION}/"
     output_dir="${DATA_PATH}/ehrfm/${DATASET}-${DATASET_VERSION}"
     ;;
 sjh-cpe*)
     DATASET_VERSION="1.0"
     N_SUBJECTS_PER_SHARD=5000
-    input_dir="${DATA_PATH}/sjh-cpe/${DATASET_VERSION}/"
-    output_dir="${DATA_PATH}/sjh-cpe-events/${DATASET}-${DATASET_VERSION}"
+    input_dir="${DATA_PATH}/raw/sjh-cpe/${DATASET_VERSION}/"
+    output_dir="${DATA_PATH}/processed_meds/sjh-cpe/${DATASET}-${DATASET_VERSION}"
     ;;
 *)
     echo "### Wrong experiment: '$DATASET', available are: 'mimic', 'eicu', 'ehrshot' ###"
@@ -48,9 +48,9 @@ echo "### Unsetting SLURM_CPU_BIND in case you're running this on a slurm intera
 unset SLURM_CPU_BIND
 
 
-EVENT_CONVERSION_CONFIG_FP="$(pwd)/scripts/meds/datasets/${DATASET}/event_conversion.yaml"
-PIPELINE_CONFIG_FP="$(pwd)/scripts/meds/configs/meds_transforms_pipeline.yaml"
-PRE_MEDS_PY_FP="$(pwd)/scripts/meds/datasets/${DATASET}/pre_MEDS.py"
+EVENT_CONVERSION_CONFIG_FP="$(pwd)/preprocess/longitudinal/meds/datasets/${DATASET}/event_conversion.yaml"
+PIPELINE_CONFIG_FP="$(pwd)/preprocess/longitudinal/meds/configs/meds_transforms_pipeline.yaml"
+PRE_MEDS_PY_FP="$(pwd)/preprocess/longitudinal/meds/datasets/${DATASET}/pre_MEDS.py"
 MEDS_COHORT_DIR="${output_dir}/meds"
 PRE_MEDS_DIR="${output_dir}/premeds"
 
@@ -67,17 +67,17 @@ export N_SUBJECTS_PER_SHARD
 export TRAIN_RATIO
 export TEST_RATIO
 
-echo "### Running pre-MEDS conversion. ###"
-python "$PRE_MEDS_PY_FP" \
-    input_dir="$input_dir" \
-    cohort_dir="$PRE_MEDS_DIR" \
-    do_overwrite=false
+# echo "### Running pre-MEDS conversion. ###"
+# python "$PRE_MEDS_PY_FP" \
+#     input_dir="$input_dir" \
+#     cohort_dir="$PRE_MEDS_DIR" \
+#     do_overwrite=false
 
-if [ -z "$N_WORKERS" ]; then
-    echo "Setting N_WORKERS to 1 to avoid issues with the runners."
-    export N_WORKERS="1"
-fi
+# if [ -z "$N_WORKERS" ]; then
+#     echo "Setting N_WORKERS to 1 to avoid issues with the runners."
+#     export N_WORKERS="1"
+# fi
 
 echo "### Running extraction pipeline. ###"
 MEDS_transform-runner "pipeline_config_fp=$PIPELINE_CONFIG_FP" \
-    stage_runner_fp=$(pwd)/scripts/meds/configs/local_parallelism_runner.yaml
+    stage_runner_fp=$(pwd)/preprocess/longitudinal/meds/configs/local_parallelism_runner.yaml

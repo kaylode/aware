@@ -1,6 +1,6 @@
 import polars as pl
 import json
-from preprocess.longitudinal.tokenization.constants import SpecialToken as ST
+from preprocess.longitudinal.tokenization.constants import SpecialToken as ST, TOKEN_TYPES_IDS, TensorizedColumns
 from ..patterns import MatchAndRevise
 from ..utils import  unify_code_names
 import preprocess.longitudinal.tokenization.mimic as mimiciv
@@ -91,6 +91,9 @@ class ProcedureData(mimiciv.ProcedureData):
     pass
 
 class DeathData(mimiciv.DeathData):
+    pass
+
+class TokenTypeIDs(mimiciv.TokenTypeIDs):
     pass
 
 class DemographicData(mimiciv.DemographicData):

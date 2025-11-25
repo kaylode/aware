@@ -25,7 +25,8 @@ eicu*)
     ;;
 sjh-cpe*)
     DATASET_VERSION="1.0"
-    INPUT_DIR="${DATA_PATH}/sjh-cpe-${DATASET_VERSION}/meds/data"
+    # INPUT_DIR="${DATA_PATH}/sjh-cpe-${DATASET_VERSION}/meds/data"
+    INPUT_DIR="/home/mpham/workspace/source/ehrpfn/data/processed_meds/sjh-cpe/sjh-cpe-1.0/meds/data"
     OUTPUT_DIR="${DATA_PATH}/sjh-cpe-${DATASET_VERSION}/tokenized_datasets/${DATASET}"
 
     ;;

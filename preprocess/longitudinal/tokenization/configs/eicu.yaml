@@ -16,7 +16,7 @@ tensorize_with_labels: false
 label_folder: null
 split_train_val: false
 train_ratio: null
-required_codes_fn: required_codes.txt
+required_codes_fn: null
 
 dataset:
   name: eicu
@@ -88,6 +88,42 @@ dataset:
         top_n: 200
       vocab: ${vocab}
 
+    - name: reassign_admission_id # This is optional for BEHRT, to determine <SEP> token
+      transforms:
+        - InpatientData.reassign_admission_id
+      vocab: ${vocab}
+
+    - name: remove_consecutive_same_codes
+
+    - name: add_admission_time_offsets_as_column
+      transforms:
+        - AdmissionData.add_admission_time_offsets_as_column
+
+    - name: add_age_offsets_as_column # Age as columns for BEHRT-based approaches
+      transforms:
+        - DemographicData.add_age_offsets_as_column
+
+    - name: add_ehrmamba_required_columns
+      transforms:
+        - TokenTypeIDs.add_token_type_ids
+        - AdmissionData.add_admission_time_offsets_as_column
+
+    - name: filter_codes_retain
+      params:
+        codes_to_keep:
+          # - ADMISSION_TYPE
+          - ATC
+          # - DISCHARGE_LOCATION
+          # - GENDER
+          - HOSPITAL_ADMISSION
+          - HOSPITAL_DISCHARGE
+          # - INFECTIOUS_DISEASE
+          - ICD
+          # - INFUSION
+          # - LAB
+          # - VITAL
+        is_prefix: true
+
     - name: CodeCounter
       agg_to: ${output_dir}/${code_counts_fn}
 
@@ -96,7 +132,11 @@ dataset:
         columns: 
           - subject_id
           - hadm_id
+          - admission_id
           - time
           - code
           - numeric_value
           - text_value
+          - age_offset
+          - token_type_ids
+          - adm_time_offset
