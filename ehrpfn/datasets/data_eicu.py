@@ -4,7 +4,7 @@ import pandas as pd
 import json
 import os.path as osp
 from sklearn.preprocessing import LabelEncoder
-from ehrpfn.training.utils import DataPreprocessor
+from .utils import DataPreprocessor
 
 def select_features(x, y, selection_method:str, feature_selection_path:str=None, selected_indices=None):
     # Load top features

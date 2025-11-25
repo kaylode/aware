@@ -75,16 +75,38 @@ DROP_COLUMNS = [
 
 ]
 
-def get_sjh_dataset(
-        input_folder: str, output_folder: str, target_col:str = None, 
-        max_length:int=256, num_chunks:int=1,
-        patient_ids: Optional[List[int]] = None,
 
+def select_features(x, y, selection_method:str, feature_selection_path:str=None, selected_indices=None):
+    # Load top features
+    if selection_method is not None:
+        if selected_indices is None:
+            if selection_method.startswith("random"):
+                size = int(selection_method.split("_")[1]) if "_" in selection_method else 100
+                # Random selection of features
+                selected_indices = np.random.choice(x.shape[1], size=size, replace=False)
+            else:
+                assert feature_selection_path is not None, "feature_selection_path must be provided for feature selection"
+                tmp = selection_method.split("_")
+                if len(tmp) > 1:
+                    selection_method, size = tmp[0], int(tmp[1])
+                else:
+                    size = 100
+                feature_selection_path = osp.join(feature_selection_path, f"{selection_method}_feature_importance.json")
+                with open(feature_selection_path, 'r') as f:
+                    top_features = json.load(f)
+                top_features = {k:v for k,v in sorted(top_features.items(), key=lambda item: item[1], reverse=False)}
+                top_features = list(top_features.keys())[:size]
+                selected_indices = [x.columns.tolist().index(col) for col in top_features if col in x.columns]
+        x = x.iloc[:, selected_indices]
+
+    feature_names = x.columns.tolist()
+    return x, y, feature_names, selected_indices
+
+def get_sjh_dataset(
+        input_folder: str, output_folder: str = None, target_col:str = None, 
+        patient_ids: Optional[List[int]] = None,
         feature_selection_path: str = None,
         selection_method: str = None,
-        process_file_path: str = None,
-        n_process_variants: int = 1,
-        trajectory_file_path: str = None
     ):
 
     use_columns = CATEGORICAL_COLUMNS + NUMERICAL_COLUMNS + ['ICD10CMs_3', 'PIN_NO', 'HIPE_PATIENTID']
@@ -134,10 +156,10 @@ def get_sjh_dataset(
                 "DISCHARGE DESCRIPTION",    # Commented out - explicitly describes discharge status (death/transfer)
                 "EPISODE_CPE_SCREEN",
                 "EPISODE_ISOLATED",         # Commented out - isolation often results from infection status
-                # "WARD_INFECTED_DEGREE",
-                # "WARD_INFECTED_CONTACT_DAYS",
-                # "WARD_INFECTED_CONTACT_DAYS_CENTRALITY",
-                # "WARD_INFECTED_CLOSENESS_CENTRALITY",
+                "WARD_INFECTED_DEGREE",
+                "WARD_INFECTED_CONTACT_DAYS",
+                "WARD_INFECTED_CONTACT_DAYS_CENTRALITY",
+                "WARD_INFECTED_CLOSENESS_CENTRALITY",
             ])
         case _:
             raise ValueError(f"Unknown target column: {target_col}")
@@ -148,11 +170,10 @@ def get_sjh_dataset(
         if k in use_columns:
             use_columns.remove(k)
 
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     patient_df = pd.read_csv(osp.join(input_folder, "clean/patients.csv"))
     episode_df = pd.read_csv(osp.join(input_folder, "clean/episodes.csv"))
     networks_df = pd.read_csv(osp.join(input_folder, "clean/networks.csv"))
-    networks_df = networks_df.groupby(["PIN_NO", "HIPE_PATIENTID"]).mean().reset_index()
+    networks_df = networks_df.drop(columns=["BED_DAY_DATE_DATE"]).groupby(["PIN_NO"]).mean().reset_index()
 
     merged_df = pd.merge(
         episode_df,
@@ -164,7 +185,7 @@ def get_sjh_dataset(
         merged_df,
         networks_df,
         how="left",
-        on=['PIN_NO', "HIPE_PATIENTID"],
+        on=['PIN_NO'],
     )
 
     with open(osp.join(input_folder, f"splits/train_episodes_all.txt"), "r") as f:
@@ -193,12 +214,12 @@ def get_sjh_dataset(
             merged_df[col] = merged_df[col].fillna("[UNK]")
         elif col in ICD_COLUMNS:
             merged_df[col] = merged_df[col].fillna("[UNK]")
-  
+    
     if target_col is not None:
         merged_df.dropna(subset=[target_col], inplace=True)
 
+    # Only keep episodes where CPE screening was done
     if target_col == 'EPISODE_CPE_INFECTION_FLAGGED':
-        # Only keep episodes where CPE screening was done
         merged_df = merged_df[merged_df['EPISODE_CPE_SCREEN'] == 1]
 
     train_df = merged_df[merged_df.HIPE_PATIENTID.isin(train_ids)]
@@ -282,16 +303,14 @@ def get_sjh_dataset(
     train_df = train_df[use_columns]
     test_df = test_df[use_columns]
 
-    if target_col is not None:
-        save_data_folder = osp.join(output_folder, "data", target_col)
+    if output_folder is None:
+        pass
     else:
-        save_data_folder = osp.join(output_folder, "data", "pretrain")
-
-    study_name = f"sjh_mxln{max_length}_nchk{num_chunks}"
-
-    save_data_folder = osp.join(save_data_folder, study_name)
-    
-    os.makedirs(save_data_folder, exist_ok=True)
+        if target_col is not None:
+            output_folder = osp.join(output_folder, target_col)
+        else:
+            output_folder = osp.join(output_folder, "pretrain")
+        os.makedirs(output_folder, exist_ok=True)
 
     LOGGER.text(f"Train dataset size: {len(train_df)}")
     LOGGER.text(f"Test dataset size: {len(test_df)}")
@@ -300,113 +319,9 @@ def get_sjh_dataset(
         LOGGER.text(f"Train dataset target distribution: {train_df[target_col].value_counts()}")
         LOGGER.text(f"Test dataset target distribution: {test_df[target_col].value_counts()}")
     
-   
-    
-
-    # train_save_path = osp.join(save_data_folder, "train_data.npy")
-    # test_save_path = osp.join(save_data_folder, "test_data.npy")
-    # np.save(train_save_path, X_train)
-    # np.save(test_save_path, X_test)
-
-
-
     train_ids_df = pl.DataFrame(train_df.copy()).select(["PIN_NO", "HIPE_PATIENTID"])
     test_ids_df = pl.DataFrame(test_df.copy()).select(["PIN_NO", "HIPE_PATIENTID"])
 
-
-    if process_file_path is not None:
-        X_train_process = pl.read_csv(f"{process_file_path}/{n_process_variants}_clustered_cases_train.csv")
-        X_test_process = pl.read_csv(f"{process_file_path}/{n_process_variants}_clustered_cases_test.csv")
-        all_processes = pl.concat([X_train_process, X_test_process])
-        all_processes = all_processes.rename({
-            "subject_id": "PIN_NO",
-            "patientid": "HIPE_PATIENTID"
-        })
-
-        all_processes = all_processes.group_by(["PIN_NO", "HIPE_PATIENTID"]).agg(
-            pl.col("cluster_id").first(),
-        )
-
-        X_train_process = train_ids_df.join(
-            all_processes,
-            on=["PIN_NO", "HIPE_PATIENTID"],
-            how="left"  # Changed from "inner" to "left"
-        )
-        X_test_process = test_ids_df.join(
-            all_processes,
-            on=["PIN_NO", "HIPE_PATIENTID"],
-            how="left"  # Changed from "inner" to "left"
-        )
-
-    else:
-        X_train_process = None
-        X_test_process = None
-
-    if trajectory_file_path is not None:
-        X_train_traj = np.load(f"{trajectory_file_path}/trajectories_train_embeddings.npz")
-        X_test_traj = np.load(f"{trajectory_file_path}/trajectories_test_embeddings.npz")
-        train_metadata_ids = X_train_traj['metadata']
-        train_embeddings = X_train_traj['embeddings']
-
-        test_metadata_ids = X_test_traj['metadata']
-        test_embeddings = X_test_traj['embeddings']
-        
-        # Get embedding dimension
-        embedding_dim = train_embeddings.shape[1]
-
-        # Use left join to keep all patients from train_ids_df
-        filtered_train_ids = train_ids_df.join(
-            pl.DataFrame({
-                "PIN_NO": train_metadata_ids[:, 0],
-                "HIPE_PATIENTID": train_metadata_ids[:, 1]
-            }).with_row_index().with_columns(
-                pl.col("PIN_NO").cast(pl.Int64),
-            ),
-            on=["PIN_NO", "HIPE_PATIENTID"],
-            how="left"  # Changed from "inner" to "left"
-        )
-
-        filtered_test_ids = test_ids_df.join(
-            pl.DataFrame({
-                "PIN_NO": test_metadata_ids[:, 0],
-                "HIPE_PATIENTID": test_metadata_ids[:, 1]
-            }).with_row_index().with_columns(
-                pl.col("PIN_NO").cast(pl.Int64),
-            ),
-            on=["PIN_NO", "HIPE_PATIENTID"],
-            how="left"  # Changed from "inner" to "left"
-        )
-
-        # Create embeddings array with zeros for missing patients
-        train_embedding_matrix = np.zeros((len(filtered_train_ids), embedding_dim))
-        test_embedding_matrix = np.zeros((len(filtered_test_ids), embedding_dim))
-        
-        # Fill in embeddings for patients that have them
-        valid_indices = filtered_train_ids['index'].to_numpy()
-        valid_mask = ~np.isnan(valid_indices.astype(float))  # Check for non-null indices
-        
-        if valid_mask.any():
-            train_embedding_matrix[valid_mask] = train_embeddings[valid_indices[valid_mask].astype(int)]
-        
-        X_train_traj = train_embedding_matrix
-
-        # Fill in embeddings for patients that have them
-        valid_indices = filtered_test_ids['index'].to_numpy()
-        valid_mask = ~np.isnan(valid_indices.astype(float))  # Check for non-null indices
-        
-        if valid_mask.any():
-            test_embedding_matrix[valid_mask] = test_embeddings[valid_indices[valid_mask].astype(int)]
-        
-        X_test_traj = test_embedding_matrix
-
-    else:
-        X_train_traj = None
-        X_test_traj = None
-
-    y_train = train_df[target_col].values
-    y_test = test_df[target_col].values
-    X_train = train_df.drop(columns=['PIN_NO', 'HIPE_PATIENTID', target_col]).values
-    X_test = test_df.drop(columns=['PIN_NO', 'HIPE_PATIENTID', target_col]).values
 
     feature_names = list(train_df.drop(columns=['PIN_NO', 'HIPE_PATIENTID', target_col]).columns)
     categorical_feature_indices = [
@@ -414,8 +329,32 @@ def get_sjh_dataset(
     ]
 
 
-    with open(osp.join(save_data_folder, "feature_names.json"), "w") as f:
-        json.dump(feature_names, f, indent=4)
+    y_train_df = train_df[target_col]
+    y_test_df = test_df[target_col]
+    X_train_df = train_df.drop(columns=['PIN_NO', 'HIPE_PATIENTID', target_col])
+    X_test_df = test_df.drop(columns=['PIN_NO', 'HIPE_PATIENTID', target_col])
+
+    X_train_df, y_train_df, feature_names, selected_indices = select_features(
+        X_train_df, y_train_df, selection_method=selection_method, 
+        feature_selection_path=feature_selection_path, 
+        selected_indices=None
+    )
+
+    X_test_df, y_test_df, _, _ = select_features(
+        X_test_df, y_test_df, selection_method=selection_method,
+        feature_selection_path=feature_selection_path,
+        selected_indices=selected_indices
+    )
+
+    X_train = X_train_df.values
+    X_test = X_test_df.values
+    y_train = y_train_df.values
+    y_test = y_test_df.values
+    label_dist = np.bincount(np.concatenate([y_train, y_test]))
+
+    if output_folder is not None:
+        with open(osp.join(output_folder, "feature_names.json"), "w") as f:
+            json.dump(feature_names, f, indent=4)
     
     # Save label encoder mappings
     encoder_mappings = {}
@@ -424,21 +363,38 @@ def get_sjh_dataset(
             'categories': [cat.tolist() for cat in encoder.categories_],
             'mapping': {str(cat): int(idx) for idx, cat in enumerate(encoder.categories_[0])}
         }
-    
-    with open(osp.join(save_data_folder, "label_encoders.json"), "w") as f:
-        json.dump(encoder_mappings, f, indent=4)
-    
-    # Save vocabulary
-    with open(osp.join(save_data_folder, "vocab.json"), "w") as f:
-        json.dump(vocab, f, indent=4)
+        
+    if output_folder is not None:
+        with open(osp.join(output_folder, "label_encoders.json"), "w") as f:
+            json.dump(encoder_mappings, f, indent=4)
+        
+        # Save vocabulary
+        with open(osp.join(output_folder, "vocab.json"), "w") as f:
+            json.dump(vocab, f, indent=4)
 
     return {
         'X_train': X_train, 'y_train': y_train,  
         'X_test': X_test, 'y_test': y_test, 
-        'X_train_process': X_train_process,
-        'X_test_process': X_test_process,
-        'X_train_traj': X_train_traj,
-        'X_test_traj': X_test_traj,
+        # 'X_embs_train': X_train_traj,
+        # 'X_embs_test': X_test_traj,
         'categorical_feature_indices': categorical_feature_indices,
         'feature_names': feature_names,
+        'train_ids': train_ids_df,
+        'test_ids': test_ids_df,
+        'class_distribution': label_dist,
+        "is_classification": True,
+        'num_classes': len(np.unique(y_train)),
+        'num_features': len(feature_names),
+
     }
+
+
+if __name__ == "__main__":
+    dataset = get_sjh_dataset(
+        input_folder="/home/mpham/workspace/source/ehrpfn/data/raw/hipe-processed-ultimate",
+        output_folder="/home/mpham/workspace/source/ehrpfn/data/processed/sjh_cpe",
+        target_col="EPISODE_CPE_INFECTION_FLAGGED",
+        patient_ids=None,
+        feature_selection_path=None,
+        selection_method=None,
+    )
