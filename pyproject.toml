@@ -3,7 +3,7 @@ requires = ["setuptools==75.8.2", "wheel", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["ehrpfn", "scripts", "traddl", "preprocess"]
+packages = ["ehrpfn", "scripts"]
 
 [project]
 name = "ehrpfn"
@@ -20,50 +20,49 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
 ]
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
-    "torch==2.6.0",
-    "transformers==4.49.0",
-    "polars==1.25.2",
-    "hydra-core==1.3.2",
-    "hydra-joblib-launcher==1.2.0",
-    "loguru==0.7.3",
-    "safetensors==0.5.3",
-    "tqdm==4.67.1",
-    "wandb==0.19.9",
-    "MEDS_transforms==0.1.1",
-    "pyarrow==19.0.1",
-    "numpy==1.26.4",
-    "imbalanced-learn==0.13.0",
-    "scipy==1.11.4",
-    "pytorch-lightning==2.5.2",
-    "scikit-learn==1.6.1",
+    "catboost==1.2.8",
+    "category-encoders==2.6.3",
+    "delu==0.0.23",
+    "dill==0.4.0",
+    "ehr-meds",
+    "einops==0.8.0",
     "faiss-cpu==1.11.0",
     "gdown==5.2.0",
+    "hydra-core==1.3.2",
+    "hydra-joblib-launcher==1.2.0",
+    "imbalanced-learn==0.13.0",
+    "kaleido==1.0.0",
+    "levenshtein==0.27.1",
+    "lightgbm==4.6.0",
+    "lime==0.2.0.1",
+    "loguru==0.7.3",
+    "meds-transforms==0.1.1",
+    "numpy==1.26.4",
     "omegaconf==2.3.0",
     "openml==0.15.1",
     "optuna==4.4.0",
-    "shap==0.47.1",
-    "plotly==6.2.0",
-    "tabulate==0.9.0",
-    "xgboost==3.0.3",
-    "lightgbm==4.6.0",
-    "catboost==1.2.8",
-    "schedulefree==1.4.1",
-    "tensorboard==2.20.0",
-    "dill==0.4.0",
-    "levenshtein==0.27.1",
     "optuna-integration==4.4.0",
-    "seaborn==0.13.2",
-    "lime==0.2.0.1",
-    "scikit-plot==0.3.7",
-    "kaleido==1.0.0",
-    "tabpfn @ git+https://github.com/PriorLabs/TabPFN.git",
-    "category_encoders==2.6.3",
-    "delu==0.0.23",
-    "einops==0.8.0",
+    "polars==1.25.2",
+    "pyarrow==19.0.1",
+    "pytorch-lightning==2.5.2",
     "qhoptim==1.1.0",
-
+    "safetensors==0.5.3",
+    "schedulefree==1.4.1",
+    "scikit-plot==0.3.7",
+    "scipy==1.11.4",
+    "seaborn==0.13.2",
+    "shap==0.47.1",
+    "tabpfn",
+    "tabulate==0.9.0",
+    "tensorboard==2.20.0",
+    "torch==2.6.0",
+    "tqdm==4.67.1",
+    "traddl",
+    "transformers==4.49.0",
+    "wandb==0.19.9",
+    "xgboost>=3.0",
 ]
 
 [project.optional-dependencies]
@@ -73,3 +72,8 @@ jupyter = ["jupyter", "seaborn", "scikit-learn", "matplotlib", "pandas", "altair
 
 [tool.pyright]
 typeCheckingMode = "off"
+
+[tool.uv.sources]
+traddl = { path = "../tabular-training/traddl", editable = true }
+tabpfn = { path = "../TabPFN", editable = true }
+ehr-meds = { path = "../ehr-meds", editable = true }
