@@ -1,12 +1,12 @@
 from typing import *
-from ehrpfn.models.TALENT.TALENT.model.utils import get_method
+from TALENT.model.utils import get_method
+from TALENT.model.methods.base import check_softmax
 
 import json
 import torch
 import os.path as osp
 from sklearn.base import BaseEstimator, ClassifierMixin
 from argparse import Namespace
-from TALENT.model.methods.base import check_softmax
 from ehrpfn.utils.logger import LoggerObserver
 
 LOGGER = LoggerObserver.getLogger('main')
