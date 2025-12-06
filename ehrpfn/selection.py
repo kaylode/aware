@@ -4,18 +4,13 @@ import hydra
 import numpy as np
 import shap
 import json
-import xgboost as xgb
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 from ehrpfn.utils import LoggerObserver
 from dill import pickle
-from ehrpfn.utils import load_model, save_model
-from ehrpfn.datasets import get_mimic_dataset, get_sjh_dataset, get_mimic_dataset, get_eicu
-from omegaconf import DictConfig, OmegaConf
-from xgboost import XGBClassifier, XGBRegressor
-from catboost import CatBoostClassifier, CatBoostRegressor
-from lightgbm import LGBMClassifier, LGBMRegressor
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from ehrpfn.data import get_data
+from ehrpfn.utils import load_model
+from omegaconf import DictConfig
 
 LOGGER = LoggerObserver.getLogger("main")
 
@@ -33,13 +28,14 @@ def extract_top_features(args: DictConfig):
             - rankings_dict: Feature rankings
             - scores_dict: Feature importance scores
     """
-    result_folder = osp.join(args.output_folder, "selection", args.data_name, args.target_column)
+    result_folder = osp.join(args.inference.output_folder, "selection", args.data.data_name, args.data.task)
     os.makedirs(result_folder, exist_ok=True)
     
     model_path = osp.join(args.explainable_model_path, 'model.pkl')
 
-    if args.method == 'xgboost':
-        if args.target_column in ['NEXT_ADMISSION_LOS', 'NEXT_LOS']:
+    if args.inference.model == 'xgboost':
+        from xgboost import XGBClassifier, XGBRegressor
+        if args.data.task in ['NEXT_ADMISSION_LOS', 'NEXT_LOS']:
             model = XGBRegressor()
         else:
             model = XGBClassifier()
@@ -54,38 +50,7 @@ def extract_top_features(args: DictConfig):
     # Setup directories
     if args.get("use_shap", False):
 
-        if args.data_name.startswith('mimicpipe') or args.data_name.startswith('mimiciv'):
-            data = get_mimic_dataset(
-                data_csv=args.data_csv,
-                train_label_path=args.train_label_path,
-                test_label_path=args.test_label_path,
-                feature_selection_path=args.feature_selection_path,
-                selection_method=args.selection_method,
-                embedding_file_path=args.embedding_file_path
-            )
-        elif args.data_name == 'sjh_cpe':
-            data = get_sjh_dataset(
-                input_folder=args.input_folder,
-                output_folder=args.output_folder,
-                target_col=args.target_column,
-                patient_ids=None,
-                feature_selection_path=args.feature_selection_path,
-                selection_method=args.selection_method,
-            )
-        elif args.data_name == 'eicu':
-            data = get_eicu(
-                task=args.target_column,
-                csv_file=args.data_csv,
-                label_file=args.label_path,
-                train_admission_id_file=args.train_admission_id_file,
-                val_admission_id_file=args.val_admission_id_file,
-                test_admission_id_file=args.test_admission_id_file,
-                feature_selection_path=args.feature_selection_path,
-                selection_method=args.selection_method,
-            )
-        else:
-            raise ValueError(f"Data {args.data_name} is not supported. Please choose from ['mimiciv', 'sjh_cpe']")
-
+        data = get_data(args)
         # Extract data components
         X_train = data['X_train']
 
@@ -115,7 +80,7 @@ def extract_top_features(args: DictConfig):
     if args.get("use_shap", False):
         method = 'shap'
     else:
-        method = args.method
+        method = args.inference.model
 
     # Save results
     with open(osp.join(result_folder, f"{method}_feature_importance.json"), 'w') as f:
