@@ -1,6 +1,6 @@
 import numpy as np
 from typing import Optional, Any
-from ehrpfn.utils.retrieval import Retriever
+from ehrret import Retriever
 from sklearn.base import ClassifierMixin, RegressorMixin
 
 class SimpleKNNClassifier(ClassifierMixin):
@@ -12,7 +12,10 @@ class SimpleKNNClassifier(ClassifierMixin):
     def fit(self, X: np.ndarray, y: np.ndarray, **kwargs):
         self.X = X
         self.y = y
-        self.retriever.fit(X, **kwargs)
+
+        self.retriever.fit([{self.retriever.field_to_use: item.cpu().numpy()} for item in X])
+
+
         self._is_fitted = True
         return self
 
@@ -31,7 +34,7 @@ class SimpleKNNClassifier(ClassifierMixin):
     def predict_proba(self, X: np.ndarray, **kwargs) -> np.ndarray:
         if not self._is_fitted:
             raise RuntimeError("KNNClassifier is not fitted yet.")
-        indices = self.retriever.retrieve(X, **kwargs)
+        indices = self.retriever.retrieve([{self.retriever.field_to_use: item.cpu().numpy()} for item in X])
         if indices.ndim == 1:
             indices = indices[None, :]
         neighbor_labels = self.y[indices]

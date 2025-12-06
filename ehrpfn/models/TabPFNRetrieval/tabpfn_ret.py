@@ -27,7 +27,7 @@ from ehrpfn.models.TabPFN.utils import (
     default_regressor_preprocessor_configs,
 )
 
-from ehrpfn.utils.retrieval import Retriever
+from ehrret import Retriever
 
 
 @dataclass

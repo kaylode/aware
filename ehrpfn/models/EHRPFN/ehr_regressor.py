@@ -9,7 +9,7 @@ from sklearn.preprocessing import StandardScaler
 from .estimator import TabDPTEstimator
 from sklearn.base import RegressorMixin
 
-from ehrpfn.utils.retrieval import Retriever
+from ehrret import Retriever
 
 
 class EHRPFNRegressor(TabDPTEstimator, RegressorMixin):

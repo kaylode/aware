@@ -1,0 +1,44 @@
+hydra:
+  job:
+    name: ${now:%Y-%m-%d_%H-%M-%S}
+  run:
+    dir: ${oc.env:LOGGING_DIR}
+  sweep:
+    dir: ${oc.env:LOGGING_DIR}
+    subdir: ${hydra.job.num}
+
+data:
+  data_name: eicu
+  selection_method: null
+  num_features: 100
+  task: null
+  weight_json_path: null
+  sampling:
+    do_sampling: false
+    sampling_method: null
+    balance_negatives: false
+    negative_ratio: 1.0
+    imbalance_ratio: null # only for openml_ehr_imbalance
+
+retrieval:
+  retrieval_method: null
+  weight_json_path: null
+  pretrained_path: null
+  context_size: 1024
+  distance: cosine
+
+inference:
+  seed: 42
+  model: xgboost
+  pretrained_path: null 
+  config_path: null # for talent
+  tune_config: null # for talent
+  output_folder: null 
+
+wandb:
+  use_wandb: false
+  project: tabpfn-ehr
+  entity: kaylode
+
+MODEL: #for wandb logging consistency
+  MODEL_NAME: ${inference.model}

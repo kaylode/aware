@@ -5,7 +5,7 @@ from .utils import pad_x, generate_random_permutation
 
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler
-from ehrpfn.utils.retrieval import Retriever
+from ehrret import Retriever
 from tqdm import tqdm
 from scipy.special import softmax
 
@@ -99,7 +99,7 @@ class EHRPFNClassifier(TabDPTEstimator, ClassifierMixin):
                 X_train = train_x
                 X_test = test_x
 
-            self.retriever.fit(X_train, X_embs_train=kwargs.get('X_embs_train', None))
+            self.retriever.fit([{self.retriever.field_to_use: item.cpu().numpy()} for item in X_train])
 
             if context_size >= self.n_instances:
                 X_train = pad_x(X_train[None, :, :], self.max_features).to(self.device)
@@ -131,9 +131,7 @@ class EHRPFNClassifier(TabDPTEstimator, ClassifierMixin):
                     start = b * self.inf_batch_size
                     end = min(len(X_test), (b + 1) * self.inf_batch_size)
 
-                    X_embs_test = kwargs.get('X_embs_test', None)
-                    X_embs_test = X_embs_test[start:end] if X_embs_test is not None else None
-                    indices_nni = self.retriever.retrieve(X_test[start:end], X_embs_test=X_embs_test)
+                    indices_nni = self.retriever.retrieve([{self.retriever.field_to_use: item.cpu().numpy()} for item in X_test[start:end]])
 
                     if seed is not None:
                         shuffled_indices = generate_random_permutation(indices_nni.shape[1], seed)

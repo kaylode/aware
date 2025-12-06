@@ -1,28 +1,36 @@
-METHOD=$1
-# TASK=$2
-
-export HYDRA_FULL_ERROR=1
-ROOT=/home/mpham/workspace/source/ehrpfn
-export LOGGING_DIR="${ROOT}/outputs/tabpfn/logs"
+#!/bin/bash
 
 set -e  # Exit on error
 set -u  # Treat unset variables as an error
 
-DATA_NAME=sjh_cpe # eicu #
-OUTPUT_DIR="${ROOT}/outputs/all"
+source .env
 
+METHOD=$1
+DATASET=$2 # sjh_cpe # mimicpipe
+ROOT=$(pwd)
 
-# Loop "ICD VAP" "ICD SSI" "ICD UTI" "ICD BSI"  
-# for TASK in "Readmission" ; do
-# for TASK in "ICD SEPSIS" ; do
-# for TASK in "READMISSION" "MORTALITY"; do
-# for TASK in "Mortality" "Length of Stay" "ICD UTI"; do
-for TASK in "EPISODE_CPE_INFECTION_FLAGGED"; do
-    MODEL_PATH="${OUTPUT_DIR}/${DATA_NAME}/${TASK}/${METHOD}_${DATA_NAME}_${TASK}"
-    PYTHONPATH=. python ehrpfn/selection/shap_feat.py \
+export HYDRA_FULL_ERROR=1
+export LOGGING_DIR=${ROOT}/${LOGGING_DIR}/inference/
+
+OUTPUT_DIR="${ROOT}/${SAVE_DIR}/results"
+
+if [ $DATASET = "eicu" ]; then
+    TASKS=("MORTALITY" "READMISSION")
+elif [ $DATASET = "mimiciv" ]; then
+    TASKS=("Mortality" "Readmission"  "Length of Stay"   "ICD SEPSIS")
+elif [ $DATASET = "sjh_cpe" ]; then
+    TASKS=("EPISODE_CPE_INFECTION_FLAGGED" "WILL_READMIT_WITHIN_30_DAYS")
+else
+    echo "Unknown dataset: $DATASET"
+    exit 1  
+fi
+
+for TASK in "${TASKS[@]}" ; do
+    echo "Selecting features for method: $METHOD, dataset: $DATASET, task: $TASK"
+    MODEL_PATH="${OUTPUT_DIR}/${DATASET}/${TASK}/${METHOD}_${DATASET}_${TASK}"
+    PYTHONPATH=. uv run ehrpfn/selection.py \
         --config-path "${MODEL_PATH}" \
         --config-name config.yaml \
-        output_folder="${OUTPUT_DIR}" \
-        +explainable_model_path="${OUTPUT_DIR}/${DATA_NAME}/${TASK}/${METHOD}_${DATA_NAME}_${TASK}" \
+        +explainable_model_path="${OUTPUT_DIR}/${DATASET}/${TASK}/${METHOD}_${DATASET}_${TASK}" \
         +use_shap=True
 done
