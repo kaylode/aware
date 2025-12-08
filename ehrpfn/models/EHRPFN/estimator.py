@@ -9,20 +9,26 @@ from sklearn.preprocessing import StandardScaler
 
 from .model import TabDPTModel
 from .utils import convert_to_torch_tensor, download_model
-from ehrret import FAISS
+from ehrret import Retriever
 
 
 class TabDPTEstimator(BaseEstimator):
     _DEFAULT_DEVICE = "cuda:0"
 
-    def __init__(self, mode: str, pretrained_path:str=None, inf_batch_size: int = 512, device: str = _DEFAULT_DEVICE,
-                 use_flash: bool = True, compile: bool = True, categorical_feature_indices: list = None):
+    def __init__(self, 
+            mode: str, pretrained_path:str=None, inf_batch_size: int = 512, device: str = _DEFAULT_DEVICE,
+            use_flash: bool = True, compile: bool = True, categorical_feature_indices: list = None,
+            retriever: Retriever = None,
+            fit_retriever_before_fit: bool = True
+        ):
         self.mode = mode
         self.inf_batch_size = inf_batch_size
         self.device = device
         self.use_flash = use_flash
         path = pretrained_path
         self.categorical_feature_indices = categorical_feature_indices
+        self.retriever = retriever
+        self.fit_retriever_before_fit = fit_retriever_before_fit
 
         # automatically download model weight if path is not found
         if not os.path.exists(path):
@@ -47,12 +53,18 @@ class TabDPTEstimator(BaseEstimator):
         assert X.ndim == 2, "X must be a 2D array"
         assert y.ndim == 1, "y must be a 1D array"
 
+
+        if self.retriever is not None and self.fit_retriever_before_fit:
+            self.retriever.fit([{self.retriever.field_to_use: item.cpu().numpy()} for item in X])
+
         self.imputer = SimpleImputer(strategy="mean")
         X = self.imputer.fit_transform(X)
         self.scaler = StandardScaler()
         X = self.scaler.fit_transform(X)
 
-        self.faiss_knn = FAISS(X)
+        # self.faiss_knn = FAISS(X)
+        
+
         self.n_instances, self.n_features = X.shape
         self.X_train = X
         self.y_train = y
@@ -62,6 +74,8 @@ class TabDPTEstimator(BaseEstimator):
 
     def _prepare_prediction(self, X: np.ndarray):
         check_is_fitted(self)
+
+        self.X_test_ori = X
         self.X_test = self.imputer.transform(X)
         self.X_test = self.scaler.transform(self.X_test)
         train_x, train_y, test_x = (

@@ -20,7 +20,7 @@ class EHRPFNClassifier(TabDPTEstimator, ClassifierMixin):
         self, pretrained_path:str=None, inf_batch_size: int = 512,
         device: str = TabDPTEstimator._DEFAULT_DEVICE, use_flash: bool = True, 
         compile: bool = True, categorical_feature_indices: list = None, 
-        retriever:Retriever=None
+        retriever:Retriever=None, fit_retriever_before_fit: bool = False
     ):
         super().__init__(
             mode="cls", 
@@ -28,11 +28,10 @@ class EHRPFNClassifier(TabDPTEstimator, ClassifierMixin):
             inf_batch_size=inf_batch_size, 
             device=device, use_flash=use_flash, 
             compile=compile, 
-            categorical_feature_indices=categorical_feature_indices
+            categorical_feature_indices=categorical_feature_indices,
+            retriever=retriever,
+            fit_retriever_before_fit=fit_retriever_before_fit
         )
-
-        self.retriever = retriever
-
 
 
     def fit(self, X, y, **kwargs):
@@ -41,6 +40,9 @@ class EHRPFNClassifier(TabDPTEstimator, ClassifierMixin):
         assert X.shape[0] == y.shape[0], "X and y must have the same number of samples"
         assert X.ndim == 2, "X must be a 2D array"
         assert y.ndim == 1, "y must be a 1D array"
+
+        if self.fit_retriever_before_fit:
+            self.retriever.fit([{self.retriever.field_to_use: item, 'label': label} for item, label in zip(X, y)])
 
         self.imputer = SimpleImputer(strategy="mean")
         X = self.imputer.fit_transform(X)
@@ -82,7 +84,6 @@ class EHRPFNClassifier(TabDPTEstimator, ClassifierMixin):
 
     @torch.no_grad()
     def ensemble_predict_proba(self, X: np.ndarray, n_ensembles:int=1, temperature: float = 0.8, context_size: int = 1024, return_logits: bool = False, seed: int = None, **kwargs):
-        
         train_x, train_y, test_x = self._prepare_prediction(X)
         pbar = tqdm(total=n_ensembles*len(X), desc="Predicting")
 
@@ -99,7 +100,8 @@ class EHRPFNClassifier(TabDPTEstimator, ClassifierMixin):
                 X_train = train_x
                 X_test = test_x
 
-            self.retriever.fit([{self.retriever.field_to_use: item.cpu().numpy()} for item in X_train])
+            if not self.fit_retriever_before_fit:
+                self.retriever.fit([{self.retriever.field_to_use: item.cpu().numpy()} for item in X_train])
 
             if context_size >= self.n_instances:
                 X_train = pad_x(X_train[None, :, :], self.max_features).to(self.device)
@@ -131,7 +133,10 @@ class EHRPFNClassifier(TabDPTEstimator, ClassifierMixin):
                     start = b * self.inf_batch_size
                     end = min(len(X_test), (b + 1) * self.inf_batch_size)
 
-                    indices_nni = self.retriever.retrieve([{self.retriever.field_to_use: item.cpu().numpy()} for item in X_test[start:end]])
+                    if not self.fit_retriever_before_fit:
+                        indices_nni = self.retriever.retrieve([{self.retriever.field_to_use: item.cpu().numpy()} for item in X_test[start:end]])
+                    else:
+                        indices_nni = self.retriever.retrieve([{self.retriever.field_to_use: item} for item in self.X_test_ori[start:end]])
 
                     if seed is not None:
                         shuffled_indices = generate_random_permutation(indices_nni.shape[1], seed)
