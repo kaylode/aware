@@ -1,11 +1,14 @@
 from .EHRPFN import EHRPFNClassifier, EHRPFNRegressor
 from .talent_wrapper import TALENTWrapper
 from .knn import SimpleKNNClassifier, SimpleKNNRegressor
+from .KNNPFN import KNNPFN
 from tradml import TradMLTuner
 from ehrret import get_retriever, get_ehr_retrieval_weight
+from ehrret.encoding.coding.icd_tokenizer import ICDHierachicalTokenizer
 from ehrpfn.utils import save_model
 import os
 import os.path as osp
+import numpy as np
 import time
 from ehrpfn.utils import LoggerObserver
 LOGGER = LoggerObserver.getLogger("main")
@@ -21,28 +24,72 @@ def get_predictions(args, data, config_dict):
 	categorical_feature_indices = data['categorical_feature_indices']
 	is_classification = data['is_classification']
 	study_name = config_dict['study_name']
+	num_classes = data['num_classes'] if is_classification else None
+	X_train_original, X_test_original = data['X_train_original'], data['X_test_original']
+
 	method_name = args.inference.model
 
+	retriever_additional_fit = {
+		'ori_feature': X_train_original.values.astype(np.float64),
+	}
+	retriever_additional_query = {
+		'ori_feature': X_test_original.values.astype(np.float64),
+	}
+
+	if "raw_codes_train" in data and "raw_codes_test" in data:
+		raw_codes_train = [" ".join(i) for i in data['raw_codes_train']]
+		raw_codes_test = [" ".join(i) for i in data['raw_codes_test']]
+		tokenizer = ICDHierachicalTokenizer()
+		tokenized_train = tokenizer(raw_codes_train)
+		tokenized_train = [" ".join([item for sublist in seq for item in sublist]) for seq in tokenized_train]
+		tokenized_test = tokenizer(raw_codes_test)
+		tokenized_test = [" ".join([item for sublist in seq for item in sublist]) for seq in tokenized_test]
+
+		retriever_additional_fit['codes'] = raw_codes_train
+		retriever_additional_fit['hierarchical_codes'] = tokenized_train
+		retriever_additional_query['codes'] = raw_codes_test
+		retriever_additional_query['hierarchical_codes'] = tokenized_test
+
+
 	## Init context retrievers
-	if args.retrieval.retrieval_method is not None and args.retrieval.retrieval_method.startswith('weighted'):
-		retrieval_method, weight_type = args.retrieval.retrieval_method.split('_')
-		retrieval_weights = get_ehr_retrieval_weight(
-			weight_type, task=args.data.task, 
-			feature_names=data.get('feature_names', None),
-			json_weight_path=args.retrieval.get('weight_json_path', None)
-		)
-	else:
-		retrieval_weights = None
+	retrieval_weights = None
+	retrieval_method = args.retrieval.retrieval_method
+	if args.retrieval.retrieval_method is not None:
+		if args.retrieval.retrieval_method.endswith('cosine'):
+			distance = 'cosine'
+			args.retrieval.retrieval_method = args.retrieval.retrieval_method.replace('_cosine', '')
+		elif args.retrieval.retrieval_method.lower().endswith('l2'):
+			distance = 'L2'
+			args.retrieval.retrieval_method = args.retrieval.retrieval_method.lower().replace('_l2', '')
+		else:
+			distance = args.retrieval.get('distance', 'L2')
+
 		retrieval_method = args.retrieval.retrieval_method
+		if args.retrieval.retrieval_method.startswith('weighted'):
+			retrieval_method, weight_type = args.retrieval.retrieval_method.split('_')
+			retrieval_weights = get_ehr_retrieval_weight(
+				weight_type, task=args.data.task, 
+				feature_names=data.get('feature_names', None),
+				json_weight_path=args.retrieval.get('weight_json_path', None)
+			)
+			
+	field_to_use='raw_feature'
+	if field_to_use == 'raw_feature':
+		n_features = X_train.shape[1]
+	else:
+		n_features = X_train_original.shape[1]
 
 	if args.retrieval.retrieval_method is not None:
 		retriever = get_retriever(
 			retrieval_method, 
 			k=args.retrieval.context_size,
-			distance=args.retrieval.distance,
+			distance=distance,
+			field_to_use=field_to_use,
 			weights=retrieval_weights,
-			n_features=X_train.shape[1],
+			n_features=n_features,
 			pretrained_path=args.retrieval.pretrained_path,
+			embedding_dim=args.retrieval.get('embedding_dim', 128),
+			num_classes=num_classes
 		)
 	else:
 		retriever = None
@@ -107,6 +154,8 @@ def get_predictions(args, data, config_dict):
 		start_time = time.time()
 		model.fit(
 			X_train, y_train,
+			retriever_additional_fit = retriever_additional_fit,
+			retriever_additional_query = retriever_additional_query,
 		)
 		training_time = time.time() - start_time
 		start_time = time.time()
@@ -117,58 +166,18 @@ def get_predictions(args, data, config_dict):
 		running_time = time.time() - start_time
 
 	elif method_name == "tabpfn":
-		from tabpfn import TabPFNClassifier, TabPFNRegressor
+		from ehrpfn.models.TabPFN import get_base_tabpfn
 
-		from ehrpfn.models.TabPFN.utils import (
-			default_classifier_preprocessor_configs,
-			default_regressor_preprocessor_configs,
+		model = get_base_tabpfn(
+			categorical_feature_indices=categorical_feature_indices,
+			is_classification=is_classification,
+			device='cuda',
+			seed=args.inference.seed
 		)
-		
-		if is_classification:
-			if args.data.selection_method is not None:
-				device = 'cuda'
-			else:
-				device = 'cpu'
-			model = TabPFNClassifier(
-				n_estimators=8,
-				ignore_pretraining_limits=True,
-				categorical_features_indices=categorical_feature_indices,
-				device=device,
-				n_jobs=4,
-				random_state=args.inference.seed,
-				memory_saving_mode=True,
-				fit_mode = 'low_memory',
-				inference_config={
-					"SUBSAMPLE_SAMPLES": 1024,
-					"FEATURE_SHIFT_METHOD": "shuffle",
-					'FINGERPRINT_FEATURE': False,
-					"CLASS_SHIFT_METHOD": "shuffle",
-					"PREPROCESS_TRANSFORMS": default_classifier_preprocessor_configs(),
-				}  # Needs to be set low so that not OOM on fitting intermediate nodes
-			)
-		else:
-			model = TabPFNRegressor(
-				n_estimators=8,
-				ignore_pretraining_limits=True,
-				categorical_features_indices=categorical_feature_indices,
-				device="cpu",
-				fit_mode = 'low_memory',
-				random_state=args.inference.seed,
-				memory_saving_mode=True,
-				n_jobs=4,
-				inference_config={
-					"SUBSAMPLE_SAMPLES": 1024,
-					"FEATURE_SHIFT_METHOD": "shuffle",
-					'FINGERPRINT_FEATURE': False,
-					"CLASS_SHIFT_METHOD": "shuffle",
-					"PREPROCESS_TRANSFORMS": default_regressor_preprocessor_configs(),
-				}  # Needs to be set low so that not OOM on fitting intermediate nodes
-			)
 
 		start_time = time.time()
 		model.fit(X_train, y_train)
 		training_time = time.time() - start_time
-		# save_fitted_tabpfn_model(model, osp.join(result_folder, 'model.tabpfn_fit'))
 		
 		start_time = time.time()
 		if is_classification:
@@ -177,18 +186,29 @@ def get_predictions(args, data, config_dict):
 			y_pred = model.predict(X_test)
 		running_time = time.time() - start_time
 
-	elif method_name == "tabpfn-retrieval":
-		from ehrpfn.models import get_tabpfn_knn_results
-		start_time = time.time()
-		all_predictions = get_tabpfn_knn_results(
-			X_train, y_train, 
-			X_test, 
-			categorical_feature_indices, 
-			is_classification, 
+	elif method_name == "knnpfn":
+		model = KNNPFN(
 			retriever=retriever,
-			n_ensembles=8,
-			seed=args.inference.seed,
+			is_classification=is_classification,
+			categorical_feature_indices=categorical_feature_indices,
+			seed=42,
+			device='cuda',
+			batch_size=512,
 		)
+		start_time = time.time()
+		model.fit(
+			X_train, y_train,
+			retriever_additional_fit = retriever_additional_fit,
+			retriever_additional_query = retriever_additional_query,
+		)
+		training_time = time.time() - start_time
+		# save_fitted_tabpfn_model(model, osp.join(result_folder, 'model.tabpfn_fit'))
+		
+		start_time = time.time()
+		if is_classification:
+			y_pred = model.predict(X_test)
+		else:
+			y_pred = model.predict(X_test)
 		running_time = time.time() - start_time
 
 	elif method_name in ['tabdpt', 'ehrpfn'] or method_name.startswith('ehrpfn'):
@@ -200,29 +220,35 @@ def get_predictions(args, data, config_dict):
 				inf_batch_size=512,
 				compile = False,
 				categorical_feature_indices=categorical_feature_indices,
-				retriever=retriever
+				retriever=retriever,
+				fit_retriever_before_fit=True
 			)
 		else:
 			model = EHRPFNRegressor(
 				pretrained_path=args.inference.pretrained_path,
 				inf_batch_size=512,
 				categorical_feature_indices=categorical_feature_indices,
-				retriever=retriever
+				retriever=retriever,
+				fit_retriever_before_fit=True
 			)
 
-		model.fit(X_train, y_train)
+		model.fit(
+			X_train, y_train,
+			retriever_additional_fit = retriever_additional_fit,
+			retriever_additional_query = retriever_additional_query,
+		)
 		start_time = time.time()
 		if is_classification:
 			y_pred = model.predict(
 				X_test, 
-				n_ensembles=8,
+				n_ensembles=1,
 				temperature=0.8, context_size=1024, 
 			)
 		else:
 			y_pred = model.predict(
 				X_test,
 				context_size=1024, 
-				n_ensembles=8,
+				n_ensembles=1,
 			)
 		running_time = time.time() - start_time
 

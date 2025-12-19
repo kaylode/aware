@@ -1,3 +1,4 @@
+from typing import *
 import numpy as np
 import torch
 import math
@@ -34,7 +35,7 @@ class EHRPFNClassifier(TabDPTEstimator, ClassifierMixin):
         )
 
 
-    def fit(self, X, y, **kwargs):
+    def fit(self, X, y, retriever_additional_fit:Dict=None, **kwargs):
         assert isinstance(X, np.ndarray), "X must be a numpy array"
         assert isinstance(y, np.ndarray), "y must be a numpy array"
         assert X.shape[0] == y.shape[0], "X and y must have the same number of samples"
@@ -42,7 +43,16 @@ class EHRPFNClassifier(TabDPTEstimator, ClassifierMixin):
         assert y.ndim == 1, "y must be a 1D array"
 
         if self.fit_retriever_before_fit:
-            self.retriever.fit([{self.retriever.field_to_use: item, 'label': label} for item, label in zip(X, y)])
+            fit_items = []
+            for i, (item, label) in enumerate(zip(X, y)):
+                fit_dict = {"raw_feature": item, "label": label}
+                if retriever_additional_fit is not None:
+                    for key, value in retriever_additional_fit.items():
+                        assert len(value) == X.shape[0], "Length of retriever_additional_fit values must match number of samples"
+                        assert key not in fit_dict, f"Key {key} already exists in fit_dict"
+                        fit_dict[key] = value[i]
+                fit_items.append(fit_dict)
+            self.retriever.fit(fit_items)
 
         self.imputer = SimpleImputer(strategy="mean")
         X = self.imputer.fit_transform(X)
@@ -83,14 +93,15 @@ class EHRPFNClassifier(TabDPTEstimator, ClassifierMixin):
     
 
     @torch.no_grad()
-    def ensemble_predict_proba(self, X: np.ndarray, n_ensembles:int=1, temperature: float = 0.8, context_size: int = 1024, return_logits: bool = False, seed: int = None, **kwargs):
+    def ensemble_predict_proba(self, X: np.ndarray, n_ensembles:int=1, temperature: float = 0.8, return_logits: bool = False, seed: int = None, retriever_additional_query=None, **kwargs):
         train_x, train_y, test_x = self._prepare_prediction(X)
         pbar = tqdm(total=n_ensembles*len(X), desc="Predicting")
+        context_size = self.retriever.k if self.retriever is not None else self.n_instances
 
         logits_cumsum = None
         for _ in range(n_ensembles):
 
-            seed = int(np.random.SeedSequence().generate_state(1)[0])
+            # seed = int(np.random.SeedSequence().generate_state(1)[0])
 
             if seed is not None:
                 feat_perm = generate_random_permutation(train_x.shape[1], seed)
@@ -133,10 +144,21 @@ class EHRPFNClassifier(TabDPTEstimator, ClassifierMixin):
                     start = b * self.inf_batch_size
                     end = min(len(X_test), (b + 1) * self.inf_batch_size)
 
-                    if not self.fit_retriever_before_fit:
-                        indices_nni = self.retriever.retrieve([{self.retriever.field_to_use: item.cpu().numpy()} for item in X_test[start:end]])
-                    else:
-                        indices_nni = self.retriever.retrieve([{self.retriever.field_to_use: item} for item in self.X_test_ori[start:end]])
+
+                    query_items = []
+                    for i in range(start, end):
+                        if isinstance(self.X_test_ori, torch.Tensor):
+                            query_dict = {"raw_feature": self.X_test_ori[i].cpu().numpy()}
+                        else:
+                            query_dict = {"raw_feature": self.X_test_ori[i]}
+                        if retriever_additional_query is not None:
+                            for key, value in retriever_additional_query.items():
+                                assert len(value) == self.X_test_ori.shape[0], "Length of retriever_additional_fit values must match number of samples"
+                                assert key not in query_dict, f"Key {key} already exists in query_dict"
+                                query_dict[key] = value[i]
+                        query_items.append(query_dict)
+
+                    indices_nni = self.retriever.retrieve(query_items)
 
                     if seed is not None:
                         shuffled_indices = generate_random_permutation(indices_nni.shape[1], seed)
@@ -187,5 +209,5 @@ class EHRPFNClassifier(TabDPTEstimator, ClassifierMixin):
         pred /= pred.sum(axis=-1, keepdims=True)  # numerical stability
         return pred
 
-    def predict(self, X, n_ensembles: int = 1, temperature: float = 0.8, context_size: int = 128, seed: int = None, **kwargs):
-        return self.ensemble_predict_proba(X, n_ensembles=n_ensembles, temperature=temperature, context_size=context_size, **kwargs)
+    def predict(self, X, n_ensembles: int = 1, temperature: float = 0.8,seed: int = None, retriever_additional_query=None, **kwargs):
+        return self.ensemble_predict_proba(X, n_ensembles=n_ensembles, temperature=temperature, seed=seed, retriever_additional_query=retriever_additional_query, **kwargs)
