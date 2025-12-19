@@ -12,12 +12,12 @@ ROOT=$(pwd)
 export HYDRA_FULL_ERROR=1
 export LOGGING_DIR=${ROOT}/${LOGGING_DIR}/inference/
 
-OUTPUT_DIR="${ROOT}/${SAVE_DIR}/results"
+OUTPUT_DIR="${ROOT}/${SAVE_DIR}/benchmark"
 
 if [ $DATASET = "eicu" ]; then
     TASKS=("MORTALITY" "READMISSION")
 elif [ $DATASET = "mimiciv" ]; then
-    TASKS=("Mortality" "Readmission"  "Length of Stay"   "ICD SEPSIS")
+    TASKS=("Mortality" "Readmission"  "Length of Stay" "ICD SEPSIS")
 elif [ $DATASET = "sjh_cpe" ]; then
     TASKS=("EPISODE_CPE_INFECTION_FLAGGED" "WILL_READMIT_WITHIN_30_DAYS")
 else
@@ -31,6 +31,7 @@ for TASK in "${TASKS[@]}" ; do
     PYTHONPATH=. uv run ehrpfn/selection.py \
         --config-path "${MODEL_PATH}" \
         --config-name config.yaml \
+        inference.output_folder="${ROOT}/${SAVE_DIR}/selection" \
         +explainable_model_path="${OUTPUT_DIR}/${DATASET}/${TASK}/${METHOD}_${DATASET}_${TASK}" \
         +use_shap=True
 done
