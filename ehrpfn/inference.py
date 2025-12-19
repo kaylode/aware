@@ -8,7 +8,7 @@ from omegaconf import DictConfig
 from ehrpfn.data import get_data, prepare_data
 from ehrpfn.models import get_predictions
 from ehrpfn.utils import FileLogger, LoggerObserver, seed_everything, setup_inference
-from ehrpfn.utils.metrics import run_binary_classification_metrics, run_regression_metrics
+from ehrpfn.metrics import run_binary_classification_metrics, run_regression_metrics
 
 
 LOGGER = LoggerObserver.getLogger("main")
@@ -17,6 +17,7 @@ LOGGER = LoggerObserver.getLogger("main")
 def inference(args: DictConfig, data):
 
 	result_folder, study_name = setup_inference(args, data)
+	LOGGER.subscribe(FileLogger(__name__, result_folder, debug=True))
 	
 	predictions, running_time, training_time = get_predictions(args, data, {
 		"result_folder": result_folder,
@@ -54,7 +55,6 @@ def run(args: DictConfig):
 
 	seed_everything(args.inference.seed)
 
-	LOGGER.subscribe(FileLogger(__name__, osp.join(args.inference.output_folder, 'logs'), debug=True))
 	data = get_data(args)
 
 	if isinstance(data, list):

@@ -18,10 +18,10 @@ def setup_inference(args, data):
 		data['categorical_feature_indices'],
 	)
 
-	data_name = data.get('data_name', args.data.data_name)
-	target_column = args.data.task if not args.data.data_name.startswith('openml_ehr') else data_name
+	data_name = args.data.data_name
+	target_column = args.data.task if not args.data.data_name.startswith('openml_ehr') else data.get('data_name', None)
 
-	result_folder = osp.join(args.inference.output_folder, "results", args.data.data_name, target_column)
+	result_folder = osp.join(args.inference.output_folder, args.data.data_name, target_column)
 	os.makedirs(result_folder, exist_ok=True)
 
 	model_name = args.inference.model
@@ -31,8 +31,8 @@ def setup_inference(args, data):
 	if not args.data.data_name.startswith('openml_ehr'):
 		tags.append(f"TASK:{args.data.task}")
 	else:
-		tags.append(f"TASK:{data_name}")
-		
+		tags.append(f"TASK:{target_column}")
+	
 	if args.data.selection_method is not None:
 		tags.append(f"SELECTION:{args.data.selection_method}")
 		study_name += f"_sel:{args.data.selection_method}"
@@ -50,10 +50,9 @@ def setup_inference(args, data):
 		tags.append(f"IMBALANCE_RATIO:{args.data.sampling.imbalance_ratio}")
 		study_name += f"_imbalance:{args.data.sampling.imbalance_ratio}"
 	
-	if model_name.startswith((('ehrpfn', 'knn'))) and args.retrieval.retrieval_method is not None:
+	if model_name.startswith((('ehrpfn', 'knn', 'tabdpt'))) and args.retrieval.retrieval_method is not None:
 		study_name += f"_retrieval:{args.retrieval.retrieval_method}"
 
-	
 	result_folder = osp.join(result_folder, study_name)
 	os.makedirs(result_folder, exist_ok=True)
 
@@ -86,7 +85,7 @@ def setup_inference(args, data):
 	
 	if args.wandb.use_wandb:
 		wandb_kwargs = {
-			"name": f"{args.inference.model}" if args.inference.model not in ['tabdpt', 'tabpfn-retrieval', 'knn', 'knn-simple'] else f"{args.inference.model}_{args.retrieval.retrieval_method}",
+			"name": f"{args.inference.model}" if args.inference.model not in ['tabdpt', 'tabpfn-retrieval', 'knn', 'knnpfn', 'knn-simple'] else f"{args.inference.model}_{args.retrieval.retrieval_method}",
 			"entity": "kaylode",
 			"project": "tabpfn-ehr",
 			"reinit": True,

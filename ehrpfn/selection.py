@@ -28,7 +28,7 @@ def extract_top_features(args: DictConfig):
             - rankings_dict: Feature rankings
             - scores_dict: Feature importance scores
     """
-    result_folder = osp.join(args.inference.output_folder, "selection", args.data.data_name, args.data.task)
+    result_folder = osp.join(args.inference.output_folder, args.data.data_name, args.data.task)
     os.makedirs(result_folder, exist_ok=True)
     
     model_path = osp.join(args.explainable_model_path, 'model.pkl')

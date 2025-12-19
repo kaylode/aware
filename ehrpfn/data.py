@@ -12,6 +12,8 @@ from ehrmeds import (
 	get_openml_ehr_default_configs,
 	get_openml_ehr_imbalance_default_configs
 )
+import numpy as np
+import pandas as pd
 from ehrpfn.utils import LoggerObserver
 LOGGER = LoggerObserver.getLogger("main")
 
@@ -19,6 +21,7 @@ LOGGER = LoggerObserver.getLogger("main")
 def get_data(args: DictConfig):
 	data_name = args.data.data_name
 	if args.data.selection_method is not None:
+		assert args.data.num_features is not None, "Please provide num_features when using feature selection."
 		args.data.selection_method += f"_{args.data.num_features}"
 
 	if data_name.startswith(('mimicpipe', 'mimiciv', 'mimic')):
@@ -41,7 +44,8 @@ def get_data(args: DictConfig):
 
 	configs = config_func(
 		TASK=args.data.task,
-		selection_method=args.data.selection_method
+		selection_method=args.data.selection_method,
+		feature_selection_path=args.data.feature_selection_path,
 	)
 	data = data_func(**configs)
 	return data
@@ -73,23 +77,53 @@ def prepare_data(data, args: DictConfig):
 		feature_names = [feature_names[i] for i in range(len(feature_names)) if i not in time_series_cols]
 
 	if args.data.sampling.do_sampling:
-		from ehrpfn.utils.sampling import synthetic_sampling
+		from ehrmeds.utils.sampling import synthetic_sampling
 
 		LOGGER.text(f"================= Performing SYNTHESIS SAMPLING =================", level=LoggerObserver.DEBUG)
 		LOGGER.text(f"Before sampling: {X_train.shape}, {y_train.shape}", level=LoggerObserver.DEBUG)
-		sampling_type, sampling_method = args.data.sampling.sampling_method.split('_')
+		try:
+			sampling_type, sampling_method = args.data.sampling.sampling_method.split('_')
+			study_name += f"_sampl:{sampling_type}-{sampling_method}"
+		except:
+			sampling_type, sampling_method = None, None
+
 		X_train, y_train = synthetic_sampling(
 			X_train, y_train, 
 			oversampling=sampling_method if sampling_type == "oversampling" else None,
 			undersampling=sampling_method if sampling_type == "undersampling" else None,
 			seed=args.inference.seed,
-			max_samples=10000 if args.inference.model in ['tabpfn', 'rftabpfn'] else None,
 			balance_negatives=args.data.sampling.balance_negatives, 
 			negative_ratio=args.data.sampling.negative_ratio
 		)
-		study_name += f"_sampl:{sampling_type}-{sampling_method}"
 		LOGGER.text(f"After sampling: {X_train.shape}, {y_train.shape}", level=LoggerObserver.DEBUG)
+	
+	if args.data.sampling.max_samples is not None:
+		from ehrmeds.utils.sampling import limit_samples
 
+		LOGGER.text(f"Limiting samples to {args.data.sampling.max_samples}", level=LoggerObserver.DEBUG)
+		X_train, y_train, indices = limit_samples(
+			X_train, y_train, 
+			max_samples=args.data.sampling.max_samples,
+			seed=args.inference.seed,
+			stratify=True,
+			return_indices=True
+		)
+		LOGGER.text(f"After limiting samples: {X_train.shape}, {y_train.shape}", level=LoggerObserver.DEBUG)
+	
+
+		for key in data:
+			if key == 'X_train' or key == 'y_train':
+				continue
+			if isinstance(data[key], Iterable) and len(data[key]) == len(data['X_train']):
+				if isinstance(data[key], np.ndarray):
+					data[key] = data[key][indices]
+				elif isinstance(data[key], list):
+					data[key] = [data[key][i] for i in indices]
+				elif isinstance(data[key], pd.DataFrame):
+					data[key] = data[key].iloc[indices]
+				else:
+					raise ValueError(f"Unsupported data type for key {key} during sample limiting.")
+	
 	y_train = y_train.astype(int)
 	y_test = y_test.astype(int)
 	LOGGER.text(f"Data shape: {X_train.shape}, {X_test.shape}", level=LoggerObserver.DEBUG)
