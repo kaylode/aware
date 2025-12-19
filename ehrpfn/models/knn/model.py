@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 from typing import Optional, Any
 from ehrret import Retriever
 from sklearn.base import ClassifierMixin, RegressorMixin
@@ -9,20 +10,45 @@ class SimpleKNNClassifier(ClassifierMixin):
         self.retriever = retriever
         self._is_fitted = False
 
-    def fit(self, X: np.ndarray, y: np.ndarray, **kwargs):
+    def fit(self, X: np.ndarray, y: np.ndarray, retriever_additional_fit: Optional[dict] = None, **kwargs):
         self.X = X
         self.y = y
 
-        self.retriever.fit([{self.retriever.field_to_use: item.cpu().numpy()} for item in X])
-
+        fit_items = []
+        for i, (item, label) in enumerate(zip(X, y)):
+            fit_dict = {"raw_feature": item, "label": label}
+            if retriever_additional_fit is not None:
+                for key, value in retriever_additional_fit.items():
+                    assert len(value) == X.shape[0], "Length of retriever_additional_fit values must match number of samples"
+                    assert key not in fit_dict, f"Key {key} already exists in fit_dict"
+                    fit_dict[key] = value[i]
+            fit_items.append(fit_dict)
+        self.retriever.fit(fit_items)
 
         self._is_fitted = True
         return self
 
-    def predict(self, X: np.ndarray, **kwargs) -> np.ndarray:
+    def predict(self, X: np.ndarray, retriever_additional_query: Optional[dict] = None, **kwargs) -> np.ndarray:
         if not self._is_fitted:
             raise RuntimeError("KNNClassifier is not fitted yet.")
-        indices = self.retriever.retrieve(X, **kwargs)
+        # indices = self.retriever.retrieve(X, **kwargs)
+
+        query_items = []
+        for i in range(X.shape[0]):
+            if isinstance(X, torch.Tensor):
+                query_dict = {"raw_feature": X[i].cpu().numpy()}
+            else:
+                query_dict = {"raw_feature": X[i]}
+            if retriever_additional_query is not None:
+                for key, value in retriever_additional_query.items():
+                    assert len(value) == X.shape[0], "Length of retriever_additional_fit values must match number of samples"
+                    assert key not in query_dict, f"Key {key} already exists in query_dict"
+                    query_dict[key] = value[i]
+            query_items.append(query_dict)
+
+        indices = self.retriever.retrieve(query_items)
+        
+
         # indices shape: (n_samples, k)
         if indices.ndim == 1:
             indices = indices[None, :]
@@ -31,10 +57,26 @@ class SimpleKNNClassifier(ClassifierMixin):
         preds = np.array([np.bincount(row.astype(int)).argmax() for row in neighbor_labels])
         return preds
 
-    def predict_proba(self, X: np.ndarray, **kwargs) -> np.ndarray:
+    def predict_proba(self, X: np.ndarray, retriever_additional_query: Optional[dict] = None, **kwargs) -> np.ndarray:
         if not self._is_fitted:
             raise RuntimeError("KNNClassifier is not fitted yet.")
-        indices = self.retriever.retrieve([{self.retriever.field_to_use: item.cpu().numpy()} for item in X])
+        
+        query_items = []
+        for i in range(X.shape[0]):
+            if isinstance(X, torch.Tensor):
+                query_dict = {"raw_feature": X[i].cpu().numpy()}
+            else:
+                query_dict = {"raw_feature": X[i]}
+            if retriever_additional_query is not None:
+                for key, value in retriever_additional_query.items():
+                    assert len(value) == X.shape[0], "Length of retriever_additional_fit values must match number of samples"
+                    assert key not in query_dict, f"Key {key} already exists in query_dict"
+                    query_dict[key] = value[i]
+            query_items.append(query_dict)
+
+        indices = self.retriever.retrieve(query_items)
+
+
         if indices.ndim == 1:
             indices = indices[None, :]
         neighbor_labels = self.y[indices]
