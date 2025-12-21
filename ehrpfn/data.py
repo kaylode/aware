@@ -24,12 +24,19 @@ def get_data(args: DictConfig):
 		assert args.data.num_features is not None, "Please provide num_features when using feature selection."
 		args.data.selection_method += f"_{args.data.num_features}"
 
+	data_dict = dict(
+		TASK=args.data.task,
+		selection_method=args.data.selection_method,
+		feature_selection_path=args.data.feature_selection_path,
+	)
 	if data_name.startswith(('mimicpipe', 'mimiciv', 'mimic')):
 		config_func = get_mimiciv_default_configs
 		data_func = get_mimic_dataset
 	elif data_name == 'openml_ehr':
 		config_func = get_openml_ehr_default_configs
 		data_func = get_openml_ehr
+		if args.data.task is not None and args.data.task != '':
+			data_dict['force_ids'] = [int(args.data.task)]
 	elif data_name == 'openml_ehr_imbalance':
 		config_func = get_openml_ehr_imbalance_default_configs
 		data_func = get_openml_ehr_imbalance
@@ -43,9 +50,7 @@ def get_data(args: DictConfig):
 		raise ValueError(f"Data {data_name} is not supported. Please choose from ['mimiciv', 'sjh_cpe']")
 
 	configs = config_func(
-		TASK=args.data.task,
-		selection_method=args.data.selection_method,
-		feature_selection_path=args.data.feature_selection_path,
+		**data_dict
 	)
 	data = data_func(**configs)
 	return data
@@ -99,6 +104,7 @@ def prepare_data(data, args: DictConfig):
 	
 	if args.data.sampling.max_samples is not None:
 		from ehrmeds.utils.sampling import limit_samples
+		import polars as pl
 
 		LOGGER.text(f"Limiting samples to {args.data.sampling.max_samples}", level=LoggerObserver.DEBUG)
 		X_train, y_train, indices = limit_samples(
@@ -121,8 +127,10 @@ def prepare_data(data, args: DictConfig):
 					data[key] = [data[key][i] for i in indices]
 				elif isinstance(data[key], pd.DataFrame):
 					data[key] = data[key].iloc[indices]
+				elif isinstance(data[key], pl.DataFrame):
+					data[key] = data[key][indices]
 				else:
-					raise ValueError(f"Unsupported data type for key {key} during sample limiting.")
+					raise ValueError(f"Unsupported data type for key {key}: {type(data[key])} during sample limiting.")
 	
 	y_train = y_train.astype(int)
 	y_test = y_test.astype(int)

@@ -12,6 +12,7 @@ SELECTION=$3
 SAMPLING=null
 RETRIEVAL=$4 
 NUM_FEATURES=$5
+CONTEXT_SIZE=${6:-1024}
 
 export LOGGING_DIR=${ROOT}/${LOGGING_DIR}/inference/
 
@@ -27,6 +28,12 @@ else
     PRETRAIN_PATH=null
 fi
 
+if [ $METHOD = "tabpfn" ]; then
+    NUM_MAX_SAMPLES=10000 #tabpfn v2.0 limit
+else
+    NUM_MAX_SAMPLES=null
+fi
+
 if [ $DATASET = "eicu" ]; then
     TASKS=("MORTALITY" "READMISSION")
 elif [ $DATASET = "mimiciv" ]; then
@@ -34,7 +41,7 @@ elif [ $DATASET = "mimiciv" ]; then
 elif [ $DATASET = "sjh_cpe" ]; then
     TASKS=("EPISODE_CPE_INFECTION_FLAGGED" "WILL_READMIT_WITHIN_30_DAYS")
 elif [ $DATASET = "openml_ehr" ]; then
-    TASKS=("None")
+    TASKS=("43550" "4541")
 else
     echo "Unknown dataset: $DATASET"
     exit 1  
@@ -66,8 +73,10 @@ for SEED in  1702  ; do #2000  1603
             data.task="${TASK}" \
             data.sampling.do_sampling=${SAMPLING} \
             data.selection_method=${SELECTION} \
-            retrieval.retrieval_method="${RETRIEVAL}" \
             data.feature_selection_path="${FEATURE_SELECTION_PATH}" \
+            data.sampling.max_samples=${NUM_MAX_SAMPLES} \
+            retrieval.context_size=${CONTEXT_SIZE} \
+            retrieval.retrieval_method="${RETRIEVAL}" \
             retrieval.weight_json_path="${RETRIEVAL_JSON_PATH}" \
             inference.model="${METHOD}" \
             inference.output_folder="${ROOT}/${SAVE_DIR}/benchmark" \
