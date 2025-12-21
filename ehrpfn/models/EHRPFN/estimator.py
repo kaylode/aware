@@ -16,7 +16,9 @@ class TabDPTEstimator(BaseEstimator):
     _DEFAULT_DEVICE = "cuda:0"
 
     def __init__(self, 
-            mode: str, pretrained_path:str=None, inf_batch_size: int = 512, device: str = _DEFAULT_DEVICE,
+            mode: str, pretrained_path:str=None, inf_batch_size: int = 512, 
+            n_ensembles: int = 1, temperature: float = 0.8,
+            device: str = _DEFAULT_DEVICE,
             use_flash: bool = True, compile: bool = True, categorical_feature_indices: list = None,
             retriever: Retriever = None,
             fit_retriever_before_fit: bool = True
@@ -29,6 +31,8 @@ class TabDPTEstimator(BaseEstimator):
         self.categorical_feature_indices = categorical_feature_indices
         self.retriever = retriever
         self.fit_retriever_before_fit = fit_retriever_before_fit
+        self.n_ensembles = n_ensembles
+        self.temperature = temperature
 
         # automatically download model weight if path is not found
         if not os.path.exists(path):

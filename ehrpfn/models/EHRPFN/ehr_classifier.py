@@ -19,6 +19,7 @@ class EHRPFNClassifier(TabDPTEstimator, ClassifierMixin):
 
     def __init__(
         self, pretrained_path:str=None, inf_batch_size: int = 512,
+        n_ensembles: int = 1, temperature: float = 0.8,
         device: str = TabDPTEstimator._DEFAULT_DEVICE, use_flash: bool = True, 
         compile: bool = True, categorical_feature_indices: list = None, 
         retriever:Retriever=None, fit_retriever_before_fit: bool = False
@@ -27,6 +28,7 @@ class EHRPFNClassifier(TabDPTEstimator, ClassifierMixin):
             mode="cls", 
             pretrained_path=pretrained_path, 
             inf_batch_size=inf_batch_size, 
+            n_ensembles=n_ensembles, temperature=temperature,
             device=device, use_flash=use_flash, 
             compile=compile, 
             categorical_feature_indices=categorical_feature_indices,
@@ -93,13 +95,13 @@ class EHRPFNClassifier(TabDPTEstimator, ClassifierMixin):
     
 
     @torch.no_grad()
-    def ensemble_predict_proba(self, X: np.ndarray, n_ensembles:int=1, temperature: float = 0.8, return_logits: bool = False, seed: int = None, retriever_additional_query=None, **kwargs):
+    def ensemble_predict_proba(self, X: np.ndarray, return_logits: bool = False, seed: int = None, retriever_additional_query=None, **kwargs):
         train_x, train_y, test_x = self._prepare_prediction(X)
-        pbar = tqdm(total=n_ensembles*len(X), desc="Predicting")
+        pbar = tqdm(total=self.n_ensembles*len(X), desc="Predicting")
         context_size = self.retriever.k if self.retriever is not None else self.n_instances
 
         logits_cumsum = None
-        for _ in range(n_ensembles):
+        for _ in range(self.n_ensembles):
 
             # seed = int(np.random.SeedSequence().generate_state(1)[0])
 
@@ -135,7 +137,7 @@ class EHRPFNClassifier(TabDPTEstimator, ClassifierMixin):
                 else:
                     pred = self._predict_large_cls(X_train, X_test, y_train)
 
-                pred = pred[..., :self.num_classes] / temperature
+                pred = pred[..., :self.num_classes] / self.temperature
                 pred = torch.nn.functional.softmax(pred.float(), dim=-1)
                 pred_val = pred.squeeze().detach().cpu().numpy()
             else:
@@ -190,7 +192,7 @@ class EHRPFNClassifier(TabDPTEstimator, ClassifierMixin):
 
                     pred = pred.float()
                     if not return_logits:
-                        pred = pred[..., :self.num_classes] / temperature
+                        pred = pred[..., :self.num_classes] / self.temperature
                         pred = torch.nn.functional.softmax(pred, dim=-1)
                         pred /= pred.sum(axis=-1, keepdims=True)  # numerical stability
 
@@ -204,10 +206,10 @@ class EHRPFNClassifier(TabDPTEstimator, ClassifierMixin):
                 logits_cumsum += logits
 
         pbar.close()
-        pred = (logits_cumsum / n_ensembles)[..., :self.num_classes] / temperature
+        pred = (logits_cumsum / self.n_ensembles)[..., :self.num_classes] / self.temperature
         pred = softmax(pred, axis=-1)
         pred /= pred.sum(axis=-1, keepdims=True)  # numerical stability
         return pred
 
-    def predict(self, X, n_ensembles: int = 1, temperature: float = 0.8,seed: int = None, retriever_additional_query=None, **kwargs):
-        return self.ensemble_predict_proba(X, n_ensembles=n_ensembles, temperature=temperature, seed=seed, retriever_additional_query=retriever_additional_query, **kwargs)
+    def predict(self, X, seed: int = None, retriever_additional_query=None, **kwargs):
+        return self.ensemble_predict_proba(X, seed=seed, retriever_additional_query=retriever_additional_query, **kwargs)
