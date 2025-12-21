@@ -53,6 +53,10 @@ def setup_inference(args, data):
 	if model_name.startswith((('ehrpfn', 'knn', 'tabdpt'))) and args.retrieval.retrieval_method is not None:
 		study_name += f"_retrieval:{args.retrieval.retrieval_method}"
 
+		if args.retrieval.context_size is not None:
+			study_name += f"_ctx:{args.retrieval.context_size}"
+			tags.append(f"CTX:{args.retrieval.context_size}")
+
 	result_folder = osp.join(result_folder, study_name)
 	os.makedirs(result_folder, exist_ok=True)
 

@@ -67,10 +67,13 @@ def get_predictions(args, data, config_dict):
 		retrieval_method = args.retrieval.retrieval_method
 		if args.retrieval.retrieval_method.startswith('weighted'):
 			retrieval_method, weight_type = args.retrieval.retrieval_method.split('_')
+			weight_json_path = args.retrieval.get('weight_json_path', None)
+			if args.data.data_name == 'openml_ehr':
+				weight_json_path = weight_json_path.replace(str(data['did']), data['data_name'])
 			retrieval_weights = get_ehr_retrieval_weight(
 				weight_type, task=args.data.task, 
 				feature_names=data.get('feature_names', None),
-				json_weight_path=args.retrieval.get('weight_json_path', None)
+				json_weight_path=weight_json_path
 			)
 			
 	field_to_use='raw_feature'
