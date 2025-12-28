@@ -141,6 +141,7 @@ def prepare_data(data, args: DictConfig):
 	data['X_test'] = X_test
 	data['y_test'] = y_test
 	data['categorical_feature_indices'] = categorical_feature_indices
+	data['class_distribution'] = pd.Series(y_train).value_counts().to_dict()
 	data['feature_names'] = feature_names
 	data['data_size'] = X_train.shape[0] + X_test.shape[0]
 

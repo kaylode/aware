@@ -37,10 +37,11 @@ def inference(args: DictConfig, data):
 			y_test,
 		)
 
+	score.update({"inference_time": running_time, 'training_time': training_time})
+	
 	# Log the metrics to wandb
 	if args.wandb.use_wandb:
 		wandb.run.log(score)
-		wandb.run.log({"inference_time": running_time, 'training_time': training_time})
 		wandb.finish()
 
 	# Dump score into JSON

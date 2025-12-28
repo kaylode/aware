@@ -75,7 +75,7 @@ def extract_top_features(args: DictConfig):
     # Create rankings and scores
     rankings_idx = np.argsort(importance)[::-1]
     rankings = {feature_names[i]: rank for rank, i in enumerate(rankings_idx)}
-    scores = {feature_names[i]: importance[i] for i in range(len(feature_names))}
+    scores = {feature_names[i]: float(importance[i]) for i in range(len(feature_names))}
 
     if args.get("use_shap", False):
         method = 'shap'
@@ -85,6 +85,9 @@ def extract_top_features(args: DictConfig):
     # Save results
     with open(osp.join(result_folder, f"{method}_feature_importance.json"), 'w') as f:
         json.dump(rankings, f, indent=4)
+
+    with open(osp.join(result_folder, f"{method}_feature_importance_scores.json"), 'w') as f:
+        json.dump(scores, f, indent=4)
 
     LOGGER.text(f"Feature importance saved to {result_folder}/{method}_feature_importance.json", level=LoggerObserver.INFO)
 
