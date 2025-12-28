@@ -1,4 +1,4 @@
-from .EHRPFN import EHRPFNClassifier, EHRPFNRegressor
+from .EHRPFN import EHRPFNClassifier, EHRPFNRegressor, EHRPFNModel
 from .talent_wrapper import TALENTWrapper
 from .knn import SimpleKNNClassifier, SimpleKNNRegressor
 from .KNNPFN import KNNPFN
@@ -69,7 +69,8 @@ def get_predictions(args, data, config_dict):
 			retrieval_method, weight_type = args.retrieval.retrieval_method.split('_')
 			weight_json_path = args.retrieval.get('weight_json_path', None)
 			if args.data.data_name == 'openml_ehr':
-				weight_json_path = weight_json_path.replace(str(data['did']), data['data_name'])
+				if not osp.isfile(weight_json_path):
+					weight_json_path = weight_json_path.replace(str(data['did']), data['data_name'])
 			retrieval_weights = get_ehr_retrieval_weight(
 				weight_type, task=args.data.task, 
 				feature_names=data.get('feature_names', None),
@@ -196,7 +197,7 @@ def get_predictions(args, data, config_dict):
 			categorical_feature_indices=categorical_feature_indices,
 			seed=42,
 			device='cuda',
-			batch_size=512,
+			batch_size=args.retrieval.get('inf_batch_size', 512),
 		)
 		start_time = time.time()
 		model.fit(
@@ -220,7 +221,8 @@ def get_predictions(args, data, config_dict):
 		if is_classification:
 			model = EHRPFNClassifier(
 				pretrained_path=args.inference.pretrained_path,
-				inf_batch_size=512,
+				n_ensembles=1, temperature=0.8, 
+				inf_batch_size=args.retrieval.get('inf_batch_size', 512),
 				compile = False,
 				categorical_feature_indices=categorical_feature_indices,
 				retriever=retriever,
@@ -229,7 +231,8 @@ def get_predictions(args, data, config_dict):
 		else:
 			model = EHRPFNRegressor(
 				pretrained_path=args.inference.pretrained_path,
-				inf_batch_size=512,
+				n_ensembles=1, temperature=0.8, 
+				inf_batch_size=args.retrieval.get('inf_batch_size', 512),
 				categorical_feature_indices=categorical_feature_indices,
 				retriever=retriever,
 				fit_retriever_before_fit=True
@@ -242,17 +245,9 @@ def get_predictions(args, data, config_dict):
 		)
 		start_time = time.time()
 		if is_classification:
-			y_pred = model.predict(
-				X_test, 
-				n_ensembles=1,
-				temperature=0.8, context_size=1024, 
-			)
+			y_pred = model.predict(X_test)
 		else:
-			y_pred = model.predict(
-				X_test,
-				context_size=1024, 
-				n_ensembles=1,
-			)
+			y_pred = model.predict(X_test)
 		running_time = time.time() - start_time
 
 
@@ -267,10 +262,22 @@ def get_predictions(args, data, config_dict):
 			stratify=y_train if is_classification else None
 		)
 
+		config_path = getattr(args.inference, 'config_path', None)
+		talent_root_dir=getattr(args.inference, 'talent_root_dir', None)
+		tune_config=getattr(args.inference, 'tune_config', None)
+
+		if args.data.data_name == 'openml_ehr':
+			if not osp.isfile(config_path):
+				config_path = config_path.replace(str(data['did']), data['data_name'])
+			if not osp.isfile(tune_config):
+				tune_config = tune_config.replace(str(data['did']), data['data_name'])
+
 		model = TALENTWrapper(
 			model_name=method_name,
-			config_path=getattr(args, 'config_path', None),
-			tune_config=getattr(args, 'tune_config', None),
+			config_path=config_path,
+			talent_root_dir=talent_root_dir,
+			tune_config=tune_config,
+			context_size=args.retrieval.context_size, # for modernNCA and Tabr
 			ckpt_path=args.inference.pretrained_path,
 			save_dir=result_folder,
 			categorical_feature_indices=categorical_feature_indices,

@@ -31,26 +31,39 @@ class TALENTWrapper(BaseEstimator, ClassifierMixin):
     def __init__(
         self, model_name:str, 
         config_path:str=None, tune_config:str=None,
+        talent_root_dir:str=None,
         ckpt_path:str=None, save_dir:str=None,
         categorical_feature_indices:List[int]=None, 
-        valset=None, is_classification:bool=False, seed:int=None
+        valset=None, is_classification:bool=False, seed:int=None,
+        context_size:int = None, # for modernNCA and Tabr
     ):
         self.model_name = model_name
         self.categorical_feature_indices = categorical_feature_indices
         self.is_classification = is_classification
         self.valset = valset
         self.ckpt_path = ckpt_path
+        self.context_size = context_size
 
         if config_path is not None:
             args = json.load(open(config_path, 'r'))
             args['save_path'] = save_dir
             args['seed'] = seed
+
+            if 'context_size' in args['config']['model']:
+                args['config']['model']['context_size'] = context_size
+                if 'sample_rate' in args['config']['model']:
+                    args['config']['model']['sample_rate'] = None
+
             args = dict_to_namespace(args)
             if tune_config is not None:
                 tune_config = json.load(open(tune_config, 'r'))
+                if 'context_size' in tune_config['model']:
+                    tune_config['model']['context_size'] = context_size
+                    if 'sample_rate' in tune_config['model']:
+                        tune_config['model']['sample_rate'] = None
                 setattr(args, "config", tune_config)
         else:
-            config_dir = "/home/mpham/workspace/source/ehrpfn/ehrpfn/models/TALENT/TALENT/configs"
+            config_dir = osp.join(talent_root_dir, "TALENT/configs")
             with open(f"{config_dir}/deep_configs.json", "r") as f:
                 args = json.load(f)
 
@@ -83,11 +96,19 @@ class TALENTWrapper(BaseEstimator, ClassifierMixin):
                 args['num_nan_policy'] = 'mean'
                 args['cat_nan_policy'] = 'new'
 
-            
+            if 'context_size' in args['config']['model']:
+                args['config']['model']['context_size'] = context_size
+                if 'sample_rate' in args['config']['model']:
+                    args['config']['model']['sample_rate'] = None
+                
             args = dict_to_namespace(args)
 
             if tune_config is not None:
                 tune_config = json.load(open(tune_config, 'r'))
+                if 'context_size' in tune_config['model']:
+                    tune_config['model']['context_size'] = context_size
+                    if 'sample_rate' in tune_config['model']:
+                        tune_config['model']['sample_rate'] = None
                 setattr(args, "config", tune_config)
             else:
                 setattr(args, "config", default_para[model_name])
