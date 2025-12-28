@@ -4,15 +4,13 @@ import os
 
 from sklearn.base import BaseEstimator
 from sklearn.utils.validation import check_is_fitted
-from sklearn.impute import SimpleImputer
-from sklearn.preprocessing import StandardScaler
 
-from .model import TabDPTModel
+from .model import EHRPFNModel
 from .utils import convert_to_torch_tensor, download_model
 from ehrret import Retriever
 
 
-class TabDPTEstimator(BaseEstimator):
+class EHRPFNEstimator(BaseEstimator):
     _DEFAULT_DEVICE = "cuda:0"
 
     def __init__(self, 
@@ -21,7 +19,8 @@ class TabDPTEstimator(BaseEstimator):
             device: str = _DEFAULT_DEVICE,
             use_flash: bool = True, compile: bool = True, categorical_feature_indices: list = None,
             retriever: Retriever = None,
-            fit_retriever_before_fit: bool = True
+            fit_retriever_before_fit: bool = True,
+            base_model: EHRPFNModel = None, 
         ):
         self.mode = mode
         self.inf_batch_size = inf_batch_size
@@ -35,46 +34,23 @@ class TabDPTEstimator(BaseEstimator):
         self.temperature = temperature
 
         # automatically download model weight if path is not found
-        if not os.path.exists(path):
-            print(f"Path {path} does not exist in {os.getcwd()}.")
-            path = download_model()
-        self.path = path
-
-        checkpoint = torch.load(self.path, map_location=self.device, weights_only=False)
-        checkpoint["cfg"]["env"]["device"] = self.device
-        self.model = TabDPTModel.load(model_state=checkpoint["model"], config=checkpoint["cfg"], use_flash=use_flash)
+        if path is not None:
+            if not os.path.exists(path):
+                print(f"Path {path} does not exist in {os.getcwd()}.")
+                path = download_model()
+            self.path = path
+            checkpoint = torch.load(self.path, map_location=self.device, weights_only=False)
+            checkpoint["cfg"]["env"]["device"] = self.device
+            self.model = EHRPFNModel.load(model_state=checkpoint["model"], config=checkpoint["cfg"], use_flash=use_flash)
+        else:
+            assert base_model is not None, "Either pretrained_path or base_model must be provided"
+            self.model = base_model
         self.model.eval()
 
         self.max_features = self.model.num_features
         self.max_num_classes = self.model.n_out
         self.compile = compile
         assert self.mode in ["cls", "reg"], "mode must be 'cls' or 'reg'"
-
-    def fit(self, X, y):
-        assert isinstance(X, np.ndarray), "X must be a numpy array"
-        assert isinstance(y, np.ndarray), "y must be a numpy array"
-        assert X.shape[0] == y.shape[0], "X and y must have the same number of samples"
-        assert X.ndim == 2, "X must be a 2D array"
-        assert y.ndim == 1, "y must be a 1D array"
-
-
-        if self.retriever is not None and self.fit_retriever_before_fit:
-            self.retriever.fit([{self.retriever.field_to_use: item.cpu().numpy()} for item in X])
-
-        self.imputer = SimpleImputer(strategy="mean")
-        X = self.imputer.fit_transform(X)
-        self.scaler = StandardScaler()
-        X = self.scaler.fit_transform(X)
-
-        # self.faiss_knn = FAISS(X)
-        
-
-        self.n_instances, self.n_features = X.shape
-        self.X_train = X
-        self.y_train = y
-        self.is_fitted_ = True
-        if self.compile:
-            self.model = torch.compile(self.model)
 
     def _prepare_prediction(self, X: np.ndarray):
         check_is_fitted(self)

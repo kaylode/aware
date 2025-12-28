@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import *
 import math
 import torch
 import numpy as np
@@ -7,26 +7,28 @@ from .utils import pad_x, generate_random_permutation
 from tqdm import tqdm
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler
-from .estimator import TabDPTEstimator
+from .estimator import EHRPFNEstimator
 from sklearn.base import RegressorMixin
 
 from ehrret import Retriever
 
 
-class EHRPFNRegressor(TabDPTEstimator, RegressorMixin):
+class EHRPFNRegressor(EHRPFNEstimator, RegressorMixin):
     def __init__(
             self, pretrained_path:str=None, inf_batch_size: int = 512,
             n_ensembles: int = 1, temperature: float = 0.8,
-            device: str = TabDPTEstimator._DEFAULT_DEVICE, 
+            device: str = EHRPFNEstimator._DEFAULT_DEVICE, 
             use_flash: bool = True, compile: bool = True, 
             categorical_feature_indices: list = None,
-            retriever: Retriever = None, fit_retriever_before_fit: bool = False
+            retriever: Retriever = None, fit_retriever_before_fit: bool = False,
+            base_model: Callable=None
         ):
         super().__init__(
             mode="reg", pretrained_path=pretrained_path, inf_batch_size=inf_batch_size, 
             n_ensembles=n_ensembles, temperature=temperature,
             device=device, use_flash=use_flash, compile=compile, categorical_feature_indices=categorical_feature_indices,
-            fit_retriever_before_fit=fit_retriever_before_fit
+            fit_retriever_before_fit=fit_retriever_before_fit,
+            base_model=base_model
         )
         self.retriever = retriever
 
@@ -88,9 +90,14 @@ class EHRPFNRegressor(TabDPTEstimator, RegressorMixin):
                 X_train = pad_x(train_x[None, :, :], self.max_features).to(self.device)
                 X_test = pad_x(test_x[None, :, :], self.max_features).to(self.device)
                 y_train = train_y[None, :].float()
+
+                X_train = X_train.transpose(0, 1)
+                y_train = y_train.transpose(0, 1)
+                X_test = X_test.transpose(0, 1)
+
                 pred = self.model(
-                    x_src=torch.cat([X_train, X_test], dim=1),
-                    y_src=y_train.unsqueeze(-1),
+                    x_src=torch.cat([X_train, X_test], dim=0),
+                    y_src=y_train,
                     task=self.mode,
                 )
 
@@ -135,10 +142,14 @@ class EHRPFNRegressor(TabDPTEstimator, RegressorMixin):
                         X_eval = pad_x(X_eval.unsqueeze(1), self.max_features).to(self.device)
                     else:
                         X_eval = X_eval.unsqueeze(1)
+                    
+                    X_nni = X_nni.transpose(0, 1)
+                    X_eval = X_eval.transpose(0, 1)
+                    y_nni = y_nni.transpose(0, 1)
 
                     pred = self.model(
-                        x_src=torch.cat([X_nni, X_eval], dim=1),
-                        y_src=y_nni.unsqueeze(-1),
+                        x_src=torch.cat([X_nni, X_eval], dim=0),
+                        y_src=y_nni,
                         task=self.mode,
                     )
 

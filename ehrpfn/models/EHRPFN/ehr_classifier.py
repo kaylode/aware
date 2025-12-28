@@ -11,18 +11,19 @@ from tqdm import tqdm
 from scipy.special import softmax
 
 from sklearn.base import ClassifierMixin
-from .estimator import TabDPTEstimator
+from .estimator import EHRPFNEstimator
 
 
 
-class EHRPFNClassifier(TabDPTEstimator, ClassifierMixin):
+class EHRPFNClassifier(EHRPFNEstimator, ClassifierMixin):
 
     def __init__(
         self, pretrained_path:str=None, inf_batch_size: int = 512,
         n_ensembles: int = 1, temperature: float = 0.8,
-        device: str = TabDPTEstimator._DEFAULT_DEVICE, use_flash: bool = True, 
+        device: str = EHRPFNEstimator._DEFAULT_DEVICE, use_flash: bool = True, 
         compile: bool = True, categorical_feature_indices: list = None, 
-        retriever:Retriever=None, fit_retriever_before_fit: bool = False
+        retriever:Retriever=None, fit_retriever_before_fit: bool = False,
+        base_model: Callable=None
     ):
         super().__init__(
             mode="cls", 
@@ -33,7 +34,8 @@ class EHRPFNClassifier(TabDPTEstimator, ClassifierMixin):
             compile=compile, 
             categorical_feature_indices=categorical_feature_indices,
             retriever=retriever,
-            fit_retriever_before_fit=fit_retriever_before_fit
+            fit_retriever_before_fit=fit_retriever_before_fit,
+            base_model=base_model
         )
 
 
@@ -128,10 +130,14 @@ class EHRPFNClassifier(TabDPTEstimator, ClassifierMixin):
                     X_train = X_train[torch.from_numpy(shuffled_indices)]
                     y_train = y_train[torch.from_numpy(shuffled_indices)]
 
+                X_train = X_train.transpose(0, 1)
+                y_train = y_train.transpose(0, 1)
+                X_test = X_test.transpose(0, 1)
+
                 if self.num_classes <= self.max_num_classes:
                     pred = self.model(
-                        x_src=torch.cat([X_train, X_test], dim=1),
-                        y_src=y_train.unsqueeze(-1),
+                        x_src=torch.cat([X_train, X_test], dim=0),
+                        y_src=y_train,
                         task=self.mode,
                     )
                 else:
@@ -150,9 +156,15 @@ class EHRPFNClassifier(TabDPTEstimator, ClassifierMixin):
                     query_items = []
                     for i in range(start, end):
                         if isinstance(self.X_test_ori, torch.Tensor):
-                            query_dict = {"raw_feature": self.X_test_ori[i].cpu().numpy()}
+                            if self.fit_retriever_before_fit:
+                                query_dict = {"raw_feature": self.X_test_ori[i].cpu().numpy()}
+                            else:
+                                query_dict = {"raw_feature": X_test[i].cpu().numpy()}
                         else:
-                            query_dict = {"raw_feature": self.X_test_ori[i]}
+                            if self.fit_retriever_before_fit:
+                                query_dict = {"raw_feature": self.X_test_ori[i]}
+                            else:
+                                query_dict = {"raw_feature": X_test[i]}
                         if retriever_additional_query is not None:
                             for key, value in retriever_additional_query.items():
                                 assert len(value) == self.X_test_ori.shape[0], "Length of retriever_additional_fit values must match number of samples"
@@ -181,10 +193,14 @@ class EHRPFNClassifier(TabDPTEstimator, ClassifierMixin):
                     else:
                         X_eval = X_eval.unsqueeze(1)
 
+                    X_nni = X_nni.transpose(0, 1)
+                    X_eval = X_eval.transpose(0, 1)
+                    y_nni = y_nni.transpose(0, 1)
+
                     if self.num_classes <= self.max_num_classes:
                         pred = self.model(
-                            x_src=torch.cat([X_nni, X_eval], dim=1),
-                            y_src=y_nni.unsqueeze(-1),
+                            x_src=torch.cat([X_nni, X_eval], dim=0),
+                            y_src=y_nni,
                             task=self.mode,
                         )
                     else:

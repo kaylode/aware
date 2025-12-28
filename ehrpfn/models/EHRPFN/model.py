@@ -8,7 +8,7 @@ from torch.nn import Linear, LayerNorm, GELU
 from .utils import normalize_data, clip_outliers, flash_context
 
 
-class TabDPTModel(nn.Module):
+class EHRPFNModel(nn.Module):
     def __init__(
         self,
         dropout: float,
@@ -19,6 +19,7 @@ class TabDPTModel(nn.Module):
         nlayers: int,
         num_features: int,
         use_flash: bool = True,
+        freeze_transformer:bool=False
     ):
         super().__init__()
         self.n_out = n_out
@@ -40,16 +41,18 @@ class TabDPTModel(nn.Module):
         self.y_encoder = nn.Linear(1, ninp)
         self.head = nn.Sequential(nn.Linear(ninp, nhid), nn.GELU(), nn.Linear(nhid, n_out + 1))
 
+        if freeze_transformer:
+            for param in self.transformer_encoder.parameters():
+                param.requires_grad = False
+                
     @flash_context
     def forward(
         self,
-        x_src: torch.Tensor,
-        y_src: torch.Tensor,
+        x_src: torch.Tensor, # shape (seq_len, batch_size, num_features)
+        y_src: torch.Tensor, # shape (seq_len, batch_size)
         task: Literal["cls", "reg"],  # classification or regression
     ) -> torch.Tensor:
 
-        x_src = x_src.transpose(0, 1)
-        y_src = y_src.squeeze(-1).transpose(0, 1)
         eval_pos = y_src.shape[0]
         assert x_src.shape[1] == y_src.shape[1], "x_src and y_src must have the same batch size"
         x_src = clip_outliers(x_src, -1 if self.training else eval_pos, n_sigma=4)
@@ -87,7 +90,7 @@ class TabDPTModel(nn.Module):
     @classmethod
     def load(cls, model_state, config, use_flash):
         assert config.model.max_num_classes > 2
-        model = TabDPTModel(
+        model = EHRPFNModel(
             dropout=config.training.dropout,
             n_out=config.model.max_num_classes,
             nhead=config.model.nhead,
