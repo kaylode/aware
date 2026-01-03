@@ -52,7 +52,8 @@ class EHRPFNClassifier(EHRPFNEstimator, ClassifierMixin):
                 fit_dict = {"raw_feature": item, "label": label}
                 if retriever_additional_fit is not None:
                     for key, value in retriever_additional_fit.items():
-                        assert len(value) == X.shape[0], "Length of retriever_additional_fit values must match number of samples"
+                        if self.retriever.field_to_use == key:
+                            assert len(value) == X.shape[0], "Length of retriever_additional_fit values must match number of samples"
                         assert key not in fit_dict, f"Key {key} already exists in fit_dict"
                         fit_dict[key] = value[i]
                 fit_items.append(fit_dict)
@@ -167,7 +168,8 @@ class EHRPFNClassifier(EHRPFNEstimator, ClassifierMixin):
                                 query_dict = {"raw_feature": X_test[i]}
                         if retriever_additional_query is not None:
                             for key, value in retriever_additional_query.items():
-                                assert len(value) == self.X_test_ori.shape[0], "Length of retriever_additional_fit values must match number of samples"
+                                if self.retriever.field_to_use == key:
+                                    assert len(value) == self.X_test_ori.shape[0], "Length of retriever_additional_fit values must match number of samples"
                                 assert key not in query_dict, f"Key {key} already exists in query_dict"
                                 query_dict[key] = value[i]
                         query_items.append(query_dict)
