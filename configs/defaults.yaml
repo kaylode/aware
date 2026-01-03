@@ -10,21 +10,25 @@ hydra:
 data:
   data_name: eicu
   selection_method: null
+  feature_selection_path: null
+  embedding_dim: 512
   num_features: 100
   task: null
-  weight_json_path: null
+  remove_aggregated_time_series: false
   sampling:
     do_sampling: false
+    max_samples: null
     sampling_method: null
     balance_negatives: false
     negative_ratio: 1.0
-    imbalance_ratio: null # only for openml_ehr_imbalance
+    imbalance_ratio: null
 
 retrieval:
   retrieval_method: null
   weight_json_path: null
   pretrained_path: null
   context_size: 1024
+  inf_batch_size: 512 # when using retrieval
   distance: cosine
 
 inference:
@@ -33,6 +37,7 @@ inference:
   pretrained_path: null 
   config_path: null # for talent
   tune_config: null # for talent
+  talent_root_dir: null # for talent
   output_folder: null 
 
 wandb:
