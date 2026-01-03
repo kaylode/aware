@@ -66,8 +66,10 @@ def run(args: DictConfig):
 			except Exception as e:
 				LOGGER.text(f"Error occurred while processing {d['data_name']}: {e}", level=LoggerObserver.ERROR)
 	else:
-		data = prepare_data(data, args)
-		inference(args, data)
-
+		try:
+			data = prepare_data(data, args)
+			inference(args, data)
+		except Exception as e:
+			LOGGER.text(f"Error occurred during inference: {e}", level=LoggerObserver.ERROR)
 if __name__ == "__main__":
 	run()

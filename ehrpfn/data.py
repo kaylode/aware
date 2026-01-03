@@ -102,36 +102,51 @@ def prepare_data(data, args: DictConfig):
 		)
 		LOGGER.text(f"After sampling: {X_train.shape}, {y_train.shape}", level=LoggerObserver.DEBUG)
 	
-	if args.data.sampling.max_samples is not None:
-		from ehrmeds.utils.sampling import limit_samples
-		import polars as pl
-
-		LOGGER.text(f"Limiting samples to {args.data.sampling.max_samples}", level=LoggerObserver.DEBUG)
-		X_train, y_train, indices = limit_samples(
-			X_train, y_train, 
-			max_samples=args.data.sampling.max_samples,
-			seed=args.inference.seed,
-			stratify=True,
-			return_indices=True
+	if args.data.sampling.get('imbalance_ratio', None) is not None:
+		from ehrmeds.utils.sampling import subsample_by_imbalance_ratio
+		LOGGER.text(f"Subsampling to achieve prevalence ratio of {args.data.sampling.imbalance_ratio}", level=LoggerObserver.DEBUG)
+		X_train, y_train = subsample_by_imbalance_ratio(
+			X_train, y_train,
+			n_samples=args.data.sampling.max_samples,
+			imbalance_ratio=args.data.sampling.imbalance_ratio,
+			random_state=args.inference.seed
 		)
-		LOGGER.text(f"After limiting samples: {X_train.shape}, {y_train.shape}", level=LoggerObserver.DEBUG)
-	
+		LOGGER.text(f"After subsampling: {X_train.shape}, {y_train.shape}", level=LoggerObserver.DEBUG)
+	else:
+		if args.data.sampling.max_samples is not None:
+			from ehrmeds.utils.sampling import limit_samples
+			import polars as pl
 
-		for key in data:
-			if key == 'X_train' or key == 'y_train':
-				continue
-			if isinstance(data[key], Iterable) and len(data[key]) == len(data['X_train']):
-				if isinstance(data[key], np.ndarray):
-					data[key] = data[key][indices]
-				elif isinstance(data[key], list):
-					data[key] = [data[key][i] for i in indices]
-				elif isinstance(data[key], pd.DataFrame):
-					data[key] = data[key].iloc[indices]
-				elif isinstance(data[key], pl.DataFrame):
-					data[key] = data[key][indices]
-				else:
-					raise ValueError(f"Unsupported data type for key {key}: {type(data[key])} during sample limiting.")
-	
+			LOGGER.text(f"Limiting samples to {args.data.sampling.max_samples}", level=LoggerObserver.DEBUG)
+			X_train, y_train, indices = limit_samples(
+				X_train, y_train, 
+				max_samples=args.data.sampling.max_samples,
+				seed=args.inference.seed,
+				stratify=True,
+				return_indices=True
+			)
+			LOGGER.text(f"After limiting samples: {X_train.shape}, {y_train.shape}", level=LoggerObserver.DEBUG)
+		
+
+			for key in data:
+				if key == 'X_train' or key == 'y_train':
+					continue
+				if isinstance(data[key], Iterable) and len(data[key]) == len(data['X_train']):
+					if isinstance(data[key], np.ndarray):
+						data[key] = data[key][indices]
+					elif isinstance(data[key], list):
+						data[key] = [data[key][i] for i in indices]
+					elif isinstance(data[key], pd.DataFrame):
+						data[key] = data[key].iloc[indices]
+					elif isinstance(data[key], pl.DataFrame):
+						data[key] = data[key][indices]
+					else:
+						raise ValueError(f"Unsupported data type for key {key}: {type(data[key])} during sample limiting.")
+		
+		
+
+
+
 	y_train = y_train.astype(int)
 	y_test = y_test.astype(int)
 	LOGGER.text(f"Data shape: {X_train.shape}, {X_test.shape}", level=LoggerObserver.DEBUG)
