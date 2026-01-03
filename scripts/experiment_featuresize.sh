@@ -41,7 +41,7 @@ else
 fi
 
 
-for NUM_FEATURES in 10 20 30 40 50 70 80 90 100 200 300 400 500; do
+for NUM_FEATURES in 100 200 300 400 500; do #10  50 
     for SEED in  1702  ; do #2000  1603 
         for TASK in "${TASKS[@]}" ; do
             echo "Running inference for method: $METHOD, dataset: $DATASET, task: "${TASK}", seed: $SEED, num_features: $NUM_FEATURES"

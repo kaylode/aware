@@ -13,10 +13,11 @@ SAMPLING=null
 RETRIEVAL=$4 
 NUM_FEATURES=$5
 CONTEXT_SIZE=${6:-1024}
+INF_BATCH_SIZE=${7:-512}
 
 export LOGGING_DIR=${ROOT}/${LOGGING_DIR}/inference/
 
-ML_METHODS=("xgboost" "rf" "catboost" "lightgbm" "knn" "mlp" "logistics" )
+ML_METHODS=("xgboost" "rf" "catboost" "lightgbm" "mlp" "logistics" )
 DL_METHODS=("beta" "resnet" "tabr" "modernNCA" "tabm" "tabicl" "tabtransformer" "tabnet" "excelformer" "trompt" )
 PFN_METHODS=("knn-simple" "tabpfn" "tabdpt" "ehrpfn" "knnpfn")
 
@@ -62,8 +63,8 @@ for SEED in  1702  ; do #2000  1603
             TUNE_CONFIG=null
         fi
 
-        FEATURE_SELECTION_PATH="${ROOT}/results/ehrpfn-inference/selection/${DATASET}/${TASK}"
-        RETRIEVAL_JSON_PATH="${ROOT}/results/ehrpfn-inference/benchmark/${DATASET}/${TASK}/logistics_${DATASET}_${TASK}/logistics_params.json" 
+        FEATURE_SELECTION_PATH="${ROOT}/${SAVE_DIR}/selection/${DATASET}/${TASK}"
+        RETRIEVAL_JSON_PATH="${ROOT}/${SAVE_DIR}/benchmark/${DATASET}/${TASK}/logistics_${DATASET}_${TASK}/logistics_params.json" 
 
         PYTHONPATH=. uv run ehrpfn/inference.py \
             --config-dir ${ROOT}/configs \
@@ -76,6 +77,7 @@ for SEED in  1702  ; do #2000  1603
             data.feature_selection_path="${FEATURE_SELECTION_PATH}" \
             data.sampling.max_samples=${NUM_MAX_SAMPLES} \
             retrieval.context_size=${CONTEXT_SIZE} \
+            retrieval.inf_batch_size=${INF_BATCH_SIZE} \
             retrieval.retrieval_method="${RETRIEVAL}" \
             retrieval.weight_json_path="${RETRIEVAL_JSON_PATH}" \
             inference.model="${METHOD}" \
