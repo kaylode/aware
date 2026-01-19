@@ -65,7 +65,7 @@ class EHRPFNRegressor(EHRPFNEstimator, RegressorMixin):
             self.model = torch.compile(self.model)
 
     @torch.no_grad()
-    def ensemble_predict_proba(self, X: np.ndarray, seed: int = None, retriever_additional_query=None, **kwargs):
+    def predict_proba(self, X: np.ndarray, seed: int = None, retriever_additional_query=None, **kwargs):
         train_x, train_y, test_x = self._prepare_prediction(X)
         pbar = tqdm(total=self.n_ensembles*len(X), desc="Predicting")
         context_size = self.retriever.k if self.retriever is not None else self.n_instances
@@ -169,4 +169,4 @@ class EHRPFNRegressor(EHRPFNEstimator, RegressorMixin):
 
 
     def predict(self, X, seed: int = None, retriever_additional_query=None, **kwargs):
-        return self.ensemble_predict_proba(X, seed=seed, retriever_additional_query=retriever_additional_query, **kwargs)
+        return self.predict_proba(X, seed=seed, retriever_additional_query=retriever_additional_query, **kwargs)
