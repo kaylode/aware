@@ -20,6 +20,8 @@ elif [ $DATASET = "mimiciv" ]; then
     TASKS=("Mortality" "Readmission"  "Length of Stay" "ICD SEPSIS")
 elif [ $DATASET = "sjh_cpe" ]; then
     TASKS=("EPISODE_CPE_INFECTION_FLAGGED" "WILL_READMIT_WITHIN_30_DAYS")
+elif [ $DATASET = "sjh_cpe_frame" ]; then
+    TASKS=("EPISODE_CPE_INFECTION_FLAGGED" "WILL_READMIT_WITHIN_30_DAYS" "NEXT_LOS" "DECEASED_NEXT_EPISODE")
 else
     echo "Unknown dataset: $DATASET"
     exit 1  

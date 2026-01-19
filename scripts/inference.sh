@@ -41,15 +41,19 @@ elif [ $DATASET = "mimiciv" ]; then
     TASKS=("Mortality" "Readmission"  "Length of Stay" "ICD SEPSIS")
 elif [ $DATASET = "sjh_cpe" ]; then
     TASKS=("EPISODE_CPE_INFECTION_FLAGGED" "WILL_READMIT_WITHIN_30_DAYS")
+elif [ $DATASET = "sjh_cpe_frame" ]; then
+    TASKS=("EPISODE_CPE_INFECTION_FLAGGED" "WILL_READMIT_WITHIN_30_DAYS" "NEXT_LOS" "DECEASED_NEXT_EPISODE")
 elif [ $DATASET = "openml_ehr" ]; then
     TASKS=("43550" "4541")
+elif [ $DATASET = "synthea" ]; then
+    TASKS=("stroke" "lung_cancer")
 else
     echo "Unknown dataset: $DATASET"
     exit 1  
 fi
 
 
-for SEED in  1702  ; do #2000  1603 
+for SEED in  1702 2000  1603  ; do #
     for TASK in "${TASKS[@]}" ; do
         echo "Running inference for method: $METHOD, dataset: $DATASET, task: "${TASK}", seed: $SEED"
 

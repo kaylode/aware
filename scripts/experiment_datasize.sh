@@ -42,8 +42,8 @@ else
     exit 1  
 fi
 
-for MAX_SAMPLES in  100000  ; do #1000 3000 5000 10000 30000 50000 30000 100000
-    for SEED in  1702  ; do #2000  1603 
+for MAX_SAMPLES in  1000 3000 5000 10000 30000 50000 30000 100000  ; do #
+    for SEED in  1702 2000  1603  ; do
         for TASK in "${TASKS[@]}" ; do
             echo "Running inference for method: $METHOD, dataset: $DATASET, task: "${TASK}", seed: $SEED, max_samples: $MAX_SAMPLES"
 

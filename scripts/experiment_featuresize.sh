@@ -28,9 +28,9 @@ else
 fi
 
 if [ $DATASET = "eicu" ]; then
-    TASKS=("MORTALITY" "READMISSION")
+    TASKS=("READMISSION" "MORTALITY") #
 elif [ $DATASET = "mimiciv" ]; then
-    TASKS=("Mortality" "Readmission"  "Length of Stay" "ICD SEPSIS")
+    TASKS=("Readmission" "Mortality" "ICD SEPSIS" "Length of Stay" ) #  
 elif [ $DATASET = "sjh_cpe" ]; then
     TASKS=("EPISODE_CPE_INFECTION_FLAGGED" "WILL_READMIT_WITHIN_30_DAYS")
 elif [ $DATASET = "openml_ehr" ]; then
@@ -41,8 +41,8 @@ else
 fi
 
 
-for NUM_FEATURES in 100 200 300 400 500; do #10  50 
-    for SEED in  1702  ; do #2000  1603 
+for NUM_FEATURES in 10 20 50 100 200 300 400 500 500 ; do # 
+    for SEED in  1702 2000  1603  ; do
         for TASK in "${TASKS[@]}" ; do
             echo "Running inference for method: $METHOD, dataset: $DATASET, task: "${TASK}", seed: $SEED, num_features: $NUM_FEATURES"
 
@@ -70,6 +70,7 @@ for NUM_FEATURES in 100 200 300 400 500; do #10  50
                 data.selection_method=${SELECTION} \
                 retrieval.retrieval_method=${RETRIEVAL} \
                 retrieval.weight_json_path="${RETRIEVAL_JSON_PATH}" \
+                retrieval.inf_batch_size=128 \
                 inference.model=$METHOD \
                 inference.output_folder="${ROOT}/${SAVE_DIR}/exp/featuresize/${NUM_FEATURES}" \
                 inference.pretrained_path="${PRETRAIN_PATH}" \

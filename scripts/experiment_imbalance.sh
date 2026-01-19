@@ -44,7 +44,7 @@ fi
 MAX_SAMPLES=5000
 
 for IMBALANCE_RATIO in 1 2 5 10 20 50 70 100 200 300 400 500; do #
-    for SEED in  1702  ; do #2000  1603 
+    for SEED in  1702 2000  1603  ; do #
         for TASK in "${TASKS[@]}" ; do
             echo "Running inference for method: $METHOD, dataset: $DATASET, task: "${TASK}", seed: $SEED, num_features: $NUM_FEATURES, imbalance_ratio: $IMBALANCE_RATIO"
 
