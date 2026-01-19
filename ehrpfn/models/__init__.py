@@ -238,11 +238,13 @@ def get_predictions(args, data, config_dict):
 				fit_retriever_before_fit=True
 			)
 
+		start_time = time.time()
 		model.fit(
 			X_train, y_train,
 			retriever_additional_fit = retriever_additional_fit,
 			retriever_additional_query = retriever_additional_query,
 		)
+		training_time = time.time() - start_time
 		start_time = time.time()
 		if is_classification:
 			y_pred = model.predict(X_test)
