@@ -19,7 +19,7 @@ def inference(args: DictConfig, data):
 	result_folder, study_name = setup_inference(args, data)
 	LOGGER.subscribe(FileLogger(__name__, result_folder, debug=True))
 	
-	predictions, running_time, training_time = get_predictions(args, data, {
+	predictions, training_time, running_time = get_predictions(args, data, {
 		"result_folder": result_folder,
 		"study_name": study_name
 	})

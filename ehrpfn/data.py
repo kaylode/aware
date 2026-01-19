@@ -4,6 +4,10 @@ from ehrmeds import (
 	get_sjh_dataset, 
 	get_mimic_dataset, 
 	get_openml_ehr,
+	get_sjh_frame_dataset,
+	get_sjh_cpe_frame_default_configs,
+	get_synthea_default_configs,
+	get_synthea,
 	get_openml_ehr_imbalance,
 	get_eicu,
 	get_eicu_default_configs,
@@ -12,6 +16,11 @@ from ehrmeds import (
 	get_openml_ehr_default_configs,
 	get_openml_ehr_imbalance_default_configs
 )
+
+from ehrmeds import (
+    get_mimiciv_temporal_exp_configs,
+)
+
 import numpy as np
 import pandas as pd
 from ehrpfn.utils import LoggerObserver
@@ -29,7 +38,12 @@ def get_data(args: DictConfig):
 		selection_method=args.data.selection_method,
 		feature_selection_path=args.data.feature_selection_path,
 	)
-	if data_name.startswith(('mimicpipe', 'mimiciv', 'mimic')):
+	if data_name.startswith('mimiciv_temporal'):
+		time_bins = args.data.get('time_bins', 36)
+		data_dict['time_bins'] = time_bins
+		config_func = get_mimiciv_temporal_exp_configs
+		data_func = get_mimic_dataset
+	elif data_name.startswith(('mimicpipe', 'mimiciv', 'mimic')):
 		config_func = get_mimiciv_default_configs
 		data_func = get_mimic_dataset
 	elif data_name == 'openml_ehr':
@@ -40,14 +54,20 @@ def get_data(args: DictConfig):
 	elif data_name == 'openml_ehr_imbalance':
 		config_func = get_openml_ehr_imbalance_default_configs
 		data_func = get_openml_ehr_imbalance
+	elif data_name == 'synthea':
+		config_func = get_synthea_default_configs
+		data_func = get_synthea
 	elif data_name == 'sjh_cpe':
 		config_func = get_sjh_cpe_default_configs
 		data_func = get_sjh_dataset
+	elif data_name == 'sjh_cpe_frame':
+		data_func = get_sjh_frame_dataset
+		config_func = get_sjh_cpe_frame_default_configs
 	elif data_name == 'eicu':
 		config_func = get_eicu_default_configs
 		data_func = get_eicu
 	else:
-		raise ValueError(f"Data {data_name} is not supported. Please choose from ['mimiciv', 'sjh_cpe']")
+		raise ValueError(f"Data {data_name} is not supported. Please choose from ['mimiciv', 'sjh_cpe', 'synthea']")
 
 	configs = config_func(
 		**data_dict
@@ -65,11 +85,13 @@ def prepare_data(data, args: DictConfig):
 		X_train, y_train, 
 		X_test, y_test, 
 		categorical_feature_indices,
+		is_classification,
 		feature_names 
 	) = (
 		data['X_train'], data['y_train'], 
 		data['X_test'], data['y_test'], 
 		data['categorical_feature_indices'],
+		data.get('is_classification', True),
 		data.get('feature_names', None)
 	)
 
@@ -122,7 +144,7 @@ def prepare_data(data, args: DictConfig):
 				X_train, y_train, 
 				max_samples=args.data.sampling.max_samples,
 				seed=args.inference.seed,
-				stratify=True,
+				stratify=is_classification,
 				return_indices=True
 			)
 			LOGGER.text(f"After limiting samples: {X_train.shape}, {y_train.shape}", level=LoggerObserver.DEBUG)
