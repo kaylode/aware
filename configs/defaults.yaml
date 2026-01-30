@@ -19,8 +19,7 @@ data:
     do_sampling: false
     max_samples: null
     sampling_method: null
-    balance_negatives: false
-    negative_ratio: 1.0
+    negative_ratio: 10.0
     imbalance_ratio: null
 
 retrieval:
