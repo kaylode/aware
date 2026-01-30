@@ -22,7 +22,10 @@ class SimpleKNNClassifier(ClassifierMixin):
 					if self.retriever.field_to_use == key:
 						assert len(value) == X.shape[0], "Length of retriever_additional_fit values must match number of samples"
 					assert key not in fit_dict, f"Key {key} already exists in fit_dict"
-					fit_dict[key] = value[i]
+					try:
+						fit_dict[key] = value[i]
+					except Exception as e:
+						continue
 			fit_items.append(fit_dict)
 		self.retriever.fit(fit_items)
 

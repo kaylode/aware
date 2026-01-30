@@ -55,7 +55,10 @@ class EHRPFNClassifier(EHRPFNEstimator, ClassifierMixin):
                         if self.retriever.field_to_use == key:
                             assert len(value) == X.shape[0], "Length of retriever_additional_fit values must match number of samples"
                         assert key not in fit_dict, f"Key {key} already exists in fit_dict"
-                        fit_dict[key] = value[i]
+                        try:
+                            fit_dict[key] = value[i]
+                        except Exception as e:
+                            continue
                 fit_items.append(fit_dict)
             self.retriever.fit(fit_items)
 
@@ -80,8 +83,8 @@ class EHRPFNClassifier(EHRPFNEstimator, ClassifierMixin):
         for i in range(num_digits):
             y_train_digit = (y_train // (self.max_num_classes ** i)) % self.max_num_classes
             pred = self.model(
-                x_src=torch.cat([X_train, X_test], dim=1),
-                y_src=y_train_digit.unsqueeze(-1),
+                x=torch.cat([X_train, X_test], dim=1),
+                y=y_train_digit.unsqueeze(-1),
                 task=self.mode,
             )
             digit_preds.append(pred.float())
@@ -137,8 +140,8 @@ class EHRPFNClassifier(EHRPFNEstimator, ClassifierMixin):
 
                 if self.num_classes <= self.max_num_classes:
                     pred = self.model(
-                        x_src=torch.cat([X_train, X_test], dim=0),
-                        y_src=y_train,
+                        x=torch.cat([X_train, X_test], dim=0),
+                        y=y_train,
                         task=self.mode,
                     )
                 else:
@@ -201,8 +204,8 @@ class EHRPFNClassifier(EHRPFNEstimator, ClassifierMixin):
 
                     if self.num_classes <= self.max_num_classes:
                         pred = self.model(
-                            x_src=torch.cat([X_nni, X_eval], dim=0),
-                            y_src=y_nni,
+                            x=torch.cat([X_nni, X_eval], dim=0),
+                            y=y_nni,
                             task=self.mode,
                         )
                     else:

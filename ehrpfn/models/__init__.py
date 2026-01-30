@@ -2,6 +2,7 @@ from .EHRPFN import EHRPFNClassifier, EHRPFNRegressor, EHRPFNModel
 from .talent_wrapper import TALENTWrapper
 from .knn import SimpleKNNClassifier, SimpleKNNRegressor
 from .KNNPFN import KNNPFN
+from .tabicl import TabICL, TabICLClassifier
 from tradml import TradMLTuner
 from ehrret import get_retriever, get_ehr_retrieval_weight
 from ehrret.encoding.coding.icd_tokenizer import ICDHierachicalTokenizer
@@ -84,16 +85,35 @@ def get_predictions(args, data, config_dict):
 		n_features = X_train_original.shape[1]
 
 	if args.retrieval.retrieval_method is not None:
-		retriever = get_retriever(
-			retrieval_method, 
+
+		retriever_dict = dict(
 			k=args.retrieval.context_size,
 			distance=distance,
 			field_to_use=field_to_use,
 			weights=retrieval_weights,
 			n_features=n_features,
 			pretrained_path=args.retrieval.pretrained_path,
-			embedding_dim=args.retrieval.get('embedding_dim', 128),
 			num_classes=num_classes
+		)
+		if retrieval_method in ['clinical_snnl']:
+			from ehrret.retrieval.csnnl import PromptingPipeline
+
+			prompter = PromptingPipeline(data, mode='train')
+
+			n_num_features = len(prompter.numerical_indices)
+			num_icd_features = len(prompter.icd_indices)
+			categorical_cardinalities = prompter.categorical_cardinalities
+			retriever_dict.update(
+				n_num_features=n_num_features,
+				categorical_cardinalities=categorical_cardinalities,
+				n_medical_codes=num_icd_features,
+				embedding_dim=128,
+				prompter=prompter
+			)
+
+		retriever = get_retriever(
+			retrieval_method, 
+			**retriever_dict
 		)
 	else:
 		retriever = None
@@ -252,8 +272,35 @@ def get_predictions(args, data, config_dict):
 			y_pred = model.predict(X_test)
 		running_time = time.time() - start_time
 
+	elif method_name == 'tabicl':
+		if is_classification:
+			model = TabICLClassifier(
+				n_estimators=1, 
+				feat_shuffle_method='none',
+				batch_size=args.retrieval.get('inf_batch_size', 512),                                           # process this many ensemble members together (reduce RAM usage)
+  				use_amp=True,
+				allow_auto_download=True,                               # whether automatic download to the specified path is allowed
+  				checkpoint_version="tabicl-classifier-v1.1-0506.ckpt",
+				device='cuda',                                            # specify device for inference
+				random_state=42,                                        # random seed for reproducibility
+				n_jobs=None,                                            # number of threads to use for PyTorch
+				verbose=True, 
+			)
+		else:
+			raise ValueError("TabICL only supports classification tasks.")
 
-	elif method_name in ['beta', 'resnet', 'tabr', 'modernNCA', 'tabm', 'tabicl', 'tabtransformer', 'tabnet', 'excelformer', 'trompt']:
+		start_time = time.time()
+		model.fit(X_train, y_train)
+		training_time = time.time() - start_time
+		start_time = time.time()
+		if is_classification:
+			y_pred = model.predict_proba(X_test)
+		else:
+			raise ValueError("TabICL only supports classification tasks.")
+		
+		running_time = time.time() - start_time
+
+	elif method_name in ['beta', 'resnet', 'tabr', 'modernNCA', 'tabm', 'tabtransformer', 'tabnet', 'excelformer', 'trompt']:
 
 		from ehrpfn.models.talent_wrapper import TALENTWrapper
 		from sklearn.model_selection import train_test_split
@@ -297,4 +344,18 @@ def get_predictions(args, data, config_dict):
 
 	else:
 		raise ValueError(f"Method {method_name} is not supported. Please choose from ['tabpfn', 'rftabpfn', 'xgboost', 'catboost', 'lightgbm']")
+	
+	# patient_col = 'subject_id'
+	# admission_col = 'stay_id'
+	# df_with_original_index = data['test_ids'].copy()
+	# df_with_original_index['_original_index'] = df_with_original_index.index
+	# df_sorted = df_with_original_index.sort_values([patient_col, admission_col]).reset_index(drop=True)
+	# df_sorted['EPISODE_ID'] = df_sorted.groupby(patient_col).cumcount()
+	# df_result = df_sorted.sort_values('_original_index').drop('_original_index', axis=1).reset_index(drop=True)
+	# df_result['PREDICTION'] = y_pred.tolist()
+	# df_result['TRUE_LABEL'] = data['y_test'].tolist()
+	# output_episode_path = osp.join(result_folder, 'test_predictions_with_episode_ids.csv')
+	# df_result.to_csv(output_episode_path, index=False)
+	# LOGGER.text(f"Saved test predictions with EPISODE_ID to {output_episode_path}", level=LoggerObserver.INFO)
+	
 	return y_pred, training_time, running_time

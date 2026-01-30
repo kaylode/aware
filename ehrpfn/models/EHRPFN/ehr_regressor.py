@@ -47,7 +47,10 @@ class EHRPFNRegressor(EHRPFNEstimator, RegressorMixin):
                     for key, value in retriever_additional_fit.items():
                         assert len(value) == X.shape[0], "Length of retriever_additional_fit values must match number of samples"
                         assert key not in fit_dict, f"Key {key} already exists in fit_dict"
-                        fit_dict[key] = value[i]
+                        try:
+                            fit_dict[key] = value[i]
+                        except Exception as e:
+                            continue
                 fit_items.append(fit_dict)
             self.retriever.fit(fit_items)
 
@@ -96,8 +99,8 @@ class EHRPFNRegressor(EHRPFNEstimator, RegressorMixin):
                 X_test = X_test.transpose(0, 1)
 
                 pred = self.model(
-                    x_src=torch.cat([X_train, X_test], dim=0),
-                    y_src=y_train,
+                    x=torch.cat([X_train, X_test], dim=0),
+                    y=y_train,
                     task=self.mode,
                 )
 
@@ -148,8 +151,8 @@ class EHRPFNRegressor(EHRPFNEstimator, RegressorMixin):
                     y_nni = y_nni.transpose(0, 1)
 
                     pred = self.model(
-                        x_src=torch.cat([X_nni, X_eval], dim=0),
-                        y_src=y_nni,
+                        x=torch.cat([X_nni, X_eval], dim=0),
+                        y=y_nni,
                         task=self.mode,
                     )
 

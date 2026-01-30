@@ -48,19 +48,22 @@ class EHRPFNModel(nn.Module):
     @flash_context
     def forward(
         self,
-        x_src: torch.Tensor, # shape (seq_len, batch_size, num_features)
-        y_src: torch.Tensor, # shape (seq_len, batch_size)
+        x: torch.Tensor, # shape (seq_len, batch_size, num_features)
+        y: torch.Tensor, # shape (seq_len, batch_size)
         task: Literal["cls", "reg"],  # classification or regression
     ) -> torch.Tensor:
 
-        eval_pos = y_src.shape[0]
-        assert x_src.shape[1] == y_src.shape[1], "x_src and y_src must have the same batch size"
-        x_src = clip_outliers(x_src, -1 if self.training else eval_pos, n_sigma=4)
-        x_src = normalize_data(x_src, -1 if self.training else eval_pos)
-        x_src = clip_outliers(x_src, -1 if self.training else eval_pos, n_sigma=4)
+        eval_pos = y.shape[0]
+        assert x.shape[1] == y.shape[1], "x and y must have the same batch size"
+        x = clip_outliers(x, -1 if self.training else eval_pos, n_sigma=4)
+        x = normalize_data(x, -1 if self.training else eval_pos)
+        x = clip_outliers(x, -1 if self.training else eval_pos, n_sigma=4)
         if task == "reg":
-            y_src, mean_y, std_y = normalize_data(y_src, return_mean_std=True)
-            y_src = clip_outliers(y_src)
+            y, mean_y, std_y = normalize_data(y, return_mean_std=True)
+            y = clip_outliers(y)
+
+        x_src = x
+        y_src = y
 
         x_src = torch.nan_to_num(x_src, nan=0)
         x_src = self.encoder(x_src)
