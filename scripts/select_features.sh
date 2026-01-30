@@ -16,6 +16,8 @@ OUTPUT_DIR="${ROOT}/${SAVE_DIR}/benchmark"
 
 if [ $DATASET = "eicu" ]; then
     TASKS=("MORTALITY" "READMISSION")
+elif [ $DATASET = "eicu2" ]; then
+    TASKS=("SEPSIS" "UTI")
 elif [ $DATASET = "mimiciv" ]; then
     TASKS=("Mortality" "Readmission"  "Length of Stay" "ICD SEPSIS")
 elif [ $DATASET = "sjh_cpe" ]; then

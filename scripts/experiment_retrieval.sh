@@ -9,11 +9,7 @@ ROOT=$(pwd)
 METHOD=$1
 DATASET=$2
 SELECTION=$3
-RETRIEVAL=$4
-NUM_FEATURES=$5
-
-SAMPLING=true
-
+NUM_FEATURES=$4
 
 export LOGGING_DIR=${ROOT}/${LOGGING_DIR}/inference/
 
@@ -34,6 +30,8 @@ elif [ $DATASET = "mimiciv" ]; then
     TASKS=("Mortality"  "Readmission"  "Length of Stay" "ICD SEPSIS") #
 elif [ $DATASET = "sjh_cpe" ]; then
     TASKS=("EPISODE_CPE_INFECTION_FLAGGED" "WILL_READMIT_WITHIN_30_DAYS")
+elif [ $DATASET = "sjh_cpe_frame" ]; then
+    TASKS=("EPISODE_CPE_INFECTION_FLAGGED" "WILL_READMIT_WITHIN_30_DAYS") #"NEXT_LOS" "DECEASED_NEXT_EPISODE")
 elif [ $DATASET = "openml_ehr" ]; then
     TASKS=("43550" "4541")
 else
@@ -41,12 +39,12 @@ else
     exit 1  
 fi
 
-MAX_SAMPLES=5000
-
-for IMBALANCE_RATIO in 1 2 5 10 20 50 70 100 200 300 400 500; do #
-    for SEED in  1702 2000  1603  ; do #
+# weighted_logistics random
+# clinical_snnl snnl attention balance minority_prioritized inverse_frequency balanced_snnl
+for RETRIEVAL_METHOD in bsnnl; do # 
+    for SEED in  1702  ; do #2000  1603 
         for TASK in "${TASKS[@]}" ; do
-            echo "Running inference for method: $METHOD, dataset: $DATASET, task: "${TASK}", seed: $SEED, num_features: $NUM_FEATURES, imbalance_ratio: $IMBALANCE_RATIO"
+            echo "Running inference for method: $METHOD, dataset: $DATASET, task: "${TASK}", seed: $SEED, num_features: $NUM_FEATURES, retrieval_method: $RETRIEVAL_METHOD"
 
             if [[ " ${DL_METHODS[@]} " =~ " ${METHOD} " ]]; then
                 CONFIG_PATH="${ROOT}/${TALENT_TUNED_DIR}/${DATASET}/${TASK}/${METHOD}/args.json"
@@ -67,15 +65,13 @@ for IMBALANCE_RATIO in 1 2 5 10 20 50 70 100 200 300 400 500; do #
                 data.data_name=${DATASET} \
                 data.num_features=${NUM_FEATURES} \
                 data.task="${TASK}" \
-                data.sampling.do_sampling=${SAMPLING} \
-                data.sampling.max_samples=${MAX_SAMPLES} \
-                data.sampling.imbalance_ratio=${IMBALANCE_RATIO} \
+                data.sampling.do_sampling=false \
                 data.feature_selection_path="${FEATURE_SELECTION_PATH}" \
                 data.selection_method=${SELECTION} \
-                retrieval.retrieval_method=${RETRIEVAL} \
+                retrieval.retrieval_method=${RETRIEVAL_METHOD} \
                 retrieval.weight_json_path="${RETRIEVAL_JSON_PATH}" \
                 inference.model=$METHOD \
-                inference.output_folder="${ROOT}/${SAVE_DIR}/exp/imbalance/${IMBALANCE_RATIO}" \
+                inference.output_folder="${ROOT}/${SAVE_DIR}/exp/retrieval/${RETRIEVAL_METHOD}" \
                 inference.pretrained_path="${PRETRAIN_PATH}" \
                 inference.config_path="${CONFIG_PATH}" \
                 inference.tune_config="${TUNE_CONFIG}" \

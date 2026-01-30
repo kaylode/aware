@@ -9,11 +9,17 @@ ROOT=$(pwd)
 METHOD=$1
 DATASET=$2
 SELECTION=$3
-SAMPLING=null
 RETRIEVAL=$4 
 NUM_FEATURES=$5
 CONTEXT_SIZE=${6:-1024}
 INF_BATCH_SIZE=${7:-512}
+SAMPLING=${8:-null}
+
+if [ $SAMPLING = "null" ] || [ -z "$SAMPLING" ]; then
+    DO_SAMPLING=false
+else
+    DO_SAMPLING=true
+fi
 
 export LOGGING_DIR=${ROOT}/${LOGGING_DIR}/inference/
 
@@ -37,8 +43,12 @@ fi
 
 if [ $DATASET = "eicu" ]; then
     TASKS=("MORTALITY" "READMISSION")
+elif [ $DATASET = "eicu2" ]; then
+    TASKS=("SEPSIS" "UTI")
 elif [ $DATASET = "mimiciv" ]; then
     TASKS=("Mortality" "Readmission"  "Length of Stay" "ICD SEPSIS")
+elif [ $DATASET = "mimiciv_hai" ]; then
+    TASKS=("ICD VAP")
 elif [ $DATASET = "sjh_cpe" ]; then
     TASKS=("EPISODE_CPE_INFECTION_FLAGGED" "WILL_READMIT_WITHIN_30_DAYS")
 elif [ $DATASET = "sjh_cpe_frame" ]; then
@@ -53,7 +63,7 @@ else
 fi
 
 
-for SEED in  1702 2000  1603  ; do #
+for SEED in  1702  ; do #2000  1603 
     for TASK in "${TASKS[@]}" ; do
         echo "Running inference for method: $METHOD, dataset: $DATASET, task: "${TASK}", seed: $SEED"
 
@@ -76,10 +86,11 @@ for SEED in  1702 2000  1603  ; do #
             data.data_name=${DATASET} \
             data.num_features=${NUM_FEATURES} \
             data.task="${TASK}" \
-            data.sampling.do_sampling=${SAMPLING} \
+            data.sampling.do_sampling=${DO_SAMPLING} \
+            data.sampling.sampling_method=${SAMPLING} \
+            data.sampling.max_samples=${NUM_MAX_SAMPLES} \
             data.selection_method=${SELECTION} \
             data.feature_selection_path="${FEATURE_SELECTION_PATH}" \
-            data.sampling.max_samples=${NUM_MAX_SAMPLES} \
             retrieval.context_size=${CONTEXT_SIZE} \
             retrieval.inf_batch_size=${INF_BATCH_SIZE} \
             retrieval.retrieval_method="${RETRIEVAL}" \

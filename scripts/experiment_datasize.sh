@@ -18,8 +18,8 @@ SAMPLING=true
 export LOGGING_DIR=${ROOT}/${LOGGING_DIR}/inference/
 
 ML_METHODS=("xgboost" "rf" "catboost" "lightgbm" "knn" "mlp" "logistics" )
-DL_METHODS=("beta" "resnet" "tabr" "modernNCA" "tabm" "tabicl" "tabtransformer" "tabnet" "excelformer" "trompt" )
-PFN_METHODS=("knn-simple" "tabpfn" "tabdpt" "ehrpfn" "knnpfn")
+DL_METHODS=("beta" "resnet" "tabr" "modernNCA" "tabm" "tabtransformer" "tabnet" "excelformer" "trompt" )
+PFN_METHODS=("knn-simple" "tabpfn" "tabdpt" "tabicl"  "ehrpfn" "knnpfn")
 
 
 if [ $METHOD = "tabdpt" ]; then
@@ -43,7 +43,7 @@ else
 fi
 
 for MAX_SAMPLES in  1000 3000 5000 10000 30000 50000 30000 100000  ; do #
-    for SEED in  1702 2000  1603  ; do
+    for SEED in  1702 ; do #2000  1603  
         for TASK in "${TASKS[@]}" ; do
             echo "Running inference for method: $METHOD, dataset: $DATASET, task: "${TASK}", seed: $SEED, max_samples: $MAX_SAMPLES"
 
