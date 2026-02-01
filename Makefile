@@ -38,15 +38,27 @@ exp_imbalance:
 benchmark:
 # 	bash scripts/inference.sh xgboost $(DATASET) null  null null null null null
 # 	bash scripts/select_features.sh xgboost $(DATASET)
-	bash scripts/inference.sh catboost $(DATASET) null null null null null null
-	bash scripts/inference.sh lightgbm $(DATASET) null null null null null null
-	bash scripts/inference.sh logistics $(DATASET) null null null null null null
-	bash scripts/inference.sh mlp $(DATASET) null null null null null null
-	bash scripts/inference.sh knn-simple $(DATASET) null knn_l2 null $(CONTEXT_SIZE) $(INF_BATCH_SIZE) null
-	bash scripts/inference.sh tabpfn $(DATASET) shap null 100 $(CONTEXT_SIZE) $(INF_BATCH_SIZE) null
-	bash scripts/inference.sh tabicl $(DATASET) shap null 100 $(CONTEXT_SIZE) $(INF_BATCH_SIZE) null
-	bash scripts/inference.sh knnpfn $(DATASET) shap knn_l2 100 $(CONTEXT_SIZE) $(INF_BATCH_SIZE) null
-	bash scripts/inference.sh tabdpt $(DATASET) shap knn_l2 100 $(CONTEXT_SIZE) $(INF_BATCH_SIZE) null
+# 	bash scripts/inference.sh catboost $(DATASET) null null null null null null
+# 	bash scripts/inference.sh lightgbm $(DATASET) null null null null null null
+# 	bash scripts/inference.sh logistics $(DATASET) null null null null null null
+# 	bash scripts/inference.sh mlp $(DATASET) null null null null null null
+# 	bash scripts/inference.sh knn-simple $(DATASET) null knn_l2 null $(CONTEXT_SIZE) $(INF_BATCH_SIZE) null
+# 	bash scripts/inference.sh tabpfn $(DATASET) shap null 100 $(CONTEXT_SIZE) $(INF_BATCH_SIZE) null
+# 	bash scripts/inference.sh tabicl $(DATASET) shap null 100 $(CONTEXT_SIZE) $(INF_BATCH_SIZE) null
+# 	bash scripts/inference.sh knnpfn $(DATASET) shap knn_l2 100 $(CONTEXT_SIZE) $(INF_BATCH_SIZE) null
+# 	bash scripts/inference.sh tabdpt $(DATASET) shap knn_l2 100 $(CONTEXT_SIZE) $(INF_BATCH_SIZE) null
+
+
+# 	bash scripts/inference.sh trompt $(DATASET) null null null null null null
+# 	bash scripts/inference.sh resnet $(DATASET) null null null null null null
+# 	bash scripts/inference.sh tabnet $(DATASET) null null null null null null
+# 	bash scripts/inference.sh tabtransformer $(DATASET) null null null null null null
+# 	bash scripts/inference.sh danets $(DATASET) null null null null null null
+	bash scripts/inference.sh excelformer $(DATASET) null null null null null null
+# 	bash scripts/inference.sh tabr $(DATASET) null null null null null null
+# 	bash scripts/inference.sh tabm $(DATASET) null null null null null null
+# 	bash scripts/inference.sh modernNCA $(DATASET) null null null null null null
+# 	bash scripts/inference.sh beta $(DATASET) null null null null null null
 
 selection:
 	bash scripts/select_features.sh $(METHOD) $(DATASET)

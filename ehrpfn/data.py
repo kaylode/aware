@@ -11,7 +11,9 @@ from ehrmeds import (
 	get_openml_ehr_imbalance,
 	get_eicu,
 	get_eicu_default_configs,
+	get_eicu2_default_configs,
 	get_mimiciv_default_configs,
+	get_mimiciv_hai_configs,
 	get_sjh_cpe_default_configs,
 	get_openml_ehr_default_configs,
 	get_openml_ehr_imbalance_default_configs
@@ -43,6 +45,9 @@ def get_data(args: DictConfig):
 		data_dict['time_bins'] = time_bins
 		config_func = get_mimiciv_temporal_exp_configs
 		data_func = get_mimic_dataset
+	elif data_name == 'mimiciv_hai':
+		config_func = get_mimiciv_hai_configs
+		data_func = get_mimic_dataset
 	elif data_name.startswith(('mimicpipe', 'mimiciv', 'mimic')):
 		config_func = get_mimiciv_default_configs
 		data_func = get_mimic_dataset
@@ -65,6 +70,9 @@ def get_data(args: DictConfig):
 		config_func = get_sjh_cpe_frame_default_configs
 	elif data_name == 'eicu':
 		config_func = get_eicu_default_configs
+		data_func = get_eicu
+	elif data_name == 'eicu2':
+		config_func = get_eicu2_default_configs
 		data_func = get_eicu
 	else:
 		raise ValueError(f"Data {data_name} is not supported. Please choose from ['mimiciv', 'sjh_cpe', 'synthea']")
@@ -110,7 +118,6 @@ def prepare_data(data, args: DictConfig):
 		LOGGER.text(f"Before sampling: {X_train.shape}, {y_train.shape}", level=LoggerObserver.DEBUG)
 		try:
 			sampling_type, sampling_method = args.data.sampling.sampling_method.split('_')
-			study_name += f"_sampl:{sampling_type}-{sampling_method}"
 		except:
 			sampling_type, sampling_method = None, None
 
@@ -119,11 +126,10 @@ def prepare_data(data, args: DictConfig):
 			oversampling=sampling_method if sampling_type == "oversampling" else None,
 			undersampling=sampling_method if sampling_type == "undersampling" else None,
 			seed=args.inference.seed,
-			balance_negatives=args.data.sampling.balance_negatives, 
 			negative_ratio=args.data.sampling.negative_ratio
 		)
 		LOGGER.text(f"After sampling: {X_train.shape}, {y_train.shape}", level=LoggerObserver.DEBUG)
-	
+		
 	if args.data.sampling.get('imbalance_ratio', None) is not None:
 		from ehrmeds.utils.sampling import subsample_by_imbalance_ratio
 		LOGGER.text(f"Subsampling to achieve prevalence ratio of {args.data.sampling.imbalance_ratio}", level=LoggerObserver.DEBUG)
@@ -165,10 +171,6 @@ def prepare_data(data, args: DictConfig):
 					else:
 						raise ValueError(f"Unsupported data type for key {key}: {type(data[key])} during sample limiting.")
 		
-		
-
-
-
 	y_train = y_train.astype(int)
 	y_test = y_test.astype(int)
 	LOGGER.text(f"Data shape: {X_train.shape}, {X_test.shape}", level=LoggerObserver.DEBUG)
