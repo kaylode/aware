@@ -24,9 +24,8 @@ fi
 export LOGGING_DIR=${ROOT}/${LOGGING_DIR}/inference/
 
 ML_METHODS=("xgboost" "rf" "catboost" "lightgbm" "mlp" "logistics" )
-DL_METHODS=("beta" "resnet" "tabr" "modernNCA" "tabm" "tabicl" "tabtransformer" "tabnet" "excelformer" "trompt" )
-PFN_METHODS=("knn-simple" "tabpfn" "tabdpt" "ehrpfn" "knnpfn")
-
+DL_METHODS=("danets" "beta" "resnet" "tabr" "modernNCA" "tabm"  "tabtransformer" "tabnet" "excelformer" "trompt" )
+PFN_METHODS=("knn-simple" "tabpfn" "tabdpt" "ehrpfn" "knnpfn" "tabicl")
 
 if [ $METHOD = "tabdpt" ]; then
     PRETRAIN_PATH=${ROOT}/data/checkpoints/tabdpt1_1.pth
@@ -44,11 +43,11 @@ fi
 if [ $DATASET = "eicu" ]; then
     TASKS=("MORTALITY" "READMISSION")
 elif [ $DATASET = "eicu2" ]; then
-    TASKS=("SEPSIS" "UTI")
+    TASKS=("UTI" "SEPSIS") #  
 elif [ $DATASET = "mimiciv" ]; then
     TASKS=("Mortality" "Readmission"  "Length of Stay" "ICD SEPSIS")
 elif [ $DATASET = "mimiciv_hai" ]; then
-    TASKS=("ICD VAP")
+    TASKS=("ICD UTI" "ICD SEPSIS" "ICD VAP" ) #
 elif [ $DATASET = "sjh_cpe" ]; then
     TASKS=("EPISODE_CPE_INFECTION_FLAGGED" "WILL_READMIT_WITHIN_30_DAYS")
 elif [ $DATASET = "sjh_cpe_frame" ]; then
@@ -70,6 +69,8 @@ for SEED in  1702  ; do #2000  1603
         if [[ " ${DL_METHODS[@]} " =~ " ${METHOD} " ]]; then
             CONFIG_PATH="${ROOT}/${TALENT_TUNED_DIR}/${DATASET}/${TASK}/${METHOD}/args.json"
             TUNE_CONFIG="${ROOT}/${TALENT_TUNED_DIR}/${DATASET}/${TASK}/${METHOD}/${METHOD}-tuned.json"
+            INF_BATCH_SIZE=8
+            # PRETRAIN_PATH="${ROOT}/results/ehrpfn-inference/benchmark/${DATASET}/${TASK}/${METHOD}_${DATASET}_${TASK}/best-val-${SEED}.pth"
             echo "Using config path: $CONFIG_PATH"
             echo "Using tune config: $TUNE_CONFIG"
         else

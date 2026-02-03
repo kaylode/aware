@@ -47,7 +47,7 @@ benchmark:
 # 	bash scripts/inference.sh tabicl $(DATASET) shap null 100 $(CONTEXT_SIZE) $(INF_BATCH_SIZE) null
 # 	bash scripts/inference.sh knnpfn $(DATASET) shap knn_l2 100 $(CONTEXT_SIZE) $(INF_BATCH_SIZE) null
 # 	bash scripts/inference.sh tabdpt $(DATASET) shap knn_l2 100 $(CONTEXT_SIZE) $(INF_BATCH_SIZE) null
-
+# npna0110aptz456
 
 # 	bash scripts/inference.sh trompt $(DATASET) null null null null null null
 # 	bash scripts/inference.sh resnet $(DATASET) null null null null null null
@@ -56,9 +56,9 @@ benchmark:
 # 	bash scripts/inference.sh danets $(DATASET) null null null null null null
 	bash scripts/inference.sh excelformer $(DATASET) null null null null null null
 # 	bash scripts/inference.sh tabr $(DATASET) null null null null null null
-# 	bash scripts/inference.sh tabm $(DATASET) null null null null null null
-# 	bash scripts/inference.sh modernNCA $(DATASET) null null null null null null
-# 	bash scripts/inference.sh beta $(DATASET) null null null null null null
+	bash scripts/inference.sh tabm $(DATASET) null null null null null null
+	bash scripts/inference.sh modernNCA $(DATASET) null null null null null null
+	bash scripts/inference.sh beta $(DATASET) null null null null null null
 
 selection:
 	bash scripts/select_features.sh $(METHOD) $(DATASET)
