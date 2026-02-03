@@ -300,7 +300,7 @@ def get_predictions(args, data, config_dict):
 		
 		running_time = time.time() - start_time
 
-	elif method_name in ['beta', 'resnet', 'tabr', 'modernNCA', 'tabm', 'tabtransformer', 'tabnet', 'excelformer', 'trompt']:
+	elif method_name in ['danets', 'beta', 'resnet', 'tabr', 'modernNCA', 'tabm', 'tabtransformer', 'tabnet', 'excelformer', 'trompt']:
 
 		from ehrpfn.models.talent_wrapper import TALENTWrapper
 		from sklearn.model_selection import train_test_split
@@ -332,7 +332,8 @@ def get_predictions(args, data, config_dict):
 			categorical_feature_indices=categorical_feature_indices,
 			valset=[X_val, y_val],
 			is_classification=is_classification,
-			seed=args.inference.seed
+			seed=args.inference.seed,
+			batch_size=args.retrieval.get('inf_batch_size', None),
 		)
 		start_time = time.time()
 		model.fit(X_train, y_train)

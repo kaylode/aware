@@ -36,6 +36,7 @@ class TALENTWrapper(BaseEstimator, ClassifierMixin):
         categorical_feature_indices:List[int]=None, 
         valset=None, is_classification:bool=False, seed:int=None,
         context_size:int = None, # for modernNCA and Tabr
+        batch_size:int=None,
     ):
         self.model_name = model_name
         self.categorical_feature_indices = categorical_feature_indices
@@ -43,6 +44,7 @@ class TALENTWrapper(BaseEstimator, ClassifierMixin):
         self.valset = valset
         self.ckpt_path = ckpt_path
         self.context_size = context_size
+        self.batch_size = batch_size
 
         if config_path is not None:
             args = json.load(open(config_path, 'r'))
@@ -53,6 +55,9 @@ class TALENTWrapper(BaseEstimator, ClassifierMixin):
                 args['config']['model']['context_size'] = context_size
                 if 'sample_rate' in args['config']['model']:
                     args['config']['model']['sample_rate'] = None
+
+            if batch_size is not None:
+                args['batch_size'] = batch_size
 
             args = dict_to_namespace(args)
             if tune_config is not None:
@@ -100,7 +105,10 @@ class TALENTWrapper(BaseEstimator, ClassifierMixin):
                 args['config']['model']['context_size'] = context_size
                 if 'sample_rate' in args['config']['model']:
                     args['config']['model']['sample_rate'] = None
-                
+            
+            if batch_size is not None:
+                args['batch_size'] = batch_size
+
             args = dict_to_namespace(args)
 
             if tune_config is not None:
@@ -119,6 +127,10 @@ class TALENTWrapper(BaseEstimator, ClassifierMixin):
             argparse_dict = vars(args)
             with open(osp.join(save_dir, 'args.json'), 'w') as f:
                 json.dump(argparse_dict, f, indent=4)
+
+
+        
+
 
         self.args = args
         self.method = get_method(model_name)(args, not is_classification)
