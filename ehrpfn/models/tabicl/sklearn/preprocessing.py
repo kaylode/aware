@@ -1039,3 +1039,39 @@ class EnsembleGenerator(TransformerMixin, BaseEstimator):
             data[norm_method] = (np.stack(X_ensemble, axis=0), np.stack(y_ensemble, axis=0))
 
         return data
+
+
+    def transform_with_retrieval(self, X, retriever):
+        check_is_fitted(self, ["ensemble_configs_"])
+
+        # Unique feature filtering
+        X = self.unique_filter_.transform(X)
+        y = self.y_
+
+        query_items = []
+        for i in range(start, end):
+            query_dict = {"raw_feature": X[i].cpu().numpy()}
+            query_items.append(query_dict)
+        indices_nni = retriever.retrieve(query_items)
+
+        data = OrderedDict()
+        for norm_method, shuffle_shift_configs in self.ensemble_configs_.items():
+            # Apply preprocessing
+            preprocessor = self.preprocessors_[norm_method]
+            X_variant = np.concatenate(
+                [preprocessor.X_transformed_, preprocessor.transform(X)],
+                axis=0,
+            )
+            # Shuffle features and shift class labels
+            X_ensemble = []
+            y_ensemble = []
+            for shuffle_pattern, shift_offset in shuffle_shift_configs:
+                X_ensemble.append(X_variant[:, shuffle_pattern])
+                y_ensemble.append((y + shift_offset) % self.n_classes_)
+            data[norm_method] = (np.stack(X_ensemble, axis=0), np.stack(y_ensemble, axis=0))
+
+        return data
+
+
+
+        

@@ -111,7 +111,7 @@ def prepare_data(data, args: DictConfig):
 		categorical_feature_indices = [i for i in categorical_feature_indices if i not in time_series_cols]
 		feature_names = [feature_names[i] for i in range(len(feature_names)) if i not in time_series_cols]
 
-	if args.data.sampling.do_sampling:
+	if args.data.sampling.do_sampling and args.data.sampling.sampling_method is not None:
 		from ehrmeds.utils.sampling import synthetic_sampling
 
 		LOGGER.text(f"================= Performing SYNTHESIS SAMPLING =================", level=LoggerObserver.DEBUG)
