@@ -1,7 +1,7 @@
 #!/bin/bash
 
-set -e  # Exit on error
-set -u  # Treat unset variables as an error
+# set -e  # Exit on error
+# set -u  # Treat unset variables as an error
 
 source .env
 
@@ -14,8 +14,8 @@ NUM_FEATURES=$4
 export LOGGING_DIR=${ROOT}/${LOGGING_DIR}/inference/
 
 ML_METHODS=("xgboost" "rf" "catboost" "lightgbm" "knn" "mlp" "logistics" )
-DL_METHODS=("beta" "resnet" "tabr" "modernNCA" "tabm" "tabicl" "tabtransformer" "tabnet" "excelformer" "trompt" )
-PFN_METHODS=("knn-simple" "tabpfn" "tabdpt" "ehrpfn" "knnpfn")
+DL_METHODS=("beta" "resnet" "tabr" "modernNCA" "tabm" "tabtransformer" "tabnet" "excelformer" "trompt" )
+PFN_METHODS=("knn-simple" "tabpfn" "tabdpt" "ehrpfn" "knnpfn" "tabicl" )
 
 
 if [ $METHOD = "tabdpt" ]; then
@@ -26,23 +26,29 @@ fi
 
 if [ $DATASET = "eicu" ]; then
     TASKS=("MORTALITY" "READMISSION")
+elif [ $DATASET = "eicu2" ]; then
+    TASKS=("UTI" "SEPSIS") #  
 elif [ $DATASET = "mimiciv" ]; then
-    TASKS=("Mortality"  "Readmission"  "Length of Stay" "ICD SEPSIS") #
+    TASKS=("Mortality" "Readmission"  "Length of Stay" "ICD SEPSIS")
+elif [ $DATASET = "mimiciv_hai" ]; then
+    TASKS=("ICD UTI" "ICD VAP"  "ICD SEPSIS" ) #
 elif [ $DATASET = "sjh_cpe" ]; then
     TASKS=("EPISODE_CPE_INFECTION_FLAGGED" "WILL_READMIT_WITHIN_30_DAYS")
 elif [ $DATASET = "sjh_cpe_frame" ]; then
-    TASKS=("EPISODE_CPE_INFECTION_FLAGGED" "WILL_READMIT_WITHIN_30_DAYS") #"NEXT_LOS" "DECEASED_NEXT_EPISODE")
+    TASKS=("EPISODE_CPE_INFECTION_FLAGGED" "WILL_READMIT_WITHIN_30_DAYS" "NEXT_LOS" "DECEASED_NEXT_EPISODE")
 elif [ $DATASET = "openml_ehr" ]; then
     TASKS=("43550" "4541")
+elif [ $DATASET = "synthea" ]; then
+    TASKS=("stroke" "lung_cancer")
 else
     echo "Unknown dataset: $DATASET"
     exit 1  
 fi
-
-# weighted_logistics random
-# clinical_snnl snnl attention balance minority_prioritized inverse_frequency balanced_snnl
-for RETRIEVAL_METHOD in bsnnl; do # 
-    for SEED in  1702  ; do #2000  1603 
+# snnl snnlattnc snnlattne snnlattne_ens snnlattne_focal snnlattnc_weighted
+# bash scripts/experiment_retrieval.sh tabdpt mimiciv_hai shap 100
+# random knn_l2 weighted_logistics bsnnl snnl attention balance minority_prioritized inverse_frequency balanced_snnl clinical_snnl
+for RETRIEVAL_METHOD in  aware_snnl  ; do # aware_supcon aware_snnl supconattn_focal
+    for SEED in   2000  1603  ; do #1702
         for TASK in "${TASKS[@]}" ; do
             echo "Running inference for method: $METHOD, dataset: $DATASET, task: "${TASK}", seed: $SEED, num_features: $NUM_FEATURES, retrieval_method: $RETRIEVAL_METHOD"
 
@@ -56,8 +62,8 @@ for RETRIEVAL_METHOD in bsnnl; do #
                 TUNE_CONFIG=null
             fi
 
-            RETRIEVAL_JSON_PATH="${ROOT}/results/ehrpfn-inference/benchmark/${DATASET}/${TASK}/logistics_${DATASET}_${TASK}/logistics_params.json" 
-            FEATURE_SELECTION_PATH="${ROOT}/results/ehrpfn-inference/selection/${DATASET}/${TASK}"
+            FEATURE_SELECTION_PATH="${ROOT}/${SAVE_DIR}/selection/${DATASET}/${TASK}"
+            RETRIEVAL_JSON_PATH="${ROOT}/${SAVE_DIR}/benchmark/${DATASET}/${TASK}/logistics_${DATASET}_${TASK}/logistics_params.json" 
 
             PYTHONPATH=. uv run ehrpfn/inference.py \
                 --config-dir ${ROOT}/configs \
@@ -71,7 +77,7 @@ for RETRIEVAL_METHOD in bsnnl; do #
                 retrieval.retrieval_method=${RETRIEVAL_METHOD} \
                 retrieval.weight_json_path="${RETRIEVAL_JSON_PATH}" \
                 inference.model=$METHOD \
-                inference.output_folder="${ROOT}/${SAVE_DIR}/exp/retrieval/${RETRIEVAL_METHOD}" \
+                inference.output_folder="${ROOT}/${SAVE_DIR}/exp/retrieval/${RETRIEVAL_METHOD}/${SEED}" \
                 inference.pretrained_path="${PRETRAIN_PATH}" \
                 inference.config_path="${CONFIG_PATH}" \
                 inference.tune_config="${TUNE_CONFIG}" \

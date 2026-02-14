@@ -45,15 +45,15 @@ if [ $DATASET = "eicu" ]; then
 elif [ $DATASET = "eicu2" ]; then
     TASKS=("UTI" "SEPSIS") #  
 elif [ $DATASET = "mimiciv" ]; then
-    TASKS=("Mortality" "Readmission"  "Length of Stay" "ICD SEPSIS")
+    TASKS=("Mortality" "Readmission"  "Length of Stay" )
 elif [ $DATASET = "mimiciv_hai" ]; then
-    TASKS=("ICD UTI" "ICD SEPSIS" "ICD VAP" ) #
+    TASKS=("ICD UTI" "ICD VAP" "ICD SEPSIS" ) #
 elif [ $DATASET = "sjh_cpe" ]; then
     TASKS=("EPISODE_CPE_INFECTION_FLAGGED" "WILL_READMIT_WITHIN_30_DAYS")
 elif [ $DATASET = "sjh_cpe_frame" ]; then
     TASKS=("EPISODE_CPE_INFECTION_FLAGGED" "WILL_READMIT_WITHIN_30_DAYS" "NEXT_LOS" "DECEASED_NEXT_EPISODE")
 elif [ $DATASET = "openml_ehr" ]; then
-    TASKS=("43550" "4541")
+    TASKS=("") #"43550" "4541")
 elif [ $DATASET = "synthea" ]; then
     TASKS=("stroke" "lung_cancer")
 else
@@ -62,14 +62,14 @@ else
 fi
 
 
-for SEED in  1702  ; do #2000  1603 
+for SEED in 2000  1603 1702 ; do #
     for TASK in "${TASKS[@]}" ; do
         echo "Running inference for method: $METHOD, dataset: $DATASET, task: "${TASK}", seed: $SEED"
 
         if [[ " ${DL_METHODS[@]} " =~ " ${METHOD} " ]]; then
             CONFIG_PATH="${ROOT}/${TALENT_TUNED_DIR}/${DATASET}/${TASK}/${METHOD}/args.json"
             TUNE_CONFIG="${ROOT}/${TALENT_TUNED_DIR}/${DATASET}/${TASK}/${METHOD}/${METHOD}-tuned.json"
-            INF_BATCH_SIZE=8
+            INF_BATCH_SIZE=16
             # PRETRAIN_PATH="${ROOT}/results/ehrpfn-inference/benchmark/${DATASET}/${TASK}/${METHOD}_${DATASET}_${TASK}/best-val-${SEED}.pth"
             echo "Using config path: $CONFIG_PATH"
             echo "Using tune config: $TUNE_CONFIG"
@@ -97,7 +97,7 @@ for SEED in  1702  ; do #2000  1603
             retrieval.retrieval_method="${RETRIEVAL}" \
             retrieval.weight_json_path="${RETRIEVAL_JSON_PATH}" \
             inference.model="${METHOD}" \
-            inference.output_folder="${ROOT}/${SAVE_DIR}/benchmark" \
+            inference.output_folder="${ROOT}/${SAVE_DIR}/benchmark/${SEED}" \
             inference.pretrained_path="${PRETRAIN_PATH}" \
             inference.config_path="${CONFIG_PATH}" \
             inference.tune_config="${TUNE_CONFIG}" \

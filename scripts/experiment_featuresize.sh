@@ -30,7 +30,7 @@ fi
 if [ $DATASET = "eicu" ]; then
     TASKS=("READMISSION" "MORTALITY") #
 elif [ $DATASET = "mimiciv" ]; then
-    TASKS=("Readmission" "Mortality" "ICD SEPSIS" "Length of Stay" ) #  
+    TASKS=("Readmission" "Mortality" "Length of Stay" ) #  
 elif [ $DATASET = "sjh_cpe" ]; then
     TASKS=("EPISODE_CPE_INFECTION_FLAGGED" "WILL_READMIT_WITHIN_30_DAYS")
 elif [ $DATASET = "openml_ehr" ]; then
@@ -56,8 +56,9 @@ for NUM_FEATURES in 10 20 50 100 200 300 400 500 500 ; do #
                 TUNE_CONFIG=null
             fi
 
-            RETRIEVAL_JSON_PATH="${ROOT}/results/ehrpfn-inference/benchmark/${DATASET}/${TASK}/logistics_${DATASET}_${TASK}/logistics_params.json" 
-            FEATURE_SELECTION_PATH="${ROOT}/results/ehrpfn-inference/selection/${DATASET}/${TASK}"
+            FEATURE_SELECTION_PATH="${ROOT}/${SAVE_DIR}/selection/${DATASET}/${TASK}"
+            RETRIEVAL_JSON_PATH="${ROOT}/${SAVE_DIR}/benchmark/${DATASET}/${TASK}/logistics_${DATASET}_${TASK}/logistics_params.json" 
+
 
             PYTHONPATH=. uv run ehrpfn/inference.py \
                 --config-dir ${ROOT}/configs \

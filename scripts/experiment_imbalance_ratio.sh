@@ -31,7 +31,7 @@ fi
 if [ $DATASET = "eicu" ]; then
     TASKS=("MORTALITY" "READMISSION")
 elif [ $DATASET = "mimiciv" ]; then
-    TASKS=("Mortality"  "Readmission"  "Length of Stay" "ICD SEPSIS") #
+    TASKS=("Mortality"  "Readmission"  "Length of Stay") #
 elif [ $DATASET = "sjh_cpe" ]; then
     TASKS=("EPISODE_CPE_INFECTION_FLAGGED" "WILL_READMIT_WITHIN_30_DAYS")
 elif [ $DATASET = "openml_ehr" ]; then
@@ -58,8 +58,8 @@ for IMBALANCE_RATIO in 1 2 5 10 20 50 70 100 200 300 400 500; do #
                 TUNE_CONFIG=null
             fi
 
-            RETRIEVAL_JSON_PATH="${ROOT}/results/ehrpfn-inference/benchmark/${DATASET}/${TASK}/logistics_${DATASET}_${TASK}/logistics_params.json" 
-            FEATURE_SELECTION_PATH="${ROOT}/results/ehrpfn-inference/selection/${DATASET}/${TASK}"
+            RETRIEVAL_JSON_PATH="${ROOT}/results/benchmark/${DATASET}/${TASK}/logistics_${DATASET}_${TASK}/logistics_params.json" 
+            FEATURE_SELECTION_PATH="${ROOT}/results/selection/${DATASET}/${TASK}"
 
             PYTHONPATH=. uv run ehrpfn/inference.py \
                 --config-dir ${ROOT}/configs \

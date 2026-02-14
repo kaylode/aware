@@ -10,6 +10,7 @@ METHOD=$1
 DATASET=$2
 SELECTION=$3
 NUM_FEATURES=$4
+NEGATIVE_RATIO=5
 
 export LOGGING_DIR=${ROOT}/${LOGGING_DIR}/inference/
 
@@ -27,19 +28,24 @@ fi
 
 if [ $DATASET = "eicu" ]; then
     TASKS=("MORTALITY" "READMISSION")
+elif [ $DATASET = "eicu2" ]; then
+    TASKS=("UTI" "SEPSIS") #  
 elif [ $DATASET = "mimiciv" ]; then
-    TASKS=("Mortality"  "Readmission"  "Length of Stay" "ICD SEPSIS") #
+    TASKS=("Mortality" "Readmission"  "Length of Stay" "ICD SEPSIS")
+elif [ $DATASET = "mimiciv_hai" ]; then
+    TASKS=("ICD VAP" "ICD UTI" "ICD SEPSIS" ) #
 elif [ $DATASET = "sjh_cpe" ]; then
     TASKS=("EPISODE_CPE_INFECTION_FLAGGED" "WILL_READMIT_WITHIN_30_DAYS")
 elif [ $DATASET = "sjh_cpe_frame" ]; then
-    TASKS=("EPISODE_CPE_INFECTION_FLAGGED") # "WILL_READMIT_WITHIN_30_DAYS" "NEXT_LOS" "DECEASED_NEXT_EPISODE")
+    TASKS=("EPISODE_CPE_INFECTION_FLAGGED" "WILL_READMIT_WITHIN_30_DAYS" "NEXT_LOS" "DECEASED_NEXT_EPISODE")
 elif [ $DATASET = "openml_ehr" ]; then
     TASKS=("43550" "4541")
+elif [ $DATASET = "synthea" ]; then
+    TASKS=("stroke" "lung_cancer")
 else
     echo "Unknown dataset: $DATASET"
     exit 1  
 fi
-
 
 
 for SAMPLING_METHOD in null oversampling_smote undersampling_random oversampling_random; do # 
@@ -74,6 +80,7 @@ for SAMPLING_METHOD in null oversampling_smote undersampling_random oversampling
                 data.task="${TASK}" \
                 data.sampling.do_sampling=true \
                 data.sampling.sampling_method=${SAMPLING_METHOD} \
+                data.sampling.negative_ratio=${NEGATIVE_RATIO} \
                 data.feature_selection_path="${FEATURE_SELECTION_PATH}" \
                 data.selection_method=${SELECTION} \
                 retrieval.retrieval_method=${RETRIEVAL_METHOD} \
