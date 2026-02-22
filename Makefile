@@ -12,12 +12,12 @@ inference:
 	bash scripts/inference.sh $(METHOD) $(DATASET) $(SELECTION)  $(RETRIEVAL) $(NUM_FEATURES) $(CONTEXT_SIZE) $(INF_BATCH_SIZE) $(SAMPLING)
 
 exp_retrieval:
-	bash scripts/experiment_retrieval.sh knn-simple mimiciv_hai shap 100
 	bash scripts/experiment_retrieval.sh tabdpt mimiciv_hai shap 100
-	bash scripts/experiment_retrieval.sh knnpfn mimiciv_hai shap 100
-	bash scripts/experiment_retrieval.sh knn-simple eicu2 shap 100
 	bash scripts/experiment_retrieval.sh tabdpt eicu2 shap 100
+	bash scripts/experiment_retrieval.sh knnpfn mimiciv_hai shap 100
 	bash scripts/experiment_retrieval.sh knnpfn eicu2 shap 100
+# 	bash scripts/experiment_retrieval.sh knn-simple mimiciv_hai shap 100
+# 	bash scripts/experiment_retrieval.sh knn-simple eicu2 shap 100
 
 exp_sampling:
 # 	bash scripts/experiment_sampling.sh tabdpt mimiciv_hai shap 100
@@ -32,43 +32,88 @@ exp_sampling:
 	bash scripts/experiment_sampling.sh tabicl mimiciv_hai shap 100
 
 exp_datasize:
-	bash scripts/experiment_datasize.sh $(METHOD) openml_ehr null  $(RETRIEVAL) null
-	bash scripts/experiment_datasize.sh $(METHOD) mimiciv shap  $(RETRIEVAL) 100
-	bash scripts/experiment_datasize.sh $(METHOD) eicu shap  $(RETRIEVAL) 100
+	bash scripts/experiment_datasize.sh excelformer mimiciv_hai shap  null 500
+	bash scripts/experiment_datasize.sh excelformer eicu2 shap  null 500
+	bash scripts/experiment_datasize.sh trompt mimiciv_hai shap  null 500
+	bash scripts/experiment_datasize.sh trompt eicu2 shap  null 500
+	bash scripts/experiment_datasize.sh knn-simple mimiciv_hai shap  knn_l2 100
+	bash scripts/experiment_datasize.sh knn-simple eicu2 shap  knn_l2 100
+	bash scripts/experiment_datasize.sh tabdpt mimiciv_hai shap  knn_l2 100
+	bash scripts/experiment_datasize.sh tabdpt eicu2 shap  knn_l2 100
+	bash scripts/experiment_datasize.sh knnpfn mimiciv_hai shap  knn_l2 100
+	bash scripts/experiment_datasize.sh knnpfn eicu2 shap  knn_l2 100
+	bash scripts/experiment_datasize.sh tabpfn mimiciv_hai shap  null 100
+	bash scripts/experiment_datasize.sh tabpfn eicu2 shap  null 100
+	bash scripts/experiment_datasize.sh xgboost mimiciv_hai shap  null 500
+	bash scripts/experiment_datasize.sh xgboost eicu2 shap  null 500
+	bash scripts/experiment_datasize.sh modernNCA mimiciv_hai shap  null 500
+	bash scripts/experiment_datasize.sh modernNCA eicu2 shap  null 500
+	bash scripts/experiment_datasize.sh tabdpt mimiciv_hai shap  aware_snnl 100
+	bash scripts/experiment_datasize.sh tabdpt eicu2 shap  aware_snnl 100
+	bash scripts/experiment_datasize.sh knnpfn mimiciv_hai shap  aware_snnl 100
+	bash scripts/experiment_datasize.sh knnpfn eicu2 shap  aware_snnl 100
+# 	bash scripts/experiment_datasize.sh $(METHOD) openml_ehr null  $(RETRIEVAL) null
+# 	bash scripts/experiment_datasize.sh $(METHOD) mimiciv shap  $(RETRIEVAL) 100
+# 	bash scripts/experiment_datasize.sh $(METHOD) eicu shap  $(RETRIEVAL) 100
 # 	bash scripts/experiment_datasize.sh $(METHOD) sjh_cpe_frame shap  $(RETRIEVAL) 100
 
 exp_featuresize:
-	bash scripts/experiment_featuresize.sh knnpfn mimiciv shap aware_snnl
-	bash scripts/experiment_featuresize.sh knnpfn mimiciv shap aware_supcon
-# 	bash scripts/experiment_featuresize.sh tabdpt eicu shap aware_supcon
+	bash scripts/experiment_featuresize.sh excelformer eicu2 shap  null
+	bash scripts/experiment_featuresize.sh excelformer mimiciv_hai shap  null
+	bash scripts/experiment_featuresize.sh trompt eicu2 shap  null
+	bash scripts/experiment_featuresize.sh trompt mimiciv_hai shap  null
+	bash scripts/experiment_featuresize.sh knn-simple eicu2 shap  knn_l2
+	bash scripts/experiment_featuresize.sh knn-simple mimiciv_hai shap  knn_l2
+	bash scripts/experiment_featuresize.sh tabdpt eicu2 shap  knn_l2
+	bash scripts/experiment_featuresize.sh tabdpt mimiciv_hai shap  knn_l2
+	bash scripts/experiment_featuresize.sh knnpfn eicu2 shap  knn_l2
+	bash scripts/experiment_featuresize.sh knnpfn mimiciv_hai shap  knn_l2
+	bash scripts/experiment_featuresize.sh xgboost eicu2 shap  null
+	bash scripts/experiment_featuresize.sh xgboost mimiciv_hai shap  null
+	bash scripts/experiment_featuresize.sh tabpfn eicu2 shap  null
+	bash scripts/experiment_featuresize.sh tabpfn mimiciv_hai shap  null
+	bash scripts/experiment_featuresize.sh modernNCA eicu2 shap  null
+	bash scripts/experiment_featuresize.sh modernNCA mimiciv_hai shap  null
+	bash scripts/experiment_featuresize.sh tabdpt eicu2 shap  aware_snnl
+	bash scripts/experiment_featuresize.sh tabdpt mimiciv_hai shap  aware_snnl
+	bash scripts/experiment_featuresize.sh knnpfn eicu2 shap  aware_snnl
+	bash scripts/experiment_featuresize.sh knnpfn mimiciv_hai shap  aware_snnl
+# 	bash scripts/experiment_featuresize.sh knnpfn mimiciv shap aware_snnl
 # 	bash scripts/experiment_featuresize.sh tabdpt mimiciv shap aware_snnl
-# 	bash scripts/experiment_featuresize.sh tabdpt mimiciv shap aware_supcon
 # 	bash scripts/experiment_featuresize.sh knnpfn eicu shap aware_snnl
-# 	bash scripts/experiment_featuresize.sh knnpfn eicu shap aware_supcon
 # 	bash scripts/experiment_featuresize.sh tabdpt eicu shap aware_snnl
 # 	bash scripts/experiment_featuresize.sh $(METHOD) eicu shap  $(RETRIEVAL)
-# 	bash scripts/experiment_featuresize.sh $(METHOD) mimiciv shap  $(RETRIEVAL)
 
 exp_imbalance:
-	bash scripts/experiment_imbalance_ratio.sh tabdpt eicu shap  aware_snnl 100
-	bash scripts/experiment_imbalance_ratio.sh tabdpt mimiciv shap  aware_snnl 100
-	bash scripts/experiment_imbalance_ratio.sh tabdpt eicu shap  aware_supcon 100
-	bash scripts/experiment_imbalance_ratio.sh tabdpt mimiciv shap  aware_supcon 100
-	bash scripts/experiment_imbalance_ratio.sh knnpfn eicu shap  aware_snnl 100
-	bash scripts/experiment_imbalance_ratio.sh knnpfn mimiciv shap  aware_snnl 100
-	bash scripts/experiment_imbalance_ratio.sh knnpfn eicu shap  aware_supcon 100
-	bash scripts/experiment_imbalance_ratio.sh knnpfn mimiciv shap  aware_supcon 100
+	bash scripts/experiment_imbalance_ratio.sh knn-simple eicu2 shap  knn_l2 500
+	bash scripts/experiment_imbalance_ratio.sh knn-simple mimiciv_hai shap  knn_l2 500
+	bash scripts/experiment_imbalance_ratio.sh tabdpt eicu2 shap  knn_l2 100
+	bash scripts/experiment_imbalance_ratio.sh tabdpt mimiciv_hai shap  knn_l2 100
+	bash scripts/experiment_imbalance_ratio.sh knnpfn eicu2 shap  knn_l2 100
+	bash scripts/experiment_imbalance_ratio.sh knnpfn mimiciv_hai shap  knn_l2 100
+	bash scripts/experiment_imbalance_ratio.sh xgboost eicu2 shap  null 500
+	bash scripts/experiment_imbalance_ratio.sh xgboost mimiciv_hai shap  null 500
+	bash scripts/experiment_imbalance_ratio.sh tabpfn eicu2 shap  null 100
+	bash scripts/experiment_imbalance_ratio.sh tabpfn mimiciv_hai shap  null 100
+	bash scripts/experiment_imbalance_ratio.sh tabdpt eicu2 shap  aware_snnl 100
+	bash scripts/experiment_imbalance_ratio.sh tabdpt mimiciv_hai shap  aware_snnl 100
+	bash scripts/experiment_imbalance_ratio.sh knnpfn eicu2 shap  aware_snnl 100
+	bash scripts/experiment_imbalance_ratio.sh knnpfn mimiciv_hai shap  aware_snnl 100
+	bash scripts/experiment_imbalance_ratio.sh excelformer eicu2 shap  null 500
+	bash scripts/experiment_imbalance_ratio.sh excelformer mimiciv_hai shap  null 500
+	bash scripts/experiment_imbalance_ratio.sh trompt eicu2 shap  null 500
+	bash scripts/experiment_imbalance_ratio.sh trompt mimiciv_hai shap  null 500
+	bash scripts/experiment_imbalance_ratio.sh modernNCA eicu2 shap  null 500
+	bash scripts/experiment_imbalance_ratio.sh modernNCA mimiciv_hai shap  null 500
+
 # 	bash scripts/experiment_imbalance_ratio.sh $(METHOD) eicu shap  $(RETRIEVAL) 100
 # 	bash scripts/experiment_imbalance_ratio.sh $(METHOD) mimiciv shap  $(RETRIEVAL) 100
 # 	bash scripts/experiment_imbalance_ratio.sh $(METHOD) sjh_cpe_frame shap  $(RETRIEVAL) 100
 
 benchmark_aware:
-	bash scripts/inference.sh knn-simple $(DATASET) null aware_snnl null $(CONTEXT_SIZE) $(INF_BATCH_SIZE) null
-	bash scripts/inference.sh knn-simple $(DATASET) null aware_supcon null $(CONTEXT_SIZE) $(INF_BATCH_SIZE) null
 	bash scripts/inference.sh tabdpt $(DATASET) shap aware_snnl 100 $(CONTEXT_SIZE) $(INF_BATCH_SIZE) null
-	bash scripts/inference.sh tabdpt $(DATASET) shap aware_supcon 100 $(CONTEXT_SIZE) $(INF_BATCH_SIZE) null
 	bash scripts/inference.sh knnpfn $(DATASET) shap aware_snnl 100 $(CONTEXT_SIZE) $(INF_BATCH_SIZE) null
-	bash scripts/inference.sh knnpfn $(DATASET) shap aware_supcon 100 $(CONTEXT_SIZE) $(INF_BATCH_SIZE) null
+	bash scripts/inference.sh knn-simple $(DATASET) null aware_snnl null $(CONTEXT_SIZE) $(INF_BATCH_SIZE) null
 
 
 benchmark:
