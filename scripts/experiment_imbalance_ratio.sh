@@ -28,22 +28,32 @@ else
     PRETRAIN_PATH=null
 fi
 
+
 if [ $DATASET = "eicu" ]; then
     TASKS=("MORTALITY" "READMISSION")
+elif [ $DATASET = "eicu2" ]; then
+    TASKS=("UTI" "SEPSIS") #  
 elif [ $DATASET = "mimiciv" ]; then
-    TASKS=("Mortality"  "Readmission"  "Length of Stay") #
+    TASKS=("Mortality" "Readmission"  "Length of Stay" )
+elif [ $DATASET = "mimiciv_hai" ]; then
+    TASKS=("ICD UTI" "ICD VAP" "ICD SEPSIS" ) #
 elif [ $DATASET = "sjh_cpe" ]; then
     TASKS=("EPISODE_CPE_INFECTION_FLAGGED" "WILL_READMIT_WITHIN_30_DAYS")
+elif [ $DATASET = "sjh_cpe_frame" ]; then
+    TASKS=("EPISODE_CPE_INFECTION_FLAGGED" "WILL_READMIT_WITHIN_30_DAYS" "NEXT_LOS" "DECEASED_NEXT_EPISODE")
 elif [ $DATASET = "openml_ehr" ]; then
-    TASKS=("43550" "4541")
+    TASKS=("") #"43550" "4541") #"4531" "1097" "46612"
+elif [ $DATASET = "synthea" ]; then
+    TASKS=("stroke" "lung_cancer")
 else
     echo "Unknown dataset: $DATASET"
     exit 1  
 fi
 
-MAX_SAMPLES=5000
+INF_BATCH_SIZE=512
+MAX_SAMPLES=10000
 
-for IMBALANCE_RATIO in 1 2 5 10 20 50 70 100 200 300 400 500; do #
+for IMBALANCE_RATIO in 5 10 20 50 100 200 300 400 500; do #
     for SEED in  1702  ; do #2000  1603 
         for TASK in "${TASKS[@]}" ; do
             echo "Running inference for method: $METHOD, dataset: $DATASET, task: "${TASK}", seed: $SEED, num_features: $NUM_FEATURES, imbalance_ratio: $IMBALANCE_RATIO"
@@ -51,6 +61,8 @@ for IMBALANCE_RATIO in 1 2 5 10 20 50 70 100 200 300 400 500; do #
             if [[ " ${DL_METHODS[@]} " =~ " ${METHOD} " ]]; then
                 CONFIG_PATH="${ROOT}/${TALENT_TUNED_DIR}/${DATASET}/${TASK}/${METHOD}/args.json"
                 TUNE_CONFIG="${ROOT}/${TALENT_TUNED_DIR}/${DATASET}/${TASK}/${METHOD}/${METHOD}-tuned.json"
+                INF_BATCH_SIZE=16
+                # PRETRAIN_PATH="${ROOT}/results/ehrpfn-inference/benchmark/${DATASET}/${TASK}/${METHOD}_${DATASET}_${TASK}/best-val-${SEED}.pth"
                 echo "Using config path: $CONFIG_PATH"
                 echo "Using tune config: $TUNE_CONFIG"
             else
@@ -59,7 +71,6 @@ for IMBALANCE_RATIO in 1 2 5 10 20 50 70 100 200 300 400 500; do #
             fi
 
             RETRIEVAL_JSON_PATH="${ROOT}/results/benchmark/${DATASET}/${TASK}/logistics_${DATASET}_${TASK}/logistics_params.json" 
-            FEATURE_SELECTION_PATH="${ROOT}/results/selection/${DATASET}/${TASK}"
 
             PYTHONPATH=. uv run ehrpfn/inference.py \
                 --config-dir ${ROOT}/configs \
@@ -70,7 +81,7 @@ for IMBALANCE_RATIO in 1 2 5 10 20 50 70 100 200 300 400 500; do #
                 data.sampling.do_sampling=${SAMPLING} \
                 data.sampling.max_samples=${MAX_SAMPLES} \
                 data.sampling.imbalance_ratio=${IMBALANCE_RATIO} \
-                data.feature_selection_path="${FEATURE_SELECTION_PATH}" \
+                retrieval.inf_batch_size=${INF_BATCH_SIZE} \
                 data.selection_method=${SELECTION} \
                 retrieval.retrieval_method=${RETRIEVAL} \
                 retrieval.weight_json_path="${RETRIEVAL_JSON_PATH}" \

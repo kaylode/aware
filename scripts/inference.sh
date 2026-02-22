@@ -39,21 +39,22 @@ if [ $METHOD = "tabpfn" ]; then
 else
     NUM_MAX_SAMPLES=null
 fi
+PRETRAIN_RETRIEVER_PATH=null
 
 if [ $DATASET = "eicu" ]; then
     TASKS=("MORTALITY" "READMISSION")
 elif [ $DATASET = "eicu2" ]; then
-    TASKS=("UTI" "SEPSIS") #  
+    TASKS=("SEPSIS" "UTI" ) #   
 elif [ $DATASET = "mimiciv" ]; then
     TASKS=("Mortality" "Readmission"  "Length of Stay" )
 elif [ $DATASET = "mimiciv_hai" ]; then
-    TASKS=("ICD UTI" "ICD VAP" "ICD SEPSIS" ) #
+    TASKS=("ICD UTI" "ICD SEPSIS"  "ICD VAP"  ) #
 elif [ $DATASET = "sjh_cpe" ]; then
     TASKS=("EPISODE_CPE_INFECTION_FLAGGED" "WILL_READMIT_WITHIN_30_DAYS")
 elif [ $DATASET = "sjh_cpe_frame" ]; then
     TASKS=("EPISODE_CPE_INFECTION_FLAGGED" "WILL_READMIT_WITHIN_30_DAYS" "NEXT_LOS" "DECEASED_NEXT_EPISODE")
 elif [ $DATASET = "openml_ehr" ]; then
-    TASKS=("") #"43550" "4541")
+    TASKS=("") #"43550" "4541") #"4531" "1097" "46612"
 elif [ $DATASET = "synthea" ]; then
     TASKS=("stroke" "lung_cancer")
 else
@@ -61,8 +62,10 @@ else
     exit 1  
 fi
 
+# PRETRAIN_PATH="/home/mpham/workspace/source/ehrfm/ehrpfn-inference/results/ehrdpt-training/1702/tabdpt_aware_mimiciv_hai_ICD UTI_100/best_auc.ckpt"
+# PRETRAIN_RETRIEVER_PATH="/home/mpham/workspace/source/ehrfm/ehrpfn-inference/results/ehrdpt-training/1702/tabdpt_aware_mimiciv_hai_ICD UTI_100/retriever.pth"
 
-for SEED in 2000  1603 1702 ; do #
+for SEED in 42  2000 1702  ; do # 
     for TASK in "${TASKS[@]}" ; do
         echo "Running inference for method: $METHOD, dataset: $DATASET, task: "${TASK}", seed: $SEED"
 
@@ -78,7 +81,6 @@ for SEED in 2000  1603 1702 ; do #
             TUNE_CONFIG=null
         fi
 
-        FEATURE_SELECTION_PATH="${ROOT}/${SAVE_DIR}/selection/${DATASET}/${TASK}"
         RETRIEVAL_JSON_PATH="${ROOT}/${SAVE_DIR}/benchmark/${DATASET}/${TASK}/logistics_${DATASET}_${TASK}/logistics_params.json" 
 
         PYTHONPATH=. uv run ehrpfn/inference.py \
@@ -91,10 +93,10 @@ for SEED in 2000  1603 1702 ; do #
             data.sampling.sampling_method=${SAMPLING} \
             data.sampling.max_samples=${NUM_MAX_SAMPLES} \
             data.selection_method=${SELECTION} \
-            data.feature_selection_path="${FEATURE_SELECTION_PATH}" \
             retrieval.context_size=${CONTEXT_SIZE} \
             retrieval.inf_batch_size=${INF_BATCH_SIZE} \
             retrieval.retrieval_method="${RETRIEVAL}" \
+            retrieval.pretrained_path="${PRETRAIN_RETRIEVER_PATH}" \
             retrieval.weight_json_path="${RETRIEVAL_JSON_PATH}" \
             inference.model="${METHOD}" \
             inference.output_folder="${ROOT}/${SAVE_DIR}/benchmark/${SEED}" \
@@ -105,3 +107,5 @@ for SEED in 2000  1603 1702 ; do #
             wandb.use_wandb=false
     done
 done
+
+

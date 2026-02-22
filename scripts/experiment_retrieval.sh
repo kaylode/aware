@@ -29,7 +29,7 @@ if [ $DATASET = "eicu" ]; then
 elif [ $DATASET = "eicu2" ]; then
     TASKS=("UTI" "SEPSIS") #  
 elif [ $DATASET = "mimiciv" ]; then
-    TASKS=("Mortality" "Readmission"  "Length of Stay" "ICD SEPSIS")
+    TASKS=("Mortality" "Readmission"  "Length of Stay")
 elif [ $DATASET = "mimiciv_hai" ]; then
     TASKS=("ICD UTI" "ICD VAP"  "ICD SEPSIS" ) #
 elif [ $DATASET = "sjh_cpe" ]; then
@@ -47,8 +47,8 @@ fi
 # snnl snnlattnc snnlattne snnlattne_ens snnlattne_focal snnlattnc_weighted
 # bash scripts/experiment_retrieval.sh tabdpt mimiciv_hai shap 100
 # random knn_l2 weighted_logistics bsnnl snnl attention balance minority_prioritized inverse_frequency balanced_snnl clinical_snnl
-for RETRIEVAL_METHOD in  aware_snnl  ; do # aware_supcon aware_snnl supconattn_focal
-    for SEED in   2000  1603  ; do #1702
+for RETRIEVAL_METHOD in knn_l2 attention aware_snnl aware_snnl_nobs_noens aware_snnl_noens ; do # aware_supcon aware_snnl supconattn_focal
+    for SEED in 1702 1603  2000  ; do #
         for TASK in "${TASKS[@]}" ; do
             echo "Running inference for method: $METHOD, dataset: $DATASET, task: "${TASK}", seed: $SEED, num_features: $NUM_FEATURES, retrieval_method: $RETRIEVAL_METHOD"
 
@@ -62,7 +62,6 @@ for RETRIEVAL_METHOD in  aware_snnl  ; do # aware_supcon aware_snnl supconattn_f
                 TUNE_CONFIG=null
             fi
 
-            FEATURE_SELECTION_PATH="${ROOT}/${SAVE_DIR}/selection/${DATASET}/${TASK}"
             RETRIEVAL_JSON_PATH="${ROOT}/${SAVE_DIR}/benchmark/${DATASET}/${TASK}/logistics_${DATASET}_${TASK}/logistics_params.json" 
 
             PYTHONPATH=. uv run ehrpfn/inference.py \
@@ -72,12 +71,11 @@ for RETRIEVAL_METHOD in  aware_snnl  ; do # aware_supcon aware_snnl supconattn_f
                 data.num_features=${NUM_FEATURES} \
                 data.task="${TASK}" \
                 data.sampling.do_sampling=false \
-                data.feature_selection_path="${FEATURE_SELECTION_PATH}" \
                 data.selection_method=${SELECTION} \
                 retrieval.retrieval_method=${RETRIEVAL_METHOD} \
                 retrieval.weight_json_path="${RETRIEVAL_JSON_PATH}" \
                 inference.model=$METHOD \
-                inference.output_folder="${ROOT}/${SAVE_DIR}/exp/retrieval/${RETRIEVAL_METHOD}/${SEED}" \
+                inference.output_folder="${ROOT}/${SAVE_DIR}/exp/retrieval/${SEED}/${RETRIEVAL_METHOD}" \
                 inference.pretrained_path="${PRETRAIN_PATH}" \
                 inference.config_path="${CONFIG_PATH}" \
                 inference.tune_config="${TUNE_CONFIG}" \

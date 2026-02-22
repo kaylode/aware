@@ -27,21 +27,31 @@ else
     PRETRAIN_PATH=null
 fi
 
+
 if [ $DATASET = "eicu" ]; then
-    TASKS=("READMISSION" "MORTALITY") #
+    TASKS=("MORTALITY" "READMISSION")
+elif [ $DATASET = "eicu2" ]; then
+    TASKS=("UTI" "SEPSIS") #  
 elif [ $DATASET = "mimiciv" ]; then
-    TASKS=("Readmission" "Mortality" "Length of Stay" ) #  
+    TASKS=("Mortality" "Readmission"  "Length of Stay" )
+elif [ $DATASET = "mimiciv_hai" ]; then
+    TASKS=("ICD UTI" "ICD VAP" "ICD SEPSIS" ) #
 elif [ $DATASET = "sjh_cpe" ]; then
     TASKS=("EPISODE_CPE_INFECTION_FLAGGED" "WILL_READMIT_WITHIN_30_DAYS")
+elif [ $DATASET = "sjh_cpe_frame" ]; then
+    TASKS=("EPISODE_CPE_INFECTION_FLAGGED" "WILL_READMIT_WITHIN_30_DAYS" "NEXT_LOS" "DECEASED_NEXT_EPISODE")
 elif [ $DATASET = "openml_ehr" ]; then
-    TASKS=("43550" "4541")
+    TASKS=("") #"43550" "4541") #"4531" "1097" "46612"
+elif [ $DATASET = "synthea" ]; then
+    TASKS=("stroke" "lung_cancer")
 else
     echo "Unknown dataset: $DATASET"
     exit 1  
 fi
 
 
-for NUM_FEATURES in 10 20 50 100 200 300 400 500 500 ; do # 
+
+for NUM_FEATURES in 10 50 100 200 300 400 500 ; do # 
     for SEED in  1702  ; do #2000  1603 
         for TASK in "${TASKS[@]}" ; do
             echo "Running inference for method: $METHOD, dataset: $DATASET, task: "${TASK}", seed: $SEED, num_features: $NUM_FEATURES"
@@ -50,13 +60,13 @@ for NUM_FEATURES in 10 20 50 100 200 300 400 500 500 ; do #
                 CONFIG_PATH="${ROOT}/${TALENT_TUNED_DIR}/${DATASET}/${TASK}/${METHOD}/args.json"
                 TUNE_CONFIG="${ROOT}/${TALENT_TUNED_DIR}/${DATASET}/${TASK}/${METHOD}/${METHOD}-tuned.json"
                 echo "Using config path: $CONFIG_PATH"
+                INF_BATCH_SIZE=16
                 echo "Using tune config: $TUNE_CONFIG"
             else
                 CONFIG_PATH=null
                 TUNE_CONFIG=null
             fi
 
-            FEATURE_SELECTION_PATH="${ROOT}/${SAVE_DIR}/selection/${DATASET}/${TASK}"
             RETRIEVAL_JSON_PATH="${ROOT}/${SAVE_DIR}/benchmark/${DATASET}/${TASK}/logistics_${DATASET}_${TASK}/logistics_params.json" 
 
 
@@ -67,11 +77,10 @@ for NUM_FEATURES in 10 20 50 100 200 300 400 500 500 ; do #
                 data.num_features=${NUM_FEATURES} \
                 data.task="${TASK}" \
                 data.sampling.do_sampling=${SAMPLING} \
-                data.feature_selection_path="${FEATURE_SELECTION_PATH}" \
                 data.selection_method=${SELECTION} \
                 retrieval.retrieval_method=${RETRIEVAL} \
                 retrieval.weight_json_path="${RETRIEVAL_JSON_PATH}" \
-                retrieval.inf_batch_size=128 \
+                retrieval.inf_batch_size=${INF_BATCH_SIZE} \
                 inference.model=$METHOD \
                 inference.output_folder="${ROOT}/${SAVE_DIR}/exp/featuresize/${NUM_FEATURES}" \
                 inference.pretrained_path="${PRETRAIN_PATH}" \

@@ -70,7 +70,6 @@ for SAMPLING_METHOD in null oversampling_smote undersampling_random oversampling
             fi
 
             RETRIEVAL_JSON_PATH="${ROOT}/results/ehrpfn-inference/benchmark/${DATASET}/${TASK}/logistics_${DATASET}_${TASK}/logistics_params.json" 
-            FEATURE_SELECTION_PATH="${ROOT}/results/ehrpfn-inference/selection/${DATASET}/${TASK}"
 
             PYTHONPATH=. uv run ehrpfn/inference.py \
                 --config-dir ${ROOT}/configs \
@@ -81,7 +80,6 @@ for SAMPLING_METHOD in null oversampling_smote undersampling_random oversampling
                 data.sampling.do_sampling=true \
                 data.sampling.sampling_method=${SAMPLING_METHOD} \
                 data.sampling.negative_ratio=${NEGATIVE_RATIO} \
-                data.feature_selection_path="${FEATURE_SELECTION_PATH}" \
                 data.selection_method=${SELECTION} \
                 retrieval.retrieval_method=${RETRIEVAL_METHOD} \
                 retrieval.weight_json_path="${RETRIEVAL_JSON_PATH}" \
