@@ -38,7 +38,6 @@ def get_data(args: DictConfig):
 	data_dict = dict(
 		TASK=args.data.task,
 		selection_method=args.data.selection_method,
-		feature_selection_path=args.data.feature_selection_path,
 	)
 	if data_name.startswith('mimiciv_temporal'):
 		time_bins = args.data.get('time_bins', 36)
