@@ -29,6 +29,7 @@ dependencies = [
     "talent",
     "traddl",
     "tradml",
+    "ehrdpt",
 ]
 
 [project.optional-dependencies]
@@ -46,3 +47,4 @@ ehr-meds = { path = "../ehr-meds", editable = true }
 talent = { path = "../tabular-training/TALENT", editable = true }
 ehrret = { path = "../ehr-retrieval", editable = true }
 tradml = { path = "../tabular-training/tradml", editable = true }
+ehrdpt = { path = "../ehrpfn-training", editable = true }
