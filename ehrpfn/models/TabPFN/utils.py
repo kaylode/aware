@@ -16,7 +16,8 @@ def default_classifier_preprocessor_configs(num_features: int=500) -> list[Prepr
 def default_regressor_preprocessor_configs(num_features: int=500) -> list[PreprocessorConfig]:
     """Default preprocessor configurations for regression."""
     return [
-        PreprocessorConfig("safepower", categorical_name="onehot", max_features_per_estimator = num_features),
+        # PreprocessorConfig("safepower", categorical_name="onehot", max_features_per_estimator = num_features),
+        PreprocessorConfig("none", max_features_per_estimator = num_features),
     ]
 
 def v2_5_default_classifier_preprocessor_configs() -> list[PreprocessorConfig]:

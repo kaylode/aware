@@ -1,4 +1,5 @@
 from typing import *
+import os
 import os.path as osp
 import hydra
 import json
@@ -18,6 +19,12 @@ def inference(args: DictConfig, data):
 
 	result_folder, study_name = setup_inference(args, data)
 	LOGGER.subscribe(FileLogger(__name__, result_folder, debug=True))
+
+	if os.path.exists(osp.join(result_folder, 'score.json')):
+		LOGGER.text(f"Score already exists for {study_name} in {result_folder}. Skipping inference.", level=LoggerObserver.INFO)
+		score = json.load(open(osp.join(result_folder, 'score.json'), 'r'))
+		LOGGER.text(f"Score: {score}", level=LoggerObserver.INFO)
+		return
 	
 	predictions, training_time, running_time = get_predictions(args, data, {
 		"result_folder": result_folder,
@@ -66,10 +73,10 @@ def run(args: DictConfig):
 			except Exception as e:
 				LOGGER.text(f"Error occurred while processing {d['data_name']}: {e}", level=LoggerObserver.ERROR)
 	else:
-		# try:
-		data = prepare_data(data, args)
-		inference(args, data)
-		# except Exception as e:
-			# LOGGER.text(f"Error occurred during inference: {e}", level=LoggerObserver.ERROR)
+		try:
+			data = prepare_data(data, args)
+			inference(args, data)
+		except Exception as e:
+			LOGGER.text(f"Error occurred during inference: {e}", level=LoggerObserver.ERROR)
 if __name__ == "__main__":
 	run()

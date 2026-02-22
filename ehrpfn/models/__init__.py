@@ -1,3 +1,4 @@
+
 from .EHRPFN import EHRPFNClassifier, EHRPFNRegressor, EHRPFNModel
 from .talent_wrapper import TALENTWrapper
 from .knn import SimpleKNNClassifier, SimpleKNNRegressor
@@ -92,24 +93,12 @@ def get_predictions(args, data, config_dict):
             field_to_use=field_to_use,
             weights=retrieval_weights,
             n_features=n_features,
+            task=args.data.task,
+            embedding_dim=256,
+		    dropout = 0.3,
             pretrained_path=args.retrieval.pretrained_path,
             num_classes=num_classes
         )
-        if retrieval_method in ['clinical_snnl']:
-            from ehrret.retrieval.csnnl import PromptingPipeline
-
-            prompter = PromptingPipeline(data, mode='train')
-
-            n_num_features = len(prompter.numerical_indices)
-            num_icd_features = len(prompter.icd_indices)
-            categorical_cardinalities = prompter.categorical_cardinalities
-            retriever_dict.update(
-                n_num_features=n_num_features,
-                categorical_cardinalities=categorical_cardinalities,
-                n_medical_codes=num_icd_features,
-                embedding_dim=128,
-                prompter=prompter
-            )
 
         retriever = get_retriever(
             retrieval_method, 
@@ -270,6 +259,79 @@ def get_predictions(args, data, config_dict):
             y_pred = model.predict(X_test)
         else:
             y_pred = model.predict(X_test)
+        running_time = time.time() - start_time
+    
+    elif method_name in ['tabdpt_aware', 'knnpfn_aware']:
+        from ehrdpt.models.AWARE import (
+            AWAREClassifier, AWARERegressor, 
+            KNNPFNAWAREModel, TabDPTAWAREModel
+        )
+        import torch
+        from theseus import move_to
+        checkpoint = torch.load(args.inference.pretrained_path,  weights_only=False)
+        if method_name == 'tabdpt_aware':
+            model = TabDPTAWAREModel.load(
+                model_state=checkpoint["model"], 
+                config=checkpoint["cfg"], 
+                num_features=100,
+            )
+        else:
+            model = KNNPFNAWAREModel.load(
+                model_state=checkpoint["model"], 
+                config=checkpoint["cfg"], 
+                num_features=100,
+            )
+        model.eval()
+
+        if is_classification:
+            model = AWAREClassifier(
+                base_model=model,
+                inf_batch_size=args.retrieval.get('inf_batch_size', 512),
+                retriever=retriever,
+                fit_retriever_before_fit=True,
+                compile = False,
+                device='cuda'
+            )
+        else:
+            model = AWARERegressor(
+                base_model=model,
+                inf_batch_size=args.retrieval.get('inf_batch_size', 512),
+                retriever=retriever,
+                fit_retriever_before_fit=True,
+                compile = False,
+                device='cuda',
+            )
+
+        start_time = time.time()
+        def format_batch_normal(x: torch.Tensor, y: torch.Tensor, tasks=None, device=None, **kwargs):
+            batch_dict = {
+                'x': x,
+                'y': y,
+            }
+            if tasks is not None:
+                batch_dict['task'] = tasks
+            if device is not None:
+                batch_dict = move_to(batch_dict, device)
+            return batch_dict
+        
+        model.fit(
+            X_train, y_train,
+            retriever_additional_fit = retriever_additional_fit,
+            retriever_additional_query = retriever_additional_query,
+        )
+        training_time = time.time() - start_time
+        start_time = time.time()
+        if is_classification:
+            y_pred = model.predict_proba(
+                X_test,
+                retriever_additional_query={},
+                prompt_format_func=format_batch_normal,
+            )
+        else:
+            y_pred = model.predict(
+                X_test,
+                prompt_format_func=format_batch_normal
+            )
         running_time = time.time() - start_time
 
     elif method_name == 'tabicl':
