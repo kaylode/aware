@@ -4,6 +4,8 @@
 ark/
 */runs/
 catboost_info/
+data/
+outputs/
 runs/
 __pycache__/
 .cache/

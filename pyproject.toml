@@ -20,7 +20,7 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
 ]
-requires-python = ">=3.12"
+requires-python = "==3.12.12"
 dependencies = [
     "torch==2.6.0",
     "ehr-meds",
@@ -30,6 +30,17 @@ dependencies = [
     "traddl",
     "tradml",
     "ehrdpt",
+    "tabpfn-extensions"
+]
+
+
+[tool.uv]
+override-dependencies = [
+    "tabpfn-extensions==0.2.2",
+    "meds==0.4.1",
+    "elasticsearch>=8.12.0",
+    "optuna-integration[wandb]>=4.8.0",
+    "scikit-learn==1.7.2"
 ]
 
 [project.optional-dependencies]

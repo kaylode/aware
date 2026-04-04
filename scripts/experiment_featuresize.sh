@@ -65,6 +65,7 @@ for NUM_FEATURES in 10 50 100 200 300 400 500 ; do #
             else
                 CONFIG_PATH=null
                 TUNE_CONFIG=null
+                INF_BATCH_SIZE=128
             fi
 
             RETRIEVAL_JSON_PATH="${ROOT}/${SAVE_DIR}/benchmark/${DATASET}/${TASK}/logistics_${DATASET}_${TASK}/logistics_params.json" 

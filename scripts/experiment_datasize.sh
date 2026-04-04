@@ -66,6 +66,7 @@ for MAX_SAMPLES in 1000 2000 5000 10000 30000 50000  ; do #
             else
                 CONFIG_PATH=null
                 TUNE_CONFIG=null
+                INF_BATCH_SIZE=128
             fi
 
             RETRIEVAL_JSON_PATH="${ROOT}/results/benchmark/${DATASET}/${TASK}/logistics_${DATASET}_${TASK}/logistics_params.json" 

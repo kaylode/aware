@@ -78,10 +78,6 @@ exp_featuresize:
 	bash scripts/experiment_featuresize.sh tabdpt mimiciv_hai shap  aware_snnl
 	bash scripts/experiment_featuresize.sh knnpfn eicu2 shap  aware_snnl
 	bash scripts/experiment_featuresize.sh knnpfn mimiciv_hai shap  aware_snnl
-# 	bash scripts/experiment_featuresize.sh knnpfn mimiciv shap aware_snnl
-# 	bash scripts/experiment_featuresize.sh tabdpt mimiciv shap aware_snnl
-# 	bash scripts/experiment_featuresize.sh knnpfn eicu shap aware_snnl
-# 	bash scripts/experiment_featuresize.sh tabdpt eicu shap aware_snnl
 # 	bash scripts/experiment_featuresize.sh $(METHOD) eicu shap  $(RETRIEVAL)
 
 exp_imbalance:
