@@ -1,8 +1,24 @@
 
 from .EHRPFN import EHRPFNClassifier, EHRPFNRegressor, EHRPFNModel
+from .AWARE import (
+    AWAREAdapter,
+    AWAREEstimator,
+    AWAREClassifier,
+    AWARERegressor,
+    RetrievalContextSampler,
+    AWARECLSModel,
+    TabPFNAWARECLSModel,
+    TabDPTAWARECLSModel,
+    BaseClsFinetune,
+    TabPFNClsFinetune,
+    TabDPTClsFinetune,
+    KNNPFNClsFinetune,
+    AWARECLSClassifier,
+)
 from .talent_wrapper import TALENTWrapper
 from .knn import SimpleKNNClassifier, SimpleKNNRegressor
-from .KNNPFN import KNNPFN
+from .KNNPFNv1 import KNNPFN
+from .KNNPFNv2 import KNNPFNv2Classifier, KNNPFNv2Regressor
 from .tabicl import TabICL, TabICLClassifier
 from tradml import TradMLTuner
 from ehrret import get_retriever, get_ehr_retrieval_weight
@@ -12,6 +28,7 @@ import os
 import os.path as osp
 import numpy as np
 import time
+import shutil
 from ehrpfn.utils import LoggerObserver
 LOGGER = LoggerObserver.getLogger("main")
 
@@ -20,6 +37,7 @@ def get_predictions(args, data, config_dict):
     Given the args and data, initialize and return the appropriate model,
     """
     result_folder = config_dict['result_folder']
+    dataset_name = data['data_name']
     X_train = data['X_train']
     y_train = data['y_train']
     X_test = data['X_test']
@@ -120,14 +138,31 @@ def get_predictions(args, data, config_dict):
         else:
             wandb_kwargs = None
 
+        tune_config=getattr(args.inference, 'tune_config', None)
+        if tune_config:
+            use_best_params = True
+            task_name = args.data.task or dataset_name
+            study_name = f"{method_name}_{dataset_name}_{task_name}"
+            _storage = osp.join(tune_config, f"{task_name}/{study_name}", 'optuna.log')
+            # copy
+            if osp.isfile(_storage):
+                shutil.copy(_storage, result_folder)
+                storage = _storage
+            else:
+                storage = osp.join(result_folder, "optuna.log")
+                use_best_params = False
+        else:
+            storage = osp.join(result_folder, "optuna.log")
+            use_best_params = False
+
         tuner = TradMLTuner(
-            storage=osp.join(result_folder, "optuna.log"),
+            storage=storage,
             study_name=study_name,
             n_trials=5,
             direction="maximize" if is_classification else "minimize",
             save_dir=result_folder,
             method=args.inference.model,
-            use_best_params=False,
+            use_best_params=use_best_params,
             wandb_kwargs=wandb_kwargs,
             feature_names=data.get('feature_names', None),
             classnames=['0', '1'] if is_classification else None
@@ -224,6 +259,44 @@ def get_predictions(args, data, config_dict):
             y_pred = model.predict(X_test)
         running_time = time.time() - start_time
 
+    elif method_name == "knnpfnv2":
+        from .KNNPFNv2 import KNNPFNv2Classifier, KNNPFNv2Regressor
+
+        if is_classification:
+            model = KNNPFNv2Classifier(
+                pretrained_path=args.inference.pretrained_path,
+                n_ensembles=1, temperature=0.8, 
+                inf_batch_size=args.retrieval.get('inf_batch_size', 512),
+                categorical_feature_indices=categorical_feature_indices,
+                retriever=retriever,
+                fit_retriever_before_fit=True,
+                k=args.retrieval.context_size
+            )
+        else:
+            model = KNNPFNv2Regressor(
+                pretrained_path=args.inference.pretrained_path,
+                n_ensembles=1, temperature=0.8, 
+                inf_batch_size=args.retrieval.get('inf_batch_size', 512),
+                categorical_feature_indices=categorical_feature_indices,
+                retriever=retriever,
+                fit_retriever_before_fit=True,
+                k=args.retrieval.context_size
+            )
+
+        start_time = time.time()
+        model.fit(
+            X_train, y_train,
+            retriever_additional_fit = retriever_additional_fit,
+            retriever_additional_query = retriever_additional_query,
+        )
+        training_time = time.time() - start_time
+        start_time = time.time()
+        if is_classification:
+            y_pred = model.predict_proba(X_test)
+        else:
+            y_pred = model.predict(X_test)
+        running_time = time.time() - start_time
+
     elif method_name in ['tabdpt', 'ehrpfn'] or method_name.startswith('ehrpfn'):
         from ehrpfn.models import EHRPFNClassifier, EHRPFNRegressor
 
@@ -262,76 +335,44 @@ def get_predictions(args, data, config_dict):
         running_time = time.time() - start_time
     
     elif method_name in ['tabdpt_aware', 'knnpfn_aware']:
-        from ehrdpt.models.AWARE import (
-            AWAREClassifier, AWARERegressor, 
-            KNNPFNAWAREModel, TabDPTAWAREModel
-        )
-        import torch
-        from theseus import move_to
-        checkpoint = torch.load(args.inference.pretrained_path,  weights_only=False)
+        if not is_classification:
+            raise ValueError(f"{method_name} only supports classification tasks.")
+
         if method_name == 'tabdpt_aware':
-            model = TabDPTAWAREModel.load(
-                model_state=checkpoint["model"], 
-                config=checkpoint["cfg"], 
-                num_features=100,
-            )
-        else:
-            model = KNNPFNAWAREModel.load(
-                model_state=checkpoint["model"], 
-                config=checkpoint["cfg"], 
-                num_features=100,
-            )
-        model.eval()
-
-        if is_classification:
-            model = AWAREClassifier(
-                base_model=model,
-                inf_batch_size=args.retrieval.get('inf_batch_size', 512),
+            finetune = TabDPTClsFinetune(
                 retriever=retriever,
-                fit_retriever_before_fit=True,
-                compile = False,
-                device='cuda'
+                learning_rate=getattr(args.inference, 'learning_rate', 1e-4),
+                epochs=getattr(args.inference, 'epochs', 10),
+                batch_size=args.retrieval.get('inf_batch_size', 64),
+                context_size=args.retrieval.context_size,
+                patience=getattr(args.inference, 'patience', 10),
+                device=getattr(args.inference, 'device', 'cuda:0'),
+                random_state=getattr(args.inference, 'seed', 42),
             )
-        else:
-            model = AWARERegressor(
-                base_model=model,
-                inf_batch_size=args.retrieval.get('inf_batch_size', 512),
+        else:  # knnpfn_aware
+            finetune = KNNPFNClsFinetune(
                 retriever=retriever,
-                fit_retriever_before_fit=True,
-                compile = False,
-                device='cuda',
+                learning_rate=getattr(args.inference, 'learning_rate', 1e-4),
+                epochs=getattr(args.inference, 'epochs', 10),
+                batch_size=args.retrieval.get('inf_batch_size', 64),
+                context_size=args.retrieval.context_size,
+                patience=getattr(args.inference, 'patience', 10),
+                device=getattr(args.inference, 'device', 'cuda:0'),
+                random_state=getattr(args.inference, 'seed', 42),
             )
 
-        start_time = time.time()
-        def format_batch_normal(x: torch.Tensor, y: torch.Tensor, tasks=None, device=None, **kwargs):
-            batch_dict = {
-                'x': x,
-                'y': y,
-            }
-            if tasks is not None:
-                batch_dict['task'] = tasks
-            if device is not None:
-                batch_dict = move_to(batch_dict, device)
-            return batch_dict
-        
-        model.fit(
-            X_train, y_train,
-            retriever_additional_fit = retriever_additional_fit,
-            retriever_additional_query = retriever_additional_query,
+        model = AWARECLSClassifier(
+            finetune=finetune,
+            temperature=getattr(args.inference, 'temperature', 1.0),
+            infer_batch_size=args.retrieval.get('inf_batch_size', 256),
         )
-        training_time = time.time() - start_time
+
         start_time = time.time()
-        if is_classification:
-            y_pred = model.predict_proba(
-                X_test,
-                retriever_additional_query={},
-                prompt_format_func=format_batch_normal,
-            )
-        else:
-            y_pred = model.predict(
-                X_test,
-                prompt_format_func=format_batch_normal
-            )
+        model.fit(X_train, y_train)
+        training_time = time.time() - start_time
+
+        start_time = time.time()
+        y_pred = model.predict_proba(X_test)
         running_time = time.time() - start_time
 
     elif method_name == 'tabicl':
@@ -383,6 +424,11 @@ def get_predictions(args, data, config_dict):
                 config_path = config_path.replace(str(data['did']), data['data_name'])
             if not osp.isfile(tune_config):
                 tune_config = tune_config.replace(str(data['did']), data['data_name'])
+
+        if osp.isfile(config_path):
+            shutil.copy(config_path, osp.join(result_folder, 'args.json'))
+        if osp.isfile(tune_config):
+            shutil.copy(tune_config, osp.join(result_folder, f'{method_name}_tuned.json'))
 
         model = TALENTWrapper(
             model_name=method_name,

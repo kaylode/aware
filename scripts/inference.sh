@@ -25,7 +25,7 @@ export LOGGING_DIR=${ROOT}/${LOGGING_DIR}/inference/
 
 ML_METHODS=("xgboost" "rf" "catboost" "lightgbm" "mlp" "logistics" )
 DL_METHODS=("danets" "beta" "resnet" "tabr" "modernNCA" "tabm"  "tabtransformer" "tabnet" "excelformer" "trompt" )
-PFN_METHODS=("knn-simple" "tabpfn" "tabdpt" "ehrpfn" "knnpfn" "tabicl")
+PFN_METHODS=("knn-simple" "tabpfn" "tabdpt" "ehrpfn" "knnpfn" "tabicl" "knnpfnv2")
 
 if [ $METHOD = "tabdpt" ]; then
     PRETRAIN_PATH=${ROOT}/data/checkpoints/tabdpt1_1.pth
@@ -65,7 +65,7 @@ fi
 # PRETRAIN_PATH="/home/mpham/workspace/source/ehrfm/ehrpfn-inference/results/ehrdpt-training/1702/tabdpt_aware_mimiciv_hai_ICD UTI_100/best_auc.ckpt"
 # PRETRAIN_RETRIEVER_PATH="/home/mpham/workspace/source/ehrfm/ehrpfn-inference/results/ehrdpt-training/1702/tabdpt_aware_mimiciv_hai_ICD UTI_100/retriever.pth"
 
-for SEED in 42  2000 1702  ; do # 
+for SEED in 1603 2000 1702  ; do #  
     for TASK in "${TASKS[@]}" ; do
         echo "Running inference for method: $METHOD, dataset: $DATASET, task: "${TASK}", seed: $SEED"
 
@@ -73,8 +73,26 @@ for SEED in 42  2000 1702  ; do #
             CONFIG_PATH="${ROOT}/${TALENT_TUNED_DIR}/${DATASET}/${TASK}/${METHOD}/args.json"
             TUNE_CONFIG="${ROOT}/${TALENT_TUNED_DIR}/${DATASET}/${TASK}/${METHOD}/${METHOD}-tuned.json"
             INF_BATCH_SIZE=16
-            # PRETRAIN_PATH="${ROOT}/results/ehrpfn-inference/benchmark/${DATASET}/${TASK}/${METHOD}_${DATASET}_${TASK}/best-val-${SEED}.pth"
+
+            if [ $DATASET = "openml_ehr" ]; then
+                if [ $SEED -eq 1603 ]; then
+                    CONFIG_PATH="${ROOT}/results/old/all/hyp-tune/mimiciv_hai/ICD SEPSIS/${METHOD}/args.json"
+                    TUNE_CONFIG="${ROOT}/results/old/all/hyp-tune/mimiciv_hai/ICD SEPSIS/${METHOD}/${METHOD}-tuned.json"
+                elif [ $SEED -eq 2000 ]; then
+                    CONFIG_PATH="${ROOT}/results/old/all/hyp-tune/eicu2/SEPSIS/${METHOD}/args.json"
+                    TUNE_CONFIG="${ROOT}/results/old/all/hyp-tune/eicu2/SEPSIS/${METHOD}/${METHOD}-tuned.json"
+                elif [ $SEED -eq 1702 ]; then
+                    CONFIG_PATH="${ROOT}/results/old/all/hyp-tune/mimiciv/Mortality/${METHOD}/args.json"
+                    TUNE_CONFIG="${ROOT}/results/old/all/hyp-tune/mimiciv/Mortality/${METHOD}/${METHOD}-tuned.json"
+                fi
+            fi
+
+            # PRETRAIN_PATH="${ROOT}/results/ehrpfn-inference/benchmark/hcai/${DATASET}/${TASK}/${METHOD}_${DATASET}_${TASK}/best-val-${SEED}.pth"
             echo "Using config path: $CONFIG_PATH"
+            echo "Using tune config: $TUNE_CONFIG"
+        elif [[ " ${ML_METHODS[@]} " =~ " ${METHOD} " ]]; then
+            CONFIG_PATH=null
+            TUNE_CONFIG="${ROOT}/${SAVE_DIR}/benchmark/hcai/${DATASET}/2000"
             echo "Using tune config: $TUNE_CONFIG"
         else
             CONFIG_PATH=null
@@ -99,7 +117,7 @@ for SEED in 42  2000 1702  ; do #
             retrieval.pretrained_path="${PRETRAIN_RETRIEVER_PATH}" \
             retrieval.weight_json_path="${RETRIEVAL_JSON_PATH}" \
             inference.model="${METHOD}" \
-            inference.output_folder="${ROOT}/${SAVE_DIR}/benchmark/${SEED}" \
+            inference.output_folder="${ROOT}/${SAVE_DIR}/benchmark-reproduce/${SEED}" \
             inference.pretrained_path="${PRETRAIN_PATH}" \
             inference.config_path="${CONFIG_PATH}" \
             inference.tune_config="${TUNE_CONFIG}" \

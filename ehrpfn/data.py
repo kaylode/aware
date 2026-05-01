@@ -1,6 +1,6 @@
 from typing import *
 from omegaconf import DictConfig
-from ehrmeds import (
+from ehrmeds.static import (
 	get_sjh_dataset, 
 	get_mimic_dataset, 
 	get_openml_ehr,
@@ -16,11 +16,8 @@ from ehrmeds import (
 	get_mimiciv_hai_configs,
 	get_sjh_cpe_default_configs,
 	get_openml_ehr_default_configs,
-	get_openml_ehr_imbalance_default_configs
-)
-
-from ehrmeds import (
     get_mimiciv_temporal_exp_configs,
+	get_openml_ehr_imbalance_default_configs
 )
 
 import numpy as np

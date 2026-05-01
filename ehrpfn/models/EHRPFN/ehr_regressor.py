@@ -87,7 +87,13 @@ class EHRPFNRegressor(EHRPFNEstimator, RegressorMixin):
 
             
             if not self.fit_retriever_before_fit:
-                self.retriever.fit([{self.retriever.field_to_use: item.cpu().numpy()} for item in X_train])
+                fit_items = []
+                for item, label in zip(X_train, train_y):
+                    fit_items.append({
+                        self.retriever.field_to_use: item.cpu().numpy(),
+                        "label": label.item()
+                    })
+                self.retriever.fit(fit_items)
 
             if context_size >= self.n_instances:
                 X_train = pad_x(train_x[None, :, :], self.max_features).to(self.device)
@@ -159,16 +165,15 @@ class EHRPFNRegressor(EHRPFNEstimator, RegressorMixin):
                     pred_list.append(pred.squeeze())
                     pbar.update(end - start)
 
-                logits = torch.cat(pred_list).squeeze().detach().cpu().float().numpy()
+                logits = torch.cat(pred_list).detach().cpu().float().numpy()
 
             if logits_cumsum is None:
                 logits_cumsum = logits
             else:
                 logits_cumsum += logits
 
-            logits_cumsum /= self.n_ensembles
-
-        return logits_cumsum
+        pbar.close()
+        return logits_cumsum / self.n_ensembles
 
 
     def predict(self, X, seed: int = None, retriever_additional_query=None, **kwargs):

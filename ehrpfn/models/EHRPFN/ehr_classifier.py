@@ -120,7 +120,13 @@ class EHRPFNClassifier(EHRPFNEstimator, ClassifierMixin):
                 X_test = test_x
 
             if not self.fit_retriever_before_fit:
-                self.retriever.fit([{self.retriever.field_to_use: item.cpu().numpy()} for item in X_train])
+                fit_items = []
+                for item, label in zip(X_train, train_y):
+                    fit_items.append({
+                        self.retriever.field_to_use: item.cpu().numpy(),
+                        "label": label.item()
+                    })
+                self.retriever.fit(fit_items)
 
             if context_size >= self.n_instances:
                 X_train = pad_x(X_train[None, :, :], self.max_features).to(self.device)
@@ -129,10 +135,10 @@ class EHRPFNClassifier(EHRPFNEstimator, ClassifierMixin):
 
                 if seed is not None:
                     # shuffle X_train order
-                    indices = np.arange(X_train.shape[0])
+                    indices = np.arange(X_train.shape[1])
                     shuffled_indices = np.random.permutation(indices)
-                    X_train = X_train[torch.from_numpy(shuffled_indices)]
-                    y_train = y_train[torch.from_numpy(shuffled_indices)]
+                    X_train = X_train[:, torch.from_numpy(shuffled_indices)]
+                    y_train = y_train[:, torch.from_numpy(shuffled_indices)]
 
                 X_train = X_train.transpose(0, 1)
                 y_train = y_train.transpose(0, 1)
@@ -148,8 +154,9 @@ class EHRPFNClassifier(EHRPFNEstimator, ClassifierMixin):
                     pred = self._predict_large_cls(X_train, X_test, y_train)
 
                 pred = pred[..., :self.num_classes] / self.temperature
-                pred = torch.nn.functional.softmax(pred.float(), dim=-1)
-                pred_val = pred.squeeze().detach().cpu().numpy()
+                if not return_logits:
+                    pred = torch.nn.functional.softmax(pred.float(), dim=-1)
+                pred_val = pred.squeeze().detach().cpu().float().numpy()
             else:
                 pred_list = []
                 for b in range(math.ceil(len(X_test) / self.inf_batch_size)):
@@ -215,22 +222,28 @@ class EHRPFNClassifier(EHRPFNEstimator, ClassifierMixin):
                     if not return_logits:
                         pred = pred[..., :self.num_classes] / self.temperature
                         pred = torch.nn.functional.softmax(pred, dim=-1)
-                        pred /= pred.sum(axis=-1, keepdims=True)  # numerical stability
+                        pred /= pred.sum(axis=-1, keepdims=True) + 1e-12 # numerical stability
 
                     pred_list.append(pred.squeeze())
                     pbar.update(end-start)
-                pred_val = torch.cat(pred_list, dim=0).squeeze().detach().cpu().float().numpy()
-            logits = pred_val
+                pred_val = torch.cat(pred_list, dim=0).detach().cpu().float().numpy()
+            
             if logits_cumsum is None:
-                logits_cumsum = logits
+                logits_cumsum = pred_val
             else:
-                logits_cumsum += logits
+                logits_cumsum += pred_val
 
         pbar.close()
-        pred = (logits_cumsum / self.n_ensembles)[..., :self.num_classes] / self.temperature
-        pred = softmax(pred, axis=-1)
-        pred /= pred.sum(axis=-1, keepdims=True)  # numerical stability
-        return pred
+        avg_pred = logits_cumsum / self.n_ensembles
+        
+        if return_logits:
+            return avg_pred
+        
+        # If we already applied softmax inside the loop, avg_pred is already probabilities
+        # Otherwise (unlikely with current flow), we would apply it here.
+        # Ensure normalization for final probabilities
+        avg_pred /= avg_pred.sum(axis=-1, keepdims=True) + 1e-12
+        return avg_pred
 
     def predict(self, X, seed: int = None, retriever_additional_query=None, **kwargs):
         return self.predict_proba(X, seed=seed, retriever_additional_query=retriever_additional_query, **kwargs)

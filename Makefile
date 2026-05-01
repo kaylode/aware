@@ -140,3 +140,48 @@ benchmark:
 
 selection:
 	bash scripts/select_features.sh $(METHOD) $(DATASET)
+
+
+rebuttal:
+# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) knn_l2
+# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) attention
+# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) balance
+# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) minority_prioritized
+# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) inverse_frequency
+# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) siamese
+# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) supcon
+# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) unsupcon
+# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_nosup_full
+# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_attn_only
+# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_snnl_only
+	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_balance_only
+	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_ensemble_only
+	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_adapter_only
+# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_imb
+	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_no_attn
+	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_no_snnl
+	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_no_balance
+	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_no_ensemble
+
+
+
+# 	bash scripts/inference.sh catboost $(DATASET) null null null null null null
+# 	bash scripts/inference.sh xgboost $(DATASET) null null null null null null
+# 	bash scripts/inference.sh lightgbm $(DATASET) null null null null null null
+# 	bash scripts/inference.sh logistics $(DATASET) null null null null null null
+# 	bash scripts/inference.sh mlp $(DATASET) null null null null null null
+# 	bash scripts/inference.sh tabpfn $(DATASET) null null null 1024 512 null
+# 	bash scripts/inference.sh knn-simple $(DATASET) null knn_l2 null 1024 512 null
+# 	bash scripts/inference.sh knnpfn $(DATASET) null knn_l2 null 1024 512 null
+# 	bash scripts/inference.sh tabdpt $(DATASET) null knn_l2 null 1024 512 null
+
+# 	bash scripts/inference.sh danets $(DATASET) null null null null null null
+# 	bash scripts/inference.sh resnet $(DATASET) null null null null null null
+# 	bash scripts/inference.sh tabnet $(DATASET) null null null null null null
+# 	bash scripts/inference.sh tabtransformer $(DATASET) null null null null null null
+# 	bash scripts/inference.sh trompt $(DATASET) null null null null null null
+# 	bash scripts/inference.sh excelformer $(DATASET) null null null null null null
+# 	bash scripts/inference.sh tabr $(DATASET) null null null null null null
+# 	bash scripts/inference.sh tabm $(DATASET) null null null null null null
+# 	bash scripts/inference.sh modernNCA $(DATASET) null null null null null null
+# 	bash scripts/inference.sh beta $(DATASET) null null null null null null

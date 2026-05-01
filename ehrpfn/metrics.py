@@ -5,9 +5,11 @@ import numpy as np
 from sklearn.metrics import (
     roc_auc_score, balanced_accuracy_score, 
     confusion_matrix, matthews_corrcoef,
-    precision_recall_curve, auc
+    precision_recall_curve, auc,
+    average_precision_score
 )
 from sklearn.metrics import mean_squared_log_error, median_absolute_error, explained_variance_score
+from sklearn.preprocessing import label_binarize
         
 from ehrpfn.utils import LoggerObserver
 LOGGER = LoggerObserver.getLogger("main")
@@ -34,8 +36,8 @@ def run_binary_classification_metrics(y_pred, y, average='weighted'):
                 _precision, _recall, thresholds = precision_recall_curve(y, y_pred[:,1])
                 auc_precision_recall = auc(_recall, _precision)
             else:
-                _precision, _recall, thresholds = precision_recall_curve(y, y_pred)
-                auc_precision_recall = auc(_recall, _precision)
+                y_bin = label_binarize(y, classes=np.unique(y))
+                auc_precision_recall = average_precision_score(y_bin, y_pred, average=average)
         except ValueError as e:
             LOGGER.text(f"Error calculating AUPRC: {e}", level=LoggerObserver.WARN)
             auc_precision_recall = None
