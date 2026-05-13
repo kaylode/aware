@@ -1,3 +1,5 @@
+"""survpfn.models.tabpfn.backbone.encoders — TabPFN encoder components."""
+
 import math
 
 import torch

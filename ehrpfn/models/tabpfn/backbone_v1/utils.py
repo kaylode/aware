@@ -1,8 +1,12 @@
+"""survpfn.models.tabpfn.backbone.utils — TabPFN backbone utilities and model loader."""
+
 import numpy as np
 import random
 
 import torch
+import torch.nn as nn
 from torch.utils.checkpoint import checkpoint
+from torch.amp import autocast
 
 import pickle
 import io
@@ -10,6 +14,7 @@ import os
 import pathlib
 from pathlib import Path
 from functools import partial
+from importlib.resources import files
 
 from sklearn.preprocessing import PowerTransformer, QuantileTransformer, RobustScaler
 from sklearn.base import BaseEstimator, ClassifierMixin
@@ -20,6 +25,9 @@ from sklearn.utils import column_or_1d
 
 from . import transformer
 from . import encoders
+
+TABPFN_CHECKPOINT_PATH: Path = files("ehrpfn.models.models_diff")
+
 
 
 def torch_masked_mean(x, mask, dim=0, return_share_of_ignored_values=False):
@@ -98,13 +106,12 @@ def remove_outliers(X, n_sigma=4, normalize_positions=-1):
             # print(ds[1][data < lower, col], ds[1][data > upper, col], ds[1][~np.isnan(data), col].shape, data_mean, data_std)
     return X
 
-def load_model_only_inference(path, filename, device):
+def load_model_only_inference(filepath, device):
     """
     Loads a saved model from the specified position. This function only restores inference capabilities and
     cannot be used for further training.
     """
-
-    model_state, optimizer_state, config_sample = torch.load(os.path.join(path, filename), map_location='cpu')
+    model_state, optimizer_state, config_sample = torch.load(filepath, map_location='cpu')
 
     if (('nan_prob_no_reason' in config_sample and config_sample['nan_prob_no_reason'] > 0.0) or
         ('nan_prob_a_reason' in config_sample and config_sample['nan_prob_a_reason'] > 0.0) or
@@ -141,8 +148,52 @@ def load_model_only_inference(path, filename, device):
 
     return (float('inf'), float('inf'), model), config_sample # no loss measured
 
+def load_model_workflow(device='cpu', only_inference=True):
+    
+    base_path = pathlib.Path(__file__).parent.parent.parent
+    model_tuple, config, _ = _load_model_workflow(
+        0, 42, add_name='',
+        base_path=base_path, device=device,
+        only_inference=only_inference
+    )
+    model = model_tuple[2]
 
-def load_model_workflow(i, e, add_name, base_path, device='cpu', eval_addition='', only_inference=True):
+    class Wrapper(nn.Module):
+        def __init__(self, model):
+            super().__init__()
+            self.model = model
+            # Expose the embedding dimension
+            if hasattr(model, "d_model"):
+                self.ninp = model.d_model
+            elif hasattr(config, "d_model"):
+                self.ninp = config.d_model
+            else:
+                # Fallback for standard 
+                self.ninp = 512
+        def forward(self, x_train: torch.Tensor, y_train: torch.Tensor, x_test: torch.Tensor=None):
+            x_train = x_train.to(torch.float32)  # N_sample, batch, Feats
+            y_train = y_train.to(torch.float32)
+            if x_test is not None:
+                x_test = x_test.to(torch.float32)
+                x = torch.cat([x_train, x_test], dim=0)
+            else:
+                x = x_train
+
+            x = x.to(device)
+            y_train = y_train.to(device)
+                
+            with autocast('cuda', enabled=True):
+                output, embeddings = self.model((None, x, y_train), single_eval_pos=x_train.shape[0], return_embeddings=True)
+
+            return {
+                "logits": output,  # N_test_sample, batch, 10
+                "train_embeddings": embeddings[:x_train.shape[0]],
+                "test_embeddings": embeddings[x_train.shape[0]:],
+            }
+    
+    return Wrapper(model)
+
+def _load_model_workflow(i, e, add_name, base_path, device='cpu', eval_addition='', only_inference=True):
     """
     Workflow for loading a model and setting appropriate parameters for diffable hparam tuning.
 
@@ -159,47 +210,32 @@ def load_model_workflow(i, e, add_name, base_path, device='cpu', eval_addition='
         """
         Returns the different paths of model_file, model_path and results_file
         """
-        model_file = f'models_diff/prior_diff_real_checkpoint{add_name}_n_{i}_epoch_{e}.cpkt'
-        model_path = os.path.join(base_path, model_file)
-        # print('Evaluate ', model_path)
-        results_file = os.path.join(base_path,
-                                    f'models_diff/prior_diff_real_results{add_name}_n_{i}_epoch_{e}_{eval_addition}.pkl')
-        return model_file, model_path, results_file
+        model_path = TABPFN_CHECKPOINT_PATH / "prior_diff_real_checkpoint_n_0_epoch_42.cpkt" #f'prior_diff_real_results{add_name}_n_{i}_epoch_{e}_{eval_addition}.pkl'
+        return model_path
 
     def check_file(e):
-        model_file, model_path, results_file = get_file(e)
+        model_path = get_file(e)
         if not Path(model_path).is_file():  # or Path(results_file).is_file():
             print('We have to download the TabPFN, as there is no checkpoint at ', model_path)
             print('It has about 100MB, so this might take a moment.')
             import requests
             url = 'https://github.com/PriorLabs/TabPFN/raw/refs/tags/v1.0.0/tabpfn/models_diff/prior_diff_real_checkpoint_n_0_epoch_42.cpkt'
-            print('hhh')
             r = requests.get(url, allow_redirects=True)
-            print('hhh')
             os.makedirs(os.path.dirname(model_path), exist_ok=True)
             open(model_path, 'wb').write(r.content)
-        return model_file, model_path, results_file
+        return model_path
 
-    model_file = None
-    if e == -1:
-        for e_ in range(100, -1, -1):
-            model_file_, model_path_, results_file_ = check_file(e_)
-            if model_file_ is not None:
-                e = e_
-                model_file, model_path, results_file = model_file_, model_path_, results_file_
-                break
-    else:
-        model_file, model_path, results_file = check_file(e)
-
-    if model_file is None:
-        model_file, model_path, results_file = get_file(e)
+ 
+    model_path = check_file(e)
+    if model_path is None:
+        model_path = get_file(e)
         raise Exception('No checkpoint found at '+str(model_path))
 
 
     #print(f'Loading {model_file}')
     if only_inference:
         # print('Loading model that can be used for inference only')
-        model, c = load_model_only_inference(base_path, model_file, device)
+        model, c = load_model_only_inference(model_path, device)
     '''
     else:
         #until now also only capable of inference
@@ -207,7 +243,7 @@ def load_model_workflow(i, e, add_name, base_path, device='cpu', eval_addition='
     '''
     #model, c = load_model(base_path, model_file, device, eval_positions=[], verbose=False)
 
-    return model, c, results_file
+    return model, c, model_path
 
 
 
@@ -226,7 +262,7 @@ class CustomUnpickler(pickle.Unpickler):
             return lambda b: torch.load(io.BytesIO(b), map_location='cpu')
         else:
             return super().find_class(module, name)
-        
+
 
 
 import time
@@ -295,14 +331,6 @@ def transformer_predict(model, eval_xs, eval_ys, eval_position,
             output = output[:, :, 0:num_classes] / torch.exp(softmax_temperature)
             if not return_logits:
                 output = torch.nn.functional.softmax(output, dim=-1)
-            #else:
-            #    output[:, :, 1] = model((style.repeat(eval_xs.shape[1], 1) if style is not None else None, eval_xs, eval_ys.float()),
-            #               single_eval_pos=eval_position)
-
-            #    output[:, :, 1] = torch.sigmoid(output[:, :, 1]).squeeze(-1)
-            #    output[:, :, 0] = 1 - output[:, :, 1]
-
-        #print('RESULTS', eval_ys.shape, torch.unique(eval_ys, return_counts=True), output.mean(axis=0))
 
         return output
 
@@ -340,7 +368,6 @@ def transformer_predict(model, eval_xs, eval_ys, eval_position,
                 try:
                     pt.fit(eval_xs[0:eval_position, col:col + 1])
                     trans = pt.transform(eval_xs[:, col:col + 1])
-                    # print(scipy.stats.spearmanr(trans[~np.isnan(eval_xs[:, col:col+1])], eval_xs[:, col:col+1][~np.isnan(eval_xs[:, col:col+1])]))
                     eval_xs[:, col:col + 1] = trans
                 except:
                     pass
@@ -384,8 +411,6 @@ def transformer_predict(model, eval_xs, eval_ys, eval_position,
     def get_preprocess(i):
         if i == 0:
             return 'power_all'
-#            if i == 1:
-#                return 'robust_all'
         if i == 1:
             return 'none'
 
@@ -398,14 +423,11 @@ def transformer_predict(model, eval_xs, eval_ys, eval_position,
     class_shift_configurations = torch.randperm(len(torch.unique(eval_ys))) if multiclass_decoder == 'permutation' else [0]
 
     ensemble_configurations = list(itertools.product(class_shift_configurations, feature_shift_configurations))
-    #default_ensemble_config = ensemble_configurations[0]
 
     rng = random.Random(seed)
     rng.shuffle(ensemble_configurations)
     ensemble_configurations = list(itertools.product(ensemble_configurations, preprocess_transform_configurations, styles_configurations))
     ensemble_configurations = ensemble_configurations[0:N_ensemble_configurations]
-    #if N_ensemble_configurations == 1:
-    #    ensemble_configurations = [default_ensemble_config]
 
     output = None
 
@@ -444,11 +466,9 @@ def transformer_predict(model, eval_xs, eval_ys, eval_position,
     inputs = torch.split(inputs, batch_size_inference, dim=1)
     labels = torch.cat(labels, 1)
     labels = torch.split(labels, batch_size_inference, dim=1)
-    #print('PREPROCESSING TIME', str(time.time() - start))
     outputs = []
     start = time.time()
     for batch_input, batch_label in zip(inputs, labels):
-        #preprocess_transform_ = preprocess_transform if styles_configuration % 2 == 0 else 'none'
         import warnings
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore",
@@ -461,7 +481,6 @@ def transformer_predict(model, eval_xs, eval_ys, eval_position,
                 with torch.cuda.amp.autocast(enabled=fp16_inference):
                     output_batch = checkpoint(predict, batch_input, batch_label, style_, softmax_temperature_, True)
         outputs += [output_batch]
-    #print('MODEL INFERENCE TIME ('+str(batch_input.device)+' vs '+device+', '+str(fp16_inference)+')', str(time.time()-start))
 
     outputs = torch.cat(outputs, 1)
     for i, ensemble_configuration in enumerate(ensemble_configurations):
@@ -469,7 +488,6 @@ def transformer_predict(model, eval_xs, eval_ys, eval_position,
         output_ = outputs[:, i:i+1, :]
         output_ = torch.cat([output_[..., class_shift_configuration:],output_[..., :class_shift_configuration]],dim=-1)
 
-        #output_ = predict(eval_xs, eval_ys, style_, preprocess_transform_)
         if not average_logits and not return_logits:
             # transforms every ensemble_configuration into a probability -> equal contribution of every configuration
             output_ = torch.nn.functional.softmax(output_, dim=-1)

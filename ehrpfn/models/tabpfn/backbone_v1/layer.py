@@ -1,11 +1,11 @@
+"""survpfn.models.tabpfn.backbone.layer — TabPFN transformer encoder layer."""
+
 from functools import partial
 from typing import Optional
 
-from torch import nn, Tensor
+from torch import nn
 import torch
-import torch.nn.functional as F
-from torch.nn import Module, MultiheadAttention, Linear, Dropout, LayerNorm
-from torch.nn.modules.transformer import _get_activation_fn
+from torch.nn.modules.transformer import _get_activation_fn, Module, Tensor, MultiheadAttention, Linear, Dropout, LayerNorm
 from torch.utils.checkpoint import checkpoint
 
 class TransformerEncoderLayer(Module):
@@ -107,9 +107,12 @@ class TransformerEncoderLayer(Module):
         elif isinstance(src_mask, int):
             assert src_key_padding_mask is None
             single_eval_position = src_mask
-            src_left = self.self_attn(src_[:single_eval_position], src_[:single_eval_position], src_[:single_eval_position])[0]
-            src_right = self.self_attn(src_[single_eval_position:], src_[:single_eval_position], src_[:single_eval_position])[0]
-            src2 = torch.cat([src_left, src_right], dim=0)
+            if single_eval_position == 0:
+                src2 = self.self_attn(src_, src_, src_)[0]
+            else:
+                src_left = self.self_attn(src_[:single_eval_position], src_[:single_eval_position], src_[:single_eval_position])[0]
+                src_right = self.self_attn(src_[single_eval_position:], src_[:single_eval_position], src_[:single_eval_position])[0]
+                src2 = torch.cat([src_left, src_right], dim=0)
         else:
             if self.recompute_attn:
                 src2 = checkpoint(self.self_attn, src_, src_, src_, src_key_padding_mask, True, src_mask)[0]

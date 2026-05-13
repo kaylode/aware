@@ -102,15 +102,21 @@ class AWARECLSModel(nn.Module):
         super().__init__()
         for p in backbone.parameters():
             p.requires_grad = False
+        self.n_classes = n_classes
         self.backbone = backbone
         self.adapter = adapter                  # trainable
         self.norm = nn.LayerNorm(ninp)          # trainable
-        self.cls_head = nn.Sequential(          # trainable
+        self.residual_head = nn.Sequential(          # trainable
             nn.Linear(ninp, head_hidden_dim),
             nn.ReLU(),
             nn.Dropout(dropout),
             nn.Linear(head_hidden_dim, n_classes),
         )
+        
+        # Initialize the final layer to exactly zero. 
+        # This guarantees that at initialization, the residual head outputs exactly 0.
+        nn.init.zeros_(self.residual_head[-1].weight)
+        nn.init.zeros_(self.residual_head[-1].bias)
 
     def forward(
         self,
@@ -122,16 +128,22 @@ class AWARECLSModel(nn.Module):
 
         Args:
             x_query: (B, n_feat) — raw scaled query features.
-            x_ctx:   (K, n_feat) — shared context features (raw scaled).
-            y_ctx:   (K,)        — context labels as float.
+            x_ctx:   (B, K, n_feat) — unique context features per query.
+            y_ctx:   (B, K)        — context labels as float.
 
         Returns:
             logits: (B, n_classes)
         """
         q_emb   = self.adapter(x_query)   # (B, emb_dim)
-        ctx_emb = self.adapter(x_ctx)     # (K, emb_dim)
-        q_backbone_emb = self._get_query_embeddings(q_emb, ctx_emb, y_ctx)  # (B, ninp)
-        return self.cls_head(self.norm(q_backbone_emb))
+        ctx_emb = self.adapter(x_ctx)     # (B, K, emb_dim)
+        # q_emb, ctx_emb = x_query, x_ctx
+        
+        q_logits, q_backbone_emb = self._get_query_embeddings(q_emb, ctx_emb, y_ctx)
+
+        # Calculate parametric residual and add it to zero-shot logits
+        residual = self.residual_head(self.norm(q_backbone_emb))
+        out = q_logits + residual
+        return out
 
     def _get_query_embeddings(
         self,
@@ -177,16 +189,22 @@ class TabPFNAWARECLSModel(AWARECLSModel):
 
     def _get_query_embeddings(self, q_emb, ctx_emb, y_ctx):
         # Pad adapter outputs to what TabPFN's encoder expects
-        ctx_p = self._pad_to_tabpfn(ctx_emb)   # (K, 100)
-        q_p   = self._pad_to_tabpfn(q_emb)     # (B, 100)
+        # q_emb: (B, D), ctx_emb: (B, K, D), y_ctx: (B, K)
+        ctx_p = self._pad_to_tabpfn(ctx_emb).transpose(0, 1)   # (K, B, 100)
+        q_p   = self._pad_to_tabpfn(q_emb).unsqueeze(0)        # (1, B, 100)
+        y_ctx_p = y_ctx.transpose(0, 1)                        # (K, B)
 
         # Backbone Wrapper.forward(x_train, y_train, x_test)
-        # Returns dict: test_embeddings shape (B, 1, ninp) or (B, ninp)
-        output = self.backbone(ctx_p, y_ctx, q_p)
+        # Returns dict: test_embeddings shape (1, B, ninp)
+        output = self.backbone(ctx_p, y_ctx_p, q_p)
+        logits = output['logits'][..., :self.n_classes]
         emb = output["test_embeddings"].to(torch.float32)
+        
+        # Squeeze sequence dimension (TabPFN returns Seq, Batch, Dim)
         if emb.ndim == 3:
-            emb = emb.squeeze(1)    # (B, ninp)
-        return emb
+            emb = emb.squeeze(0)    # (B, ninp)
+            logits = logits.squeeze(0)  # (B, n_classes)
+        return logits, emb
 
 
 # ---------------------------------------------------------------------------
@@ -214,8 +232,7 @@ class TabDPTAWARECLSModel(AWARECLSModel):
         self.max_features = max_features
 
     def _to_seq(self, x: torch.Tensor) -> torch.Tensor:
-        """(N, emb_dim) → (N, 1, max_features)."""
-        x = x.unsqueeze(1)                          # (N, 1, emb_dim)
+        """Pad/truncate last dim to max_features."""
         n = x.shape[-1]
         if n < self.max_features:
             pad = torch.zeros(
@@ -226,17 +243,107 @@ class TabDPTAWARECLSModel(AWARECLSModel):
         return x[..., : self.max_features]
 
     def _get_query_embeddings(self, q_emb, ctx_emb, y_ctx):
-        K = ctx_emb.shape[0]
-        ctx_seq = self._to_seq(ctx_emb)                     # (K, 1, max_features)
-        q_seq   = self._to_seq(q_emb)                       # (B, 1, max_features)
-        x_full  = torch.cat([ctx_seq, q_seq], dim=0)        # (K+B, 1, max_features)
+        # q_emb: (B, D), ctx_emb: (B, K, D), y_ctx: (B, K)
+        K = ctx_emb.shape[1]
+        ctx_seq = self._to_seq(ctx_emb).transpose(0, 1)     # (K, B, max_features)
+        q_seq   = self._to_seq(q_emb).unsqueeze(0)          # (1, B, max_features)
+        x_full  = torch.cat([ctx_seq, q_seq], dim=0)        # (K+1, B, max_features)
+        y_ctx_p = y_ctx.transpose(0, 1)                     # (K, B)
 
         # TabDPTModel.forward(x, y, eval_pos, return_embeddings=True)
-        # returns (pred[eval_pos:], src) where src is (K+B, 1, ninp)
-        _, emb = self.backbone(
-            x_full, y=y_ctx.float(), eval_pos=K, return_embeddings=True
+        # returns (pred[eval_pos:], src)
+        logits, emb = self.backbone(
+            x_full, y=y_ctx_p.float(), eval_pos=K, return_embeddings=True
         )
-        return emb[K:].squeeze(1).to(torch.float32)         # (B, ninp)
+        logits = logits[..., :self.n_classes]
+        return logits.squeeze(0), emb.squeeze(0).to(torch.float32)         # (B, ninp)
+
+
+# ---------------------------------------------------------------------------
+# ClassBalancedBatchSampler
+# ---------------------------------------------------------------------------
+
+class ClassBalancedBatchSampler:
+    """Generates batch index arrays guaranteeing a minimum number of samples
+    per batch for every class.
+    """
+    def __init__(
+        self,
+        y: np.ndarray,
+        batch_size: int,
+        n_classes: int,
+        min_samples_per_class: Optional[int] = None,
+        seed: Optional[int] = None,
+    ):
+        self.y = np.asarray(y)
+        self.batch_size = batch_size
+        self.n_classes = n_classes
+        self._rng = np.random.default_rng(seed)
+        self._n = len(self.y)
+
+        self._class_indices = [np.where(self.y == c)[0] for c in range(n_classes)]
+        
+        for c, idxs in enumerate(self._class_indices):
+            if len(idxs) == 0:
+                raise ValueError(f"Training fold has no samples for class {c}.")
+
+        default_min = max(1, batch_size // (n_classes * 4))
+        raw = min_samples_per_class if min_samples_per_class is not None else default_min
+        
+        self.min_samples_per_class = int(min(raw, batch_size // n_classes))
+        self._fill_size = batch_size - (self.min_samples_per_class * n_classes)
+
+    def __iter__(self):
+        class_perms = [self._rng.permutation(idxs) for idxs in self._class_indices]
+        class_ptrs = [0] * self.n_classes
+        all_perm = self._rng.permutation(self._n)
+        f_ptr = 0
+
+        n_batches = max(1, self._n // self.batch_size)
+        
+        for _ in range(n_batches):
+            batch_chunks = []
+            
+            for c in range(self.n_classes):
+                e_ptr = class_ptrs[c]
+                e_perm = class_perms[c]
+                e_end = e_ptr + self.min_samples_per_class
+                
+                if e_end <= len(e_perm):
+                    batch_chunks.append(e_perm[e_ptr:e_end])
+                    class_ptrs[c] = e_end
+                else:
+                    tail = e_perm[e_ptr:]
+                    e_perm = self._rng.permutation(self._class_indices[c])
+                    class_perms[c] = e_perm
+                    need = self.min_samples_per_class - len(tail)
+                    batch_chunks.append(tail)
+                    if need > 0:
+                        batch_chunks.append(e_perm[:need])
+                    class_ptrs[c] = need
+
+            if self._fill_size > 0:
+                need = self._fill_size
+                chunks = []
+                while need > 0:
+                    avail = all_perm[f_ptr:]
+                    take = min(need, len(avail))
+                    if take > 0:
+                        chunks.append(avail[:take])
+                    need -= take
+                    f_ptr += take
+                    if f_ptr >= len(all_perm):
+                        all_perm = self._rng.permutation(self._n)
+                        f_ptr = 0
+                if chunks:
+                    batch_chunks.append(np.concatenate(chunks))
+            
+            batch_np = np.concatenate(batch_chunks)
+            self._rng.shuffle(batch_np)
+            yield batch_np
+            
+    def __len__(self) -> int:
+        return max(1, self._n // self.batch_size)
 
 
 # ---------------------------------------------------------------------------
@@ -287,6 +394,7 @@ class BaseClsFinetune:
         self.context_sampler: Optional[RetrievalContextSampler] = None
         self.imputer: Optional[SimpleImputer] = None
         self.scaler: Optional[StandardScaler] = None
+        self.label_encoder: Optional[LabelEncoder] = None
         self.X_train_scaled: Optional[np.ndarray] = None
         self.y_train: Optional[np.ndarray] = None
         self.n_classes: Optional[int] = None
@@ -299,35 +407,6 @@ class BaseClsFinetune:
     def _build_model(self, n_features: int, n_classes: int) -> AWARECLSModel:
         """Instantiate and return the backbone-specific AWARECLSModel."""
         raise NotImplementedError
-
-    # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
-
-    def _sample_shared_context(
-        self,
-        X_batch: np.ndarray,
-        batch_idx: np.ndarray,
-        rng: np.random.Generator,
-    ) -> Tuple[np.ndarray, np.ndarray]:
-        """Retrieve neighbors for the batch and return a shared context pool.
-
-        Strategy: gather all retrieved neighbor indices across batch queries,
-        deduplicate, exclude the current batch members, then sample up to
-        ``context_size`` indices.
-
-        Returns:
-            ctx_sel: 1-D array of selected training indices
-        """
-        per_query_idx = self.context_sampler.retrieve_indices(X_batch)  # (B, k)
-        pool = np.unique(per_query_idx.ravel())
-        pool = pool[~np.isin(pool, batch_idx)]
-
-        if len(pool) == 0:
-            return np.empty(0, dtype=np.int64)
-
-        k = min(self.context_size, len(pool))
-        return rng.choice(pool, size=k, replace=False)
 
     # ------------------------------------------------------------------
     # fit
@@ -348,10 +427,13 @@ class BaseClsFinetune:
         X = self.imputer.fit_transform(X)
         self.scaler = StandardScaler()
         X = self.scaler.fit_transform(X)
-        y = np.asarray(y)
-
-        self.classes_ = np.unique(y)
+ 
+        self.classes_ = np.unique(y) #self.label_encoder.classes_
         self.n_classes = len(self.classes_)
+
+        # Save full data before any splits so it can be used as context during inference
+        X_full = X.copy()
+        y_full = y.copy()
 
         # ── 2. Validation split ───────────────────────────────────────
         if val_data is None and self.val_split > 0:
@@ -370,6 +452,21 @@ class BaseClsFinetune:
         logger.info("Fitting retriever...")
         self.context_sampler = RetrievalContextSampler(self.retriever)
         self.context_sampler.fit(X, y)
+
+        # ── 3.5 Pre-cache retrieval indices (eliminates retriever from hot path) ──
+        # One retriever call per dataset instead of one per batch per epoch.
+        logger.info("Pre-caching retrieval indices for training set...")
+        train_ctx_cache = self.context_sampler.retrieve_indices(X)   # (N, k)
+
+        val_ctx_cache: Optional[np.ndarray] = None
+        X_val_s:       Optional[np.ndarray] = None
+        X_val_t:       Optional[torch.Tensor] = None
+        if val_data is not None:
+            X_val_raw, _ = val_data
+            X_val_s = self.scaler.transform(self.imputer.transform(X_val_raw))
+            logger.info("Pre-caching retrieval indices for validation set...")
+            val_ctx_cache = self.context_sampler.retrieve_indices(X_val_s)  # (N_val, k)
+            X_val_t = torch.tensor(X_val_s, dtype=torch.float32, device=self.device)
 
         # ── 4. Build model ────────────────────────────────────────────
         logger.info(f"Building AWARE model (n_features={X.shape[1]}, n_classes={self.n_classes})...")
@@ -392,25 +489,28 @@ class BaseClsFinetune:
         # ── 7. Training loop ──────────────────────────────────────────
         best_loss, best_state, patience_ctr = float("inf"), None, 0
 
+        _train_sampler = ClassBalancedBatchSampler(
+            y=y,
+            batch_size=self.batch_size,
+            n_classes=self.n_classes,
+            seed=self.random_state,
+        )
+
         pbar = tqdm(range(self.epochs), desc="Finetuning", disable=not verbose)
         for epoch in pbar:
             self.cls_model.train()
             epoch_loss, n_batches = 0.0, 0
-            perm = rng.permutation(N)
-            n_total_batches = (N + self.batch_size - 1) // self.batch_size
-            batch_pbar = tqdm(range(0, N, self.batch_size), desc=f"  Epoch {epoch}", leave=False, disable=not verbose)
-            for i, start in enumerate(batch_pbar):
-                batch_idx = perm[start : start + self.batch_size]
-                X_batch   = X[batch_idx]             # numpy, for retriever
-                y_batch   = y_t[batch_idx]           # (B,) long
+            n_total_batches = len(_train_sampler)
+            batch_pbar = tqdm(_train_sampler, desc=f"  Epoch {epoch}", total=n_total_batches, leave=False, disable=not verbose)
+            for i, batch_idx in enumerate(batch_pbar):
+                y_batch    = y_t[batch_idx]           # (B,) long
 
-                ctx_sel = self._sample_shared_context(X_batch, batch_idx, rng)
-                if len(ctx_sel) == 0:
-                    continue
-
-                x_ctx  = X_t[ctx_sel]                # (K, n_feat)
-                y_ctx  = y_t[ctx_sel].float()         # (K,)
-                x_q    = X_t[batch_idx]              # (B, n_feat)
+                cached_rows = train_ctx_cache[batch_idx]              # (B, k)
+                # Get unique neighbors per query
+                ctx_indices = cached_rows[:, :self.context_size]      # (B, K)
+                x_ctx = X_t[ctx_indices]                              # (B, K, n_feat)
+                y_ctx = y_t[ctx_indices].float()                      # (B, K)
+                x_q   = X_t[batch_idx]                                # (B, n_feat)
 
                 optimizer.zero_grad()
                 logits = self.cls_model(x_q, x_ctx, y_ctx)
@@ -440,7 +540,10 @@ class BaseClsFinetune:
             # ── Validation ────────────────────────────────────────────
             val_metrics = None
             if val_data is not None:
-                val_metrics = self._compute_val_metrics(val_data, X_t, y_t, criterion)
+                _, y_val = val_data
+                val_metrics = self._compute_val_metrics(
+                    X_val_t, y_val, val_ctx_cache, X_t, y_t, criterion
+                )
 
             # Early stopping is driven by val_loss when available, otherwise train_loss
             stop_loss = val_metrics["val_loss"] if val_metrics is not None else avg_loss
@@ -482,8 +585,14 @@ class BaseClsFinetune:
             self.cls_model.load_state_dict(best_state)
 
         self.cls_model.eval()
-        self.X_train_scaled = X
-        self.y_train = y
+        
+        # Re-fit the retriever on the full data (train + val) for inference context
+        if val_data is not None:
+            logger.info("Re-fitting retriever on full training set (including validation split) for inference...")
+            self.context_sampler.fit(X_full, y_full)
+            
+        self.X_train_scaled = X_full
+        self.y_train = y_full
         return self
 
     # ------------------------------------------------------------------
@@ -493,42 +602,45 @@ class BaseClsFinetune:
     @torch.no_grad()
     def _compute_val_metrics(
         self,
-        val_data: Tuple[np.ndarray, np.ndarray],
+        X_val_t: torch.Tensor,
+        y_val: np.ndarray,
+        val_ctx_cache: np.ndarray,
         X_t: torch.Tensor,
         y_t: torch.Tensor,
         criterion: nn.Module,
     ) -> dict:
         """Run one full validation pass and return loss + classification metrics.
 
-        Uses the same retrieval-guided context selection as predict_proba so
-        the reported numbers are representative of actual inference quality.
+        Accepts pre-scaled, pre-cached inputs so no retriever calls or
+        re-scaling happen inside the loop.
+
+        Args:
+            X_val_t:       (N_val, n_feat) GPU tensor — pre-scaled validation features.
+            y_val:         (N_val,) numpy array of true labels.
+            val_ctx_cache: (N_val, k) pre-cached neighbor indices into X_t.
+            X_t:           (N_train, n_feat) GPU tensor — training features.
+            y_t:           (N_train,) GPU tensor — training labels (long).
+            criterion:     loss function.
 
         Returns:
             dict with keys: val_loss, auc, auprc, f1
         """
-        X_val, y_val = val_data
-        X_val_s = self.scaler.transform(self.imputer.transform(X_val))
-
+        N_val = X_val_t.shape[0]
         self.cls_model.eval()
         total_loss, n_batches = 0.0, 0
-        all_probs = []   # accumulate softmax probs across batches
-        all_logits = []  # accumulate raw logits for CE loss
+        all_probs = []
 
-        for start in range(0, len(X_val), self.batch_size):
-            end  = min(len(X_val), start + self.batch_size)
-            X_vb = X_val_s[start:end]
+        for start in range(0, N_val, self.batch_size):
+            end  = min(N_val, start + self.batch_size)
+            x_vb = X_val_t[start:end]                                    # already on device
             y_vb = torch.tensor(y_val[start:end], dtype=torch.long, device=self.device)
 
-            per_query_idx = self.context_sampler.retrieve_indices(X_vb)  # (B, k)
-            ctx_pool = np.unique(per_query_idx.ravel())
-            k        = min(self.context_size, len(ctx_pool))
-            ctx_sel  = ctx_pool[:k]
+            # Get unique neighbors per query
+            ctx_indices = val_ctx_cache[start:end, :self.context_size]
+            x_ctx = X_t[ctx_indices]
+            y_ctx = y_t[ctx_indices].float()
 
-            x_ctx  = X_t[ctx_sel]
-            y_ctx  = y_t[ctx_sel].float()
-            x_vb_t = torch.tensor(X_vb, dtype=torch.float32, device=self.device)
-
-            logits = self.cls_model(x_vb_t, x_ctx, y_ctx)   # (B, n_classes)
+            logits = self.cls_model(x_vb, x_ctx, y_ctx)                  # (B, n_classes)
             total_loss += criterion(logits, y_vb).item()
             n_batches  += 1
 
@@ -571,13 +683,14 @@ class TabPFNClsFinetune(BaseClsFinetune):
 
     def _build_model(self, n_features: int, n_classes: int) -> TabPFNAWARECLSModel:
         from ehrpfn.models.AWARE.tabpfn.backbone_v1 import load_model_workflow
+        # from ehrpfn.models.AWARE.tabpfn.backbone_v2 import load_model_workflow
 
         backbone = load_model_workflow(device=self.device, only_inference=True)
 
         # Probe actual transformer embedding dimension
         with torch.no_grad():
-            d_x = torch.randn(1, _TABPFN_NUM_FEATURES, device=self.device)
-            d_y = torch.zeros(1, device=self.device)
+            d_x = torch.randn(1, 1, _TABPFN_NUM_FEATURES, device=self.device)
+            d_y = torch.zeros(1, 1, device=self.device)
             d_out = backbone(d_x, d_y, d_x)
             ninp = d_out["test_embeddings"].shape[-1]
 
@@ -602,7 +715,7 @@ class TabDPTClsFinetune(BaseClsFinetune):
     """Classification finetuning with frozen TabDPT backbone."""
 
     def _build_model(self, n_features: int, n_classes: int) -> TabDPTAWARECLSModel:
-        from ehrpfn.models.AWARE.tabdpt.tabdpt.model import TabDPTModel, TABDPT_CHECKPOINT_PATH
+        from ehrpfn.models.AWARE.tabdpt.model import TabDPTModel, TABDPT_CHECKPOINT_PATH
 
         ckpt     = torch.load(TABDPT_CHECKPOINT_PATH, map_location=self.device, weights_only=False)
         backbone = TabDPTModel.load(
@@ -656,10 +769,12 @@ class AWARECLSClassifier(BaseEstimator, ClassifierMixin):
     def __init__(
         self,
         finetune: BaseClsFinetune,
-        temperature: float = 1.0,
+        n_ensembles: int = 5,
+        temperature: float = 0.8,
         infer_batch_size: int = 256,
     ) -> None:
         self.finetune = finetune
+        self.n_ensembles = n_ensembles
         self.temperature = temperature
         self.infer_batch_size = infer_batch_size
 
@@ -675,7 +790,7 @@ class AWARECLSClassifier(BaseEstimator, ClassifierMixin):
         return self
 
     @torch.no_grad()
-    def predict_proba(self, X: np.ndarray) -> np.ndarray:
+    def predict_proba(self, X: np.ndarray, seed: Optional[int] = None) -> np.ndarray:
         ft = self.finetune
         assert ft.cls_model is not None, "Must call fit() before predict_proba()."
         ft.cls_model.eval()
@@ -685,28 +800,56 @@ class AWARECLSClassifier(BaseEstimator, ClassifierMixin):
         X_train_t  = torch.tensor(ft.X_train_scaled, dtype=torch.float32, device=device)
         y_train_t  = torch.tensor(ft.y_train,        dtype=torch.float32, device=device)
 
-        probs_list = []
-        for start in range(0, len(X), self.infer_batch_size):
-            end     = min(len(X), start + self.infer_batch_size)
-            X_batch = X_scaled[start:end]
+        # Use provided seed or fallback to a random one for ensembling variance
+        base_rng = np.random.default_rng(seed)
+        
+        logits_cumsum = None
+        
+        for ens_idx in range(self.n_ensembles):
+            # Create a per-ensemble RNG for reproducible but varied selection
+            ens_seed = base_rng.integers(0, 2**32 - 1) if seed is not None else None
+            ens_rng = np.random.default_rng(ens_seed)
+            
+            probs_ens = []
+            for start in range(0, len(X), self.infer_batch_size):
+                end     = min(len(X), start + self.infer_batch_size)
+                X_batch = X_scaled[start:end]
 
-            # Retrieve neighbors for each query, use union as shared context
-            per_q   = ft.context_sampler.retrieve_indices(X_batch)   # (B, k)
-            ctx_pool = np.unique(per_q.ravel())
-            k        = min(ft.context_size, len(ctx_pool))
-            ctx_sel  = ctx_pool[:k]
+                # Retrieve neighbors for each query
+                per_q    = ft.context_sampler.retrieve_indices(X_batch)   # (B, k)
+                
+                # Randomized selection if n_ensembles > 1 to introduce variance
+                ctx_indices = per_q[:, :ft.context_size].copy()
+                if self.n_ensembles > 1:
+                    # Pick a slightly different set or order of neighbors
+                    # We can shuffle the neighbors for each query to add some noise
+                    for b in range(len(ctx_indices)):
+                        ens_rng.shuffle(ctx_indices[b])
+                x_ctx = X_train_t[ctx_indices]                               # (B, K, n_feat)
+                y_ctx = y_train_t[ctx_indices].float()                       # (B, K)
+                x_q   = torch.tensor(X_batch, dtype=torch.float32, device=device)
 
-            x_ctx = X_train_t[ctx_sel]                               # (K, n_feat)
-            y_ctx = y_train_t[ctx_sel].float()                       # (K,)
-            x_q   = torch.tensor(X_batch, dtype=torch.float32, device=device)
+                logits = ft.cls_model(x_q, x_ctx, y_ctx).cpu().float().numpy()
+                probs  = softmax(logits / self.temperature, axis=-1)
+                probs /= probs.sum(axis=-1, keepdims=True) + 1e-12 # numerical stability
+                probs_ens.append(probs)
+            
+            current_probs = np.concatenate(probs_ens, axis=0)
+            
+            if logits_cumsum is None:
+                logits_cumsum = current_probs
+            else:
+                logits_cumsum += current_probs
+                
+        avg_pred = logits_cumsum / self.n_ensembles
+        
+        # Ensure normalization for final probabilities
+        avg_pred /= avg_pred.sum(axis=-1, keepdims=True) + 1e-12
+        return avg_pred
 
-            logits = ft.cls_model(x_q, x_ctx, y_ctx).cpu().float().numpy()
-            probs  = softmax(logits / max(self.temperature, 1e-8), axis=-1)
-            probs_list.append(probs)
-
-        result = np.concatenate(probs_list, axis=0)
-        result /= result.sum(axis=-1, keepdims=True) + 1e-12
-        return result
-
-    def predict(self, X: np.ndarray) -> np.ndarray:
-        return np.argmax(self.predict_proba(X), axis=1)
+    def predict(self, X: np.ndarray, seed: Optional[int] = None) -> np.ndarray:
+        probs = self.predict_proba(X, seed=seed)
+        y_idx = np.argmax(probs, axis=1)
+        # if self.finetune.label_encoder is not None:
+        #     return self.finetune.label_encoder.inverse_transform(y_idx)
+        return y_idx

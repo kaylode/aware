@@ -1,3 +1,5 @@
+"""survpfn.models.tabpfn.backbone.transformer — TabPFN transformer model."""
+
 import math
 from typing import Optional
 
@@ -6,7 +8,8 @@ import torch.nn as nn
 from torch import Tensor
 from torch.nn import Module, TransformerEncoder
 
-from . import layer 
+from . import layer
+
 
 def bool_mask_to_att_mask(mask):
     return mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
@@ -109,7 +112,7 @@ class TransformerModel(nn.Module):
                 nn.init.zeros_(attn.out_proj.weight)
                 nn.init.zeros_(attn.out_proj.bias)
 
-    def forward(self, src, src_mask=None, single_eval_pos=None):
+    def forward(self, src, src_mask=None, single_eval_pos=None, return_embeddings=False):
         assert isinstance(src, tuple), 'inputs (src) have to be given as (x,y) or (style,x,y) tuple'
 
         if len(src) == 2: # (x,y) and no style
@@ -152,7 +155,11 @@ class TransformerModel(nn.Module):
 
         output = self.transformer_encoder(src, src_mask)
         output = self.decoder(output)
-        return output[single_eval_pos+len(style_src)+(self.global_att_embeddings.num_embeddings if self.global_att_embeddings else 0):]
+        output = output[single_eval_pos+len(style_src)+(self.global_att_embeddings.num_embeddings if self.global_att_embeddings else 0):]
+        
+        if return_embeddings:
+            return output, src
+        return output
 
     @torch.no_grad()
     def init_from_small_model(self, small_model):

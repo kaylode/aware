@@ -18,7 +18,7 @@ from .AWARE import (
 from .talent_wrapper import TALENTWrapper
 from .knn import SimpleKNNClassifier, SimpleKNNRegressor
 from .KNNPFNv1 import KNNPFN
-from .KNNPFNv2 import KNNPFNv2Classifier, KNNPFNv2Regressor
+from .tabpfn import TabPFNv1
 from .tabicl import TabICL, TabICLClassifier
 from tradml import TradMLTuner
 from ehrret import get_retriever, get_ehr_retrieval_weight
@@ -103,7 +103,15 @@ def get_predictions(args, data, config_dict):
     else:
         n_features = X_train_original.shape[1]
 
+    if args.data.num_features:
+        n_features = min(n_features, args.data.num_features)
+
     if args.retrieval.retrieval_method is not None:
+
+        if args.data.data_name == 'openml_ehr':
+             pretrained_path = args.retrieval.pretrained_path.replace('openml_ehr', 'openml_ehr/'+dataset_name)
+        else:
+            pretrained_path = args.retrieval.pretrained_path
 
         retriever_dict = dict(
             k=args.retrieval.context_size,
@@ -114,7 +122,7 @@ def get_predictions(args, data, config_dict):
             task=args.data.task,
             embedding_dim=256,
 		    dropout = 0.3,
-            pretrained_path=args.retrieval.pretrained_path,
+            pretrained_path=pretrained_path,
             num_classes=num_classes
         )
 
@@ -213,7 +221,7 @@ def get_predictions(args, data, config_dict):
             y_pred = model.predict(X_test)
         running_time = time.time() - start_time
 
-    elif method_name == "tabpfn":
+    elif method_name == "tabpfnv2":
         from ehrpfn.models.TabPFN import get_base_tabpfn
 
         model = get_base_tabpfn(
@@ -234,7 +242,65 @@ def get_predictions(args, data, config_dict):
             y_pred = model.predict(X_test)
         running_time = time.time() - start_time
 
-    elif method_name == "knnpfn":
+    elif method_name == 'tabpfnv1':
+        model = TabPFNv1(
+            n_classes=num_classes, 
+            context_size=args.retrieval.context_size, 
+            device="cuda",
+            retriever=retriever
+        )
+        start_time = time.time()
+        model.fit(
+            X_train, y_train,
+            retriever_additional_fit = retriever_additional_fit,
+            retriever_additional_query = retriever_additional_query,
+        )
+        training_time = time.time() - start_time
+        
+        start_time = time.time()
+        if is_classification:
+            y_pred = model.predict_proba(
+                X_test, 
+                retriever_additional_query=retriever_additional_query
+            )
+        else:
+            y_pred = model.predict(
+                X_test,
+                retriever_additional_query=retriever_additional_query
+            )
+        running_time = time.time() - start_time
+
+    elif method_name == "knnpfnv1":
+        model = TabPFNv1(
+            n_classes=num_classes, 
+            retriever=retriever,
+            context_size=args.retrieval.context_size, 
+            device="cuda"
+        )
+        start_time = time.time()
+        model.fit(
+            X_train, y_train,
+            retriever_additional_fit = retriever_additional_fit,
+            retriever_additional_query = retriever_additional_query,
+        )
+        training_time = time.time() - start_time
+        
+        start_time = time.time()
+        if is_classification:
+            y_pred = model.predict_proba(
+                X_test,
+                retriever_additional_query=retriever_additional_query
+            )
+        else:
+            y_pred = model.predict(
+                X_test,
+                retriever_additional_query=retriever_additional_query
+            )
+        running_time = time.time() - start_time
+
+
+
+    elif method_name == "knnpfnv2":
         model = KNNPFN(
             retriever=retriever,
             is_classification=is_classification,
@@ -255,44 +321,6 @@ def get_predictions(args, data, config_dict):
         start_time = time.time()
         if is_classification:
             y_pred = model.predict(X_test)
-        else:
-            y_pred = model.predict(X_test)
-        running_time = time.time() - start_time
-
-    elif method_name == "knnpfnv2":
-        from .KNNPFNv2 import KNNPFNv2Classifier, KNNPFNv2Regressor
-
-        if is_classification:
-            model = KNNPFNv2Classifier(
-                pretrained_path=args.inference.pretrained_path,
-                n_ensembles=1, temperature=0.8, 
-                inf_batch_size=args.retrieval.get('inf_batch_size', 512),
-                categorical_feature_indices=categorical_feature_indices,
-                retriever=retriever,
-                fit_retriever_before_fit=True,
-                k=args.retrieval.context_size
-            )
-        else:
-            model = KNNPFNv2Regressor(
-                pretrained_path=args.inference.pretrained_path,
-                n_ensembles=1, temperature=0.8, 
-                inf_batch_size=args.retrieval.get('inf_batch_size', 512),
-                categorical_feature_indices=categorical_feature_indices,
-                retriever=retriever,
-                fit_retriever_before_fit=True,
-                k=args.retrieval.context_size
-            )
-
-        start_time = time.time()
-        model.fit(
-            X_train, y_train,
-            retriever_additional_fit = retriever_additional_fit,
-            retriever_additional_query = retriever_additional_query,
-        )
-        training_time = time.time() - start_time
-        start_time = time.time()
-        if is_classification:
-            y_pred = model.predict_proba(X_test)
         else:
             y_pred = model.predict(X_test)
         running_time = time.time() - start_time
@@ -334,35 +362,36 @@ def get_predictions(args, data, config_dict):
             y_pred = model.predict(X_test)
         running_time = time.time() - start_time
     
-    elif method_name in ['tabdpt_aware', 'knnpfn_aware']:
+    elif method_name in ['tabdpt-aware', 'knnpfn-aware']:
         if not is_classification:
             raise ValueError(f"{method_name} only supports classification tasks.")
 
-        if method_name == 'tabdpt_aware':
+        if method_name == 'tabdpt-aware':
             finetune = TabDPTClsFinetune(
                 retriever=retriever,
-                learning_rate=getattr(args.inference, 'learning_rate', 1e-4),
-                epochs=getattr(args.inference, 'epochs', 10),
+                learning_rate=3e-4,
+                epochs=10,
                 batch_size=args.retrieval.get('inf_batch_size', 64),
                 context_size=args.retrieval.context_size,
-                patience=getattr(args.inference, 'patience', 10),
+                patience=3,
                 device=getattr(args.inference, 'device', 'cuda:0'),
                 random_state=getattr(args.inference, 'seed', 42),
             )
         else:  # knnpfn_aware
             finetune = KNNPFNClsFinetune(
                 retriever=retriever,
-                learning_rate=getattr(args.inference, 'learning_rate', 1e-4),
-                epochs=getattr(args.inference, 'epochs', 10),
+                learning_rate=3e-4,
+                epochs=10,
                 batch_size=args.retrieval.get('inf_batch_size', 64),
                 context_size=args.retrieval.context_size,
-                patience=getattr(args.inference, 'patience', 10),
+                patience=3,
                 device=getattr(args.inference, 'device', 'cuda:0'),
                 random_state=getattr(args.inference, 'seed', 42),
             )
 
         model = AWARECLSClassifier(
             finetune=finetune,
+            n_ensembles=5,
             temperature=getattr(args.inference, 'temperature', 1.0),
             infer_batch_size=args.retrieval.get('inf_batch_size', 256),
         )

@@ -30,7 +30,8 @@ dependencies = [
     "traddl",
     "tradml",
     "ehrdpt",
-    "tabpfn-extensions"
+    "tabpfn-extensions",
+    "faiss-gpu-cu12>=1.12.0"
 ]
 
 
@@ -40,7 +41,7 @@ override-dependencies = [
     "meds==0.4.1",
     "elasticsearch>=8.12.0",
     "optuna-integration[wandb]>=4.8.0",
-    "scikit-learn==1.7.2"
+    "scikit-learn==1.7.2",
 ]
 
 [project.optional-dependencies]

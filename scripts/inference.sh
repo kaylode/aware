@@ -100,6 +100,12 @@ for SEED in 1603 2000 1702  ; do #
         fi
 
         RETRIEVAL_JSON_PATH="${ROOT}/${SAVE_DIR}/benchmark/${DATASET}/${TASK}/logistics_${DATASET}_${TASK}/logistics_params.json" 
+        
+        if [ $DATASET != "openml_ehr" ]; then
+            PRETRAIN_RETRIEVER_PATH="${ROOT}/results/ehr-retrieval/${DATASET}/${TASK}/${SEED}/${RETRIEVAL}/retriever.pth"
+        else
+            PRETRAIN_RETRIEVER_PATH="${ROOT}/results/ehr-retrieval/${DATASET}/${SEED}/${RETRIEVAL}/retriever.pth"
+        fi
 
         PYTHONPATH=. uv run ehrpfn/inference.py \
             --config-dir ${ROOT}/configs \

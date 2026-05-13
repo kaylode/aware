@@ -114,7 +114,7 @@ class TabDPTModel(nn.Module):
             return pred[eval_pos:], log_act_norms
             
         if return_embeddings:
-            return pred[eval_pos:], src
+            return pred[eval_pos:], src[eval_pos:]
 
         return pred[eval_pos:]
 
@@ -148,5 +148,5 @@ class TabDPTModel(nn.Module):
         model.load_state_dict(model_state)
         model.to(config.env.device)
         model.eval()
-        # print("Loaded TabDPTModel from checkpoint.")
+        print("Loaded TabDPTModel from checkpoint.")
         return model

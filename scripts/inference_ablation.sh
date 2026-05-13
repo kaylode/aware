@@ -98,6 +98,7 @@ for SEED in 1603  2000 1702  ; do #
             inference.tune_config="${TUNE_CONFIG}" \
             inference.seed=${SEED} \
             wandb.use_wandb=false
+            # inference.output_folder="${ROOT}/${SAVE_DIR}/benchmark-reproduce/${SEED}" \
     done
 done
 

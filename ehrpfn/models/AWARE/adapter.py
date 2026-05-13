@@ -27,11 +27,14 @@ class AWAREAdapter(nn.Module):
 		"""
 		super().__init__()
 
+		# self.attention = nn.Sequential(
+		# 	nn.Linear(n_features, hidden_dim),
+		# 	nn.ReLU(),
+		# 	nn.Dropout(dropout),
+		# 	nn.Linear(hidden_dim, embedding_dim),
+		# )
 		self.attention = nn.Sequential(
-			nn.Linear(n_features, hidden_dim),
-			nn.ReLU(),
-			nn.Dropout(dropout),
-			nn.Linear(hidden_dim, embedding_dim),
+			nn.Linear(n_features, embedding_dim),
 		)
 
 	def forward(self, x: torch.Tensor) -> torch.Tensor:
