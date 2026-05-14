@@ -219,7 +219,7 @@ class TALENTWrapper(BaseEstimator, ClassifierMixin):
         if self.ckpt_path is not None and osp.isfile(self.ckpt_path):
             try:
                 self.method.model.load_state_dict(
-                    torch.load(self.ckpt_path)['params']
+                    torch.load(self.ckpt_path, weights_only=False)['params']
                 )
             except:
                 try:

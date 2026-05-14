@@ -339,7 +339,7 @@ class Trainer:
             return
 
         print(f"Loading checkpoint from {checkpoint_path}")
-        checkpoint = torch.load(checkpoint_path, map_location=self.config.device, weights_only=True)
+        checkpoint = torch.load(checkpoint_path, map_location=self.config.device, weights_only=False)
 
         # Load model state
         if "state_dict" not in checkpoint:

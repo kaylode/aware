@@ -17,7 +17,11 @@ from ehrmeds.static import (
 	get_sjh_cpe_default_configs,
 	get_openml_ehr_default_configs,
     get_mimiciv_temporal_exp_configs,
-	get_openml_ehr_imbalance_default_configs
+	get_openml_ehr_imbalance_default_configs,
+	get_eicu_v2,
+	get_eicu_v2_default_configs,
+	get_mimiciv_v2,
+	get_mimiciv_v2_default_configs,
 )
 
 import numpy as np
@@ -44,9 +48,6 @@ def get_data(args: DictConfig):
 	elif data_name == 'mimiciv_hai':
 		config_func = get_mimiciv_hai_configs
 		data_func = get_mimic_dataset
-	elif data_name.startswith(('mimicpipe', 'mimiciv', 'mimic')):
-		config_func = get_mimiciv_default_configs
-		data_func = get_mimic_dataset
 	elif data_name == 'openml_ehr':
 		config_func = get_openml_ehr_default_configs
 		data_func = get_openml_ehr
@@ -70,8 +71,14 @@ def get_data(args: DictConfig):
 	elif data_name == 'eicu2':
 		config_func = get_eicu2_default_configs
 		data_func = get_eicu
+	elif data_name == 'eicu_hcai':
+		config_func = get_eicu_v2_default_configs
+		data_func = get_eicu_v2
+	elif data_name == 'mimiciv_hcai':
+		config_func = get_mimiciv_v2_default_configs
+		data_func = get_mimiciv_v2
 	else:
-		raise ValueError(f"Data {data_name} is not supported. Please choose from ['mimiciv', 'sjh_cpe', 'synthea']")
+		raise ValueError(f"Data {data_name} is not supported. Please choose from ['mimiciv', 'sjh_cpe', 'synthea', 'eicu_hcai', 'mimiciv_hcai']")
 
 	configs = config_func(
 		**data_dict

@@ -143,25 +143,25 @@ selection:
 
 
 rebuttal:
-	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) knn_l2
-	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) attention
-	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) balance
-	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) minority_prioritized
-	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) inverse_frequency
-	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) siamese
-	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) supcon
-	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) unsupcon
-	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_nosup_full
-	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_attn_only
-	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_snnl_only
-	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_balance_only
-	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_ensemble_only
-	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_adapter_only
-	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_imb
-	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_no_attn
-	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_no_snnl
-	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_no_balance
-	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_no_ensemble
+# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) knn_l2
+# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) attention
+# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) balance
+# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) minority_prioritized
+# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) inverse_frequency
+# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) siamese
+# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) supcon
+# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) unsupcon
+# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_nosup_full
+# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_attn_only
+# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_snnl_only
+# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_balance_only
+# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_ensemble_only
+# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_adapter_only
+# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_imb
+# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_no_attn
+# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_no_snnl
+# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_no_balance
+# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_no_ensemble
 
 # 	bash scripts/inference.sh knnpfn $(DATASET) null aware_imb null 1024 512 null
 # 	bash scripts/inference.sh tabdpt $(DATASET) null aware_imb null 1024 512 null
@@ -172,17 +172,19 @@ rebuttal:
 
 
 # 	bash scripts/inference.sh tabdpt $(DATASET) shap aware_imb 100 1024 512 null
-# 	bash scripts/inference.sh knnpfn $(DATASET) shap aware_imb 100 1024 512 null
 # 	bash scripts/inference.sh tabdpt-aware $(DATASET) shap aware_imb 100 1024 128 null
-# 	bash scripts/inference.sh knnpfn-aware $(DATASET) shap aware_imb 100 1024 128 null
-# 	bash scripts/inference.sh knnpfnv1 $(DATASET) shap knn_l2 100 1024 512 null
+	bash scripts/inference.sh knnpfn-aware $(DATASET) shap aware_imb 100 1024 128 null
+# 	bash scripts/inference.sh knnpfnv1 $(DATASET) null knn_l2 null 1024 512 null
+# 	bash scripts/inference.sh knnpfnv1 $(DATASET) null aware_imb null 1024 512 null
+# 	bash scripts/inference.sh tabpfnv1 $(DATASET) null random null 1024 512 null
 # 	bash scripts/inference.sh knnpfnv1 $(DATASET) shap aware_imb 100 1024 512 null
+# 	bash scripts/inference.sh knnpfnv1 $(DATASET) shap knn_l2 100 1024 512 null
 # 	bash scripts/inference.sh tabpfnv1 $(DATASET) shap random 100 1024 512 null
 # 	bash scripts/inference.sh knn-simple $(DATASET) shap aware_imb 100 1024 512 null
 # 	bash scripts/inference.sh knn-simple $(DATASET) shap knn_l2 100 1024 512 null
 
 
-# 	bash scripts/inference.sh xgboost $(DATASET) null null null null null null
+	bash scripts/inference.sh xgboost $(DATASET) null null null null null null
 # 	bash scripts/inference.sh catboost $(DATASET) null null null null null null
 # 	bash scripts/inference.sh lightgbm $(DATASET) null null null null null null
 # 	bash scripts/inference.sh logistics $(DATASET) null null null null null null
@@ -195,7 +197,7 @@ rebuttal:
 # 	bash scripts/inference.sh tabnet $(DATASET) null null null null null null
 # 	bash scripts/inference.sh tabtransformer $(DATASET) null null null null null null
 # 	bash scripts/inference.sh trompt $(DATASET) null null null null null null
-# 	bash scripts/inference.sh excelformer $(DATASET) null null null null null null
+	bash scripts/inference.sh excelformer $(DATASET) null null null null null null
 # 	bash scripts/inference.sh tabr $(DATASET) null null null null null null
 # 	bash scripts/inference.sh tabm $(DATASET) null null null null null null
 # 	bash scripts/inference.sh modernNCA $(DATASET) null null 100 1024 512 null

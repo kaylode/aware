@@ -111,7 +111,8 @@ def load_model_only_inference(filepath, device):
     Loads a saved model from the specified position. This function only restores inference capabilities and
     cannot be used for further training.
     """
-    model_state, optimizer_state, config_sample = torch.load(filepath, map_location='cpu')
+    # breakpoint()
+    model_state, optimizer_state, config_sample = torch.load(filepath, map_location='cpu', weights_only=False)
 
     if (('nan_prob_no_reason' in config_sample and config_sample['nan_prob_no_reason'] > 0.0) or
         ('nan_prob_a_reason' in config_sample and config_sample['nan_prob_a_reason'] > 0.0) or
@@ -215,8 +216,20 @@ def _load_model_workflow(i, e, add_name, base_path, device='cpu', eval_addition=
 
     def check_file(e):
         model_path = get_file(e)
-        if not Path(model_path).is_file():  # or Path(results_file).is_file():
-            print('We have to download the TabPFN, as there is no checkpoint at ', model_path)
+        is_lfs_pointer = False
+        if Path(model_path).is_file():
+            # Check if it's an LFS pointer (usually < 1000 bytes)
+            if Path(model_path).stat().st_size < 1000:
+                try:
+                    with open(model_path, 'r') as f:
+                        first_line = f.readline()
+                        if first_line.startswith('version https://git-lfs'):
+                            is_lfs_pointer = True
+                except:
+                    pass
+
+        if not Path(model_path).is_file() or is_lfs_pointer:
+            print('We have to download the TabPFN, as there is no checkpoint (or only an LFS pointer) at ', model_path)
             print('It has about 100MB, so this might take a moment.')
             import requests
             url = 'https://github.com/PriorLabs/TabPFN/raw/refs/tags/v1.0.0/tabpfn/models_diff/prior_diff_real_checkpoint_n_0_epoch_42.cpkt'
@@ -259,7 +272,7 @@ class CustomUnpickler(pickle.Unpickler):
 
     def find_class_cpu(self, module, name):
         if module == 'torch.storage' and name == '_load_from_bytes':
-            return lambda b: torch.load(io.BytesIO(b), map_location='cpu')
+            return lambda b: torch.load(io.BytesIO(b), map_location='cpu', weights_only=False)
         else:
             return super().find_class(module, name)
 

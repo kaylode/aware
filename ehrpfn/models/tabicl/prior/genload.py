@@ -286,7 +286,7 @@ class LoadPriorDataset(IterableDataset):
             time.sleep(5)
             wait_time += 5
 
-        batch = torch.load(batch_file, map_location=self.device, weights_only=True)
+        batch = torch.load(batch_file, map_location=self.device, weights_only=False)
         X = batch["X"]
         y = batch["y"]
         d = batch["d"]

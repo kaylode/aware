@@ -57,6 +57,10 @@ elif [ $DATASET = "openml_ehr" ]; then
     TASKS=("") #"43550" "4541") #"4531" "1097" "46612"
 elif [ $DATASET = "synthea" ]; then
     TASKS=("stroke" "lung_cancer")
+elif [ $DATASET = "mimiciv_hcai" ]; then
+    TASKS=("SEPSIS" "UTI"  "VAP"  ) #
+elif [ $DATASET = "eicu_hcai" ]; then
+    TASKS=("SEPSIS" "UTI" ) #
 else
     echo "Unknown dataset: $DATASET"
     exit 1  

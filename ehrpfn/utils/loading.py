@@ -30,7 +30,7 @@ def load_model(input_path, model=None):
         model.load_model(input_path)
     else:
         if input_path.endswith('pt'):
-            state_dict = torch.load(input_path, map_location=torch.device('cpu'))
+            state_dict = torch.load(input_path, map_location=torch.device('cpu'), weights_only=False)
             model.load_state_dict(state_dict)
         elif input_path.endswith('pkl'):
             try:
