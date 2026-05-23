@@ -29,7 +29,7 @@ PFN_METHODS=("knn-simple" "tabpfn" "tabdpt" "ehrpfn" "knnpfn" "tabicl" "knnpfnv2
 
 if [ $METHOD = "tabdpt" ]; then
     PRETRAIN_PATH=${ROOT}/data/checkpoints/tabdpt1_1.pth
-    NUM_FEATURES=100
+#     NUM_FEATURES=100
 else
     PRETRAIN_PATH=null
 fi
@@ -52,9 +52,9 @@ elif [ $DATASET = "mimiciv_hai" ]; then
 elif [ $DATASET = "sjh_cpe" ]; then
     TASKS=("EPISODE_CPE_INFECTION_FLAGGED" "WILL_READMIT_WITHIN_30_DAYS")
 elif [ $DATASET = "sjh_cpe_frame" ]; then
-    TASKS=("EPISODE_CPE_INFECTION_FLAGGED" "WILL_READMIT_WITHIN_30_DAYS" "NEXT_LOS" "DECEASED_NEXT_EPISODE")
+    TASKS=("EPISODE_CPE_INFECTION_FLAGGED" "WILL_READMIT_WITHIN_30_DAYS") # "NEXT_LOS" "DECEASED_NEXT_EPISODE")
 elif [ $DATASET = "openml_ehr" ]; then
-    TASKS=("") #"43550" "4541") #"4531" "1097" "46612"
+    TASKS=("") #"43550" "46612" "46612" "4531" "1097"
 elif [ $DATASET = "synthea" ]; then
     TASKS=("stroke" "lung_cancer")
 elif [ $DATASET = "mimiciv_hcai" ]; then
@@ -69,7 +69,7 @@ fi
 # PRETRAIN_PATH="/home/mpham/workspace/source/ehrfm/ehrpfn-inference/results/ehrdpt-training/1702/tabdpt_aware_mimiciv_hai_ICD UTI_100/best_auc.ckpt"
 # PRETRAIN_RETRIEVER_PATH="/home/mpham/workspace/source/ehrfm/ehrpfn-inference/results/ehrdpt-training/1702/tabdpt_aware_mimiciv_hai_ICD UTI_100/retriever.pth"
 
-for SEED in 1603 2000 1702  ; do #  
+for SEED in 1603 2000 1702  ; do #   
     for TASK in "${TASKS[@]}" ; do
         echo "Running inference for method: $METHOD, dataset: $DATASET, task: "${TASK}", seed: $SEED"
 

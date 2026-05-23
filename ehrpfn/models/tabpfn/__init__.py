@@ -61,7 +61,8 @@ class TabPFNv1(EHRPFNClassifier):
         # Ensure X is numpy
         if torch.is_tensor(X):
             X = X.cpu().numpy()
-        return super().predict_proba(X, **kwargs)
+        output = super().predict_proba(X, **kwargs)
+        return output
 
     def predict(self, X, **kwargs):
         # Ensure X is numpy

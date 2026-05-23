@@ -38,6 +38,7 @@ def get_data(args: DictConfig):
 
 	data_dict = dict(
 		TASK=args.data.task,
+		SEED=args.inference.seed,
 		selection_method=args.data.selection_method,
 	)
 	if data_name.startswith('mimiciv_temporal'):

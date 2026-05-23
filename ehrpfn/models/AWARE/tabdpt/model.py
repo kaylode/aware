@@ -90,7 +90,7 @@ class TabDPTModel(nn.Module):
         # feature encoding
         x_src = self.encoder(x_src)
         mean = (x_src**2).mean(dim=-1, keepdim=True)
-        rms = torch.sqrt(mean)
+        rms = torch.sqrt(mean + 1e-9)
         x_src = x_src / rms
 
         # target encoding

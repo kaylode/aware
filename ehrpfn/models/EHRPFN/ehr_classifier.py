@@ -46,7 +46,7 @@ class EHRPFNClassifier(EHRPFNEstimator, ClassifierMixin):
         assert X.ndim == 2, "X must be a 2D array"
         assert y.ndim == 1, "y must be a 1D array"
 
-        if self.fit_retriever_before_fit:
+        if self.fit_retriever_before_fit and self.retriever is not None:
             fit_items = []
             for i, (item, label) in enumerate(zip(X, y)):
                 fit_dict = {"raw_feature": item, "label": label}
@@ -119,7 +119,7 @@ class EHRPFNClassifier(EHRPFNEstimator, ClassifierMixin):
                 X_train = train_x
                 X_test = test_x
 
-            if not self.fit_retriever_before_fit:
+            if not self.fit_retriever_before_fit and self.retriever is not None:
                 fit_items = []
                 for item, label in zip(X_train, train_y):
                     fit_items.append({

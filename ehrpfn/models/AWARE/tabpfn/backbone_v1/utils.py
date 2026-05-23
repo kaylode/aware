@@ -52,7 +52,8 @@ def torch_masked_std(x, mask, dim=0):
     mean = value / num
     mean_broadcast = torch.repeat_interleave(mean.unsqueeze(dim), x.shape[dim], dim=dim)
     quadratic_difference_from_mean = torch.square(torch.where(mask, mean_broadcast - x, torch.full_like(x, 0)))
-    return torch.sqrt(torch.sum(quadratic_difference_from_mean, dim=dim) / (num - 1))
+    denom = torch.clamp(num - 1, min=1)
+    return torch.sqrt(torch.sum(quadratic_difference_from_mean, dim=dim) / denom + 1e-9)
 
 def torch_nanmean(x, dim=0, return_nanshare=False):
     return torch_masked_mean(x, ~torch.isnan(x), dim=dim, return_share_of_ignored_values=return_nanshare)

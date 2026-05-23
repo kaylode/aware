@@ -10,11 +10,13 @@ from sklearn.metrics import (
 )
 from sklearn.metrics import mean_squared_log_error, median_absolute_error, explained_variance_score
 from sklearn.preprocessing import label_binarize
+import matplotlib.pyplot as plt
+import seaborn as sns
         
 from ehrpfn.utils import LoggerObserver
 LOGGER = LoggerObserver.getLogger("main")
 
-def run_binary_classification_metrics(y_pred, y, average='weighted'):
+def run_binary_classification_metrics(y_pred, y, average='weighted', plot_save_path=None):
     """
     Run binary classification metrics.
     """
@@ -41,6 +43,9 @@ def run_binary_classification_metrics(y_pred, y, average='weighted'):
         except ValueError as e:
             LOGGER.text(f"Error calculating AUPRC: {e}", level=LoggerObserver.WARN)
             auc_precision_recall = None
+
+        if plot_save_path:
+            plot_prediction_distribution(y_pred, y, save_path=plot_save_path)
 
         y_pred = np.argmax(y_pred, axis=1).tolist()
     else:
@@ -118,5 +123,46 @@ def run_regression_metrics(y_pred, y):
         'medae': float(medae),
         'msle': float(msle),
     }
-    
     return score
+
+def plot_prediction_distribution(y_pred, y, save_path=None):
+    """
+    Plot the smooth histogram (KDE + histogram) of predicted probabilities 
+    for the positive class, stratified by the true label.
+    This helps visualize the model's confidence and separability.
+    """
+    if isinstance(y_pred[0], abc.Iterable):
+        y_pred = np.array(y_pred)
+        if y_pred.shape[-1] >= 2:
+            probs = y_pred[:, 1]
+        else:
+            probs = y_pred
+    else:
+        probs = np.array(y_pred)
+        
+    y = np.array(y)
+    plt.figure(figsize=(8, 6))
+    
+    # Plot for negative class
+    sns.histplot(probs[y == 0], color='blue', label='Class 0 (Negative)', kde=True, 
+                 stat='density', alpha=0.4, bins=30)
+    
+    # Plot for positive class
+    sns.histplot(probs[y == 1], color='red', label='Class 1 (Positive)', kde=True, 
+                 stat='density', alpha=0.4, bins=30)
+                 
+    plt.title("Prediction Probability Distribution")
+    plt.xlabel("Predicted Probability of Positive Class")
+    plt.ylabel("Density")
+    plt.xlim(0, 1)
+    plt.legend()
+    plt.tight_layout()
+    
+    if save_path:
+        # Ensure .pdf extension if specified or just use what's provided
+        if not save_path.endswith('.pdf'):
+            save_path += '.pdf'
+        plt.savefig(save_path, format='pdf', bbox_inches='tight')
+        LOGGER.text(f"Saved prediction distribution plot to {save_path}", level=LoggerObserver.INFO)
+    
+    plt.close()

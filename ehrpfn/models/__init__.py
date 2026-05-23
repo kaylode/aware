@@ -123,7 +123,9 @@ def get_predictions(args, data, config_dict):
             embedding_dim=256,
 		    dropout = 0.3,
             pretrained_path=pretrained_path,
-            num_classes=num_classes
+            num_classes=num_classes,
+            is_classification=is_classification,
+            feature_names=data.get('feature_names', None)
         )
 
         retriever = get_retriever(
@@ -363,8 +365,8 @@ def get_predictions(args, data, config_dict):
         running_time = time.time() - start_time
     
     elif method_name in ['tabdpt-aware', 'knnpfn-aware']:
-        if not is_classification:
-            raise ValueError(f"{method_name} only supports classification tasks.")
+        # if not is_classification:
+        #     raise ValueError(f"{method_name} only supports classification tasks.")
 
         if method_name == 'tabdpt-aware':
             finetune = TabDPTClsFinetune(
@@ -374,6 +376,7 @@ def get_predictions(args, data, config_dict):
                 batch_size=args.retrieval.get('inf_batch_size', 64),
                 context_size=args.retrieval.context_size,
                 patience=3,
+                is_classification=is_classification,
                 device=getattr(args.inference, 'device', 'cuda:0'),
                 random_state=getattr(args.inference, 'seed', 42),
             )
@@ -386,6 +389,7 @@ def get_predictions(args, data, config_dict):
                 context_size=args.retrieval.context_size,
                 patience=3,
                 device=getattr(args.inference, 'device', 'cuda:0'),
+                is_classification=is_classification,
                 random_state=getattr(args.inference, 'seed', 42),
             )
 

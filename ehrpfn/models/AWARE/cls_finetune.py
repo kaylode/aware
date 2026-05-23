@@ -98,6 +98,7 @@ class AWARECLSModel(nn.Module):
         ninp: int,
         head_hidden_dim: int = 128,
         dropout: float = 0.1,
+        is_classification: bool = True,
     ) -> None:
         super().__init__()
         for p in backbone.parameters():
@@ -112,6 +113,7 @@ class AWARECLSModel(nn.Module):
             nn.Dropout(dropout),
             nn.Linear(head_hidden_dim, n_classes),
         )
+        self.is_classification = is_classification
         
         # Initialize the final layer to exactly zero. 
         # This guarantees that at initialization, the residual head outputs exactly 0.
@@ -142,6 +144,11 @@ class AWARECLSModel(nn.Module):
 
         # Calculate parametric residual and add it to zero-shot logits
         residual = self.residual_head(self.norm(q_backbone_emb))
+        if not self.is_classification:
+            var_y = y_ctx.var(dim=1, keepdim=True, unbiased=False)
+            std_y = torch.sqrt(var_y + 1e-12)
+            residual = residual * std_y
+
         out = q_logits + residual
         return out
 
@@ -194,17 +201,51 @@ class TabPFNAWARECLSModel(AWARECLSModel):
         q_p   = self._pad_to_tabpfn(q_emb).unsqueeze(0)        # (1, B, 100)
         y_ctx_p = y_ctx.transpose(0, 1)                        # (K, B)
 
-        # Backbone Wrapper.forward(x_train, y_train, x_test)
-        # Returns dict: test_embeddings shape (1, B, ninp)
-        output = self.backbone(ctx_p, y_ctx_p, q_p)
-        logits = output['logits'][..., :self.n_classes]
-        emb = output["test_embeddings"].to(torch.float32)
-        
-        # Squeeze sequence dimension (TabPFN returns Seq, Batch, Dim)
-        if emb.ndim == 3:
-            emb = emb.squeeze(0)    # (B, ninp)
-            logits = logits.squeeze(0)  # (B, n_classes)
-        return logits, emb
+        if not self.is_classification:
+            # 1. Standardize targets along sequence dimension (dim=0 of y_ctx_p)
+            mean_y = y_ctx_p.mean(dim=0, keepdim=True)         # (1, B)
+            std_y = y_ctx_p.std(dim=0, keepdim=True) + 1e-6    # (1, B)
+            y_ctx_p_norm = (y_ctx_p - mean_y) / std_y          # (K, B)
+
+            # 2. Discretize into 10 bins (max_num_classes of backbone is 10)
+            borders = torch.linspace(-2.0, 2.0, 11, device=y_ctx.device)
+            bin_centers = 0.5 * (borders[:-1] + borders[1:])   # (10,)
+            
+            y_ctx_p_norm_clamped = torch.clamp(y_ctx_p_norm, min=-2.0, max=2.0)
+            y_ctx_digits = torch.bucketize(y_ctx_p_norm_clamped, borders)
+            y_ctx_digits = torch.clamp(y_ctx_digits - 1, 0, 9).float()
+
+            # 3. Backbone Inference
+            output = self.backbone(ctx_p, y_ctx_digits, q_p)
+            logits = output['logits']                          # (1, B, 10)
+            emb = output["test_embeddings"].to(torch.float32)  # (1, B, ninp)
+
+            # Squeeze sequence dimension
+            if emb.ndim == 3:
+                emb = emb.squeeze(0)                           # (B, ninp)
+                logits = logits.squeeze(0)                     # (B, 10)
+
+            # 4. Expectation & Denormalization
+            probs = torch.softmax(logits, dim=-1)              # (B, 10)
+            pred_norm = (probs * bin_centers.unsqueeze(0)).sum(dim=-1, keepdim=True) # (B, 1)
+
+            mean_y_b = mean_y.transpose(0, 1)                  # (B, 1)
+            std_y_b = std_y.transpose(0, 1)                    # (B, 1)
+            pred = pred_norm * std_y_b + mean_y_b              # (B, 1)
+            
+            return pred, emb
+        else:
+            # Backbone Wrapper.forward(x_train, y_train, x_test)
+            # Returns dict: test_embeddings shape (1, B, ninp)
+            output = self.backbone(ctx_p, y_ctx_p, q_p)
+            logits = output['logits'][..., :self.n_classes]
+            emb = output["test_embeddings"].to(torch.float32)
+            
+            # Squeeze sequence dimension (TabPFN returns Seq, Batch, Dim)
+            if emb.ndim == 3:
+                emb = emb.squeeze(0)    # (B, ninp)
+                logits = logits.squeeze(0)  # (B, n_classes)
+            return logits, emb
 
 
 # ---------------------------------------------------------------------------
@@ -227,8 +268,9 @@ class TabDPTAWARECLSModel(AWARECLSModel):
         max_features: int,
         head_hidden_dim: int = 128,
         dropout: float = 0.1,
+        is_classification: bool = True,
     ) -> None:
-        super().__init__(backbone, adapter, n_classes, ninp, head_hidden_dim, dropout)
+        super().__init__(backbone, adapter, n_classes, ninp, head_hidden_dim, dropout, is_classification)
         self.max_features = max_features
 
     def _to_seq(self, x: torch.Tensor) -> torch.Tensor:
@@ -250,12 +292,29 @@ class TabDPTAWARECLSModel(AWARECLSModel):
         x_full  = torch.cat([ctx_seq, q_seq], dim=0)        # (K+1, B, max_features)
         y_ctx_p = y_ctx.transpose(0, 1)                     # (K, B)
 
+        if not self.is_classification:
+            # Standardize targets along sequence dimension (dim=0)
+            mean_y = y_ctx_p.mean(dim=0, keepdim=True)
+            std_y = y_ctx_p.std(dim=0, keepdim=True) + 1e-6
+            y_ctx_p_norm = (y_ctx_p - mean_y) / std_y
+        else:
+            y_ctx_p_norm = y_ctx_p
+
         # TabDPTModel.forward(x, y, eval_pos, return_embeddings=True)
         # returns (pred[eval_pos:], src)
         logits, emb = self.backbone(
-            x_full, y=y_ctx_p.float(), eval_pos=K, return_embeddings=True
+            x_full, y=y_ctx_p_norm.float(), eval_pos=K, return_embeddings=True
         )
-        logits = logits[..., :self.n_classes]
+
+        if not self.is_classification:
+            # Slice the regression prediction channel (last index) and keep dimension for squeeze
+            reg_logits = logits[..., -1:]  # (1, B, 1)
+            # Denormalize
+            reg_logits = reg_logits * std_y.unsqueeze(-1) + mean_y.unsqueeze(-1)
+            logits = reg_logits
+        else:
+            logits = logits[..., :self.n_classes]
+
         return logits.squeeze(0), emb.squeeze(0).to(torch.float32)         # (B, ninp)
 
 
@@ -347,6 +406,55 @@ class ClassBalancedBatchSampler:
 
 
 # ---------------------------------------------------------------------------
+# RegressionBatchSampler
+# ---------------------------------------------------------------------------
+
+class RegressionBatchSampler:
+    """Generates batch index arrays for regression tasks by shuffling the dataset using balance sampling."""
+    def __init__(
+        self,
+        y: np.ndarray,
+        batch_size: int,
+        seed: Optional[int] = None,
+        num_bins: int = 10,
+    ):
+        self.y = np.asarray(y)
+        self.batch_size = batch_size
+        self._rng = np.random.default_rng(seed)
+        self._n = len(self.y)
+        self.num_bins = num_bins
+
+        # Discretize targets into bins, compute bin frequencies, and assign inverse-frequency weights
+        bins = np.quantile(self.y, np.linspace(0, 1, self.num_bins + 1))
+        bin_ids = np.digitize(self.y, bins[1:-1])
+        bin_counts = np.bincount(bin_ids)
+        # Smooth bin counts to avoid extreme weights for rare target regions
+        smoothing = max(1.0, len(self.y) / (self.num_bins * 10.0))
+        weights = 1.0 / (bin_counts[bin_ids] + smoothing)
+        
+        # Normalize weights so they sum to 1.0
+        self.probabilities = weights / np.sum(weights)
+
+    def __iter__(self):
+        n_batches = max(1, self._n // self.batch_size)
+        indices = np.arange(self._n)
+        
+        for _ in range(n_batches):
+            # Sample batch_size indices with replacement using computed probabilities
+            batch_idx = self._rng.choice(
+                indices,
+                size=self.batch_size,
+                replace=True,
+                p=self.probabilities
+            )
+            yield batch_idx
+            
+    def __len__(self) -> int:
+        return max(1, self._n // self.batch_size)
+
+
+
+# ---------------------------------------------------------------------------
 # BaseClsFinetune — training loop
 # ---------------------------------------------------------------------------
 
@@ -374,6 +482,7 @@ class BaseClsFinetune:
         adapter_hidden_dim: int = 512,
         val_split: float = 0.1,
         device: str = "cuda:0",
+        is_classification: bool = True,
         random_state: int = 42,
     ) -> None:
         self.retriever = retriever
@@ -388,6 +497,7 @@ class BaseClsFinetune:
         self.val_split = val_split
         self.device = device
         self.random_state = random_state
+        self.is_classification = is_classification
 
         # Populated by fit()
         self.cls_model: Optional[AWARECLSModel] = None
@@ -428,8 +538,12 @@ class BaseClsFinetune:
         self.scaler = StandardScaler()
         X = self.scaler.fit_transform(X)
  
-        self.classes_ = np.unique(y) #self.label_encoder.classes_
-        self.n_classes = len(self.classes_)
+        if self.is_classification:
+            self.classes_ = np.unique(y)
+            self.n_classes = len(self.classes_)
+        else:
+            self.classes_ = None
+            self.n_classes = 1
 
         # Save full data before any splits so it can be used as context during inference
         X_full = X.copy()
@@ -442,7 +556,7 @@ class BaseClsFinetune:
                 X, y,
                 test_size=self.val_split,
                 random_state=self.random_state,
-                stratify=y,
+                stratify=y if self.is_classification else None,
             )
             val_data = (X_val, y_val)
 
@@ -474,7 +588,7 @@ class BaseClsFinetune:
 
         # ── 5. Pinned training tensors ────────────────────────────────
         X_t = torch.tensor(X, dtype=torch.float32, device=self.device)
-        y_t = torch.tensor(y, dtype=torch.long,    device=self.device)
+        y_t = torch.tensor(y, dtype=torch.long if self.is_classification else torch.float32, device=self.device)
 
         # ── 6. Optimisation ───────────────────────────────────────────
         trainable_params = [p for p in self.cls_model.parameters() if p.requires_grad]
@@ -484,17 +598,28 @@ class BaseClsFinetune:
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
             optimizer, T_max=self.epochs, eta_min=self.learning_rate * 0.01
         )
-        criterion = nn.CrossEntropyLoss()
+
+        if self.is_classification:
+            criterion = nn.CrossEntropyLoss()
+        else:
+            criterion = nn.MSELoss()
 
         # ── 7. Training loop ──────────────────────────────────────────
         best_loss, best_state, patience_ctr = float("inf"), None, 0
 
-        _train_sampler = ClassBalancedBatchSampler(
-            y=y,
-            batch_size=self.batch_size,
-            n_classes=self.n_classes,
-            seed=self.random_state,
-        )
+        if self.is_classification:
+            _train_sampler = ClassBalancedBatchSampler(
+                y=y,
+                batch_size=self.batch_size,
+                n_classes=self.n_classes,
+                seed=self.random_state,
+            )
+        else:
+            _train_sampler = RegressionBatchSampler(
+                y=y,
+                batch_size=self.batch_size,
+                seed=self.random_state,
+            )
 
         pbar = tqdm(range(self.epochs), desc="Finetuning", disable=not verbose)
         for epoch in pbar:
@@ -514,15 +639,23 @@ class BaseClsFinetune:
 
                 optimizer.zero_grad()
                 logits = self.cls_model(x_q, x_ctx, y_ctx)
-                loss   = criterion(logits, y_batch)
+
+                if self.is_classification:
+                    loss   = criterion(logits, y_batch)
+                else:
+                    loss   = criterion(logits.squeeze(-1), y_batch)
 
                 if not torch.isfinite(loss):
+                    breakpoint()
                     optimizer.zero_grad()
                     continue
 
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(self.cls_model.parameters(), max_norm=1.0)
                 optimizer.step()
+
+                if torch.isnan(trainable_params[-1]).any():
+                    breakpoint()
 
                 batch_loss = loss.item()
                 epoch_loss += batch_loss
@@ -552,18 +685,30 @@ class BaseClsFinetune:
                 msg = f"epoch {epoch:3d}/{self.epochs}  train_loss={avg_loss:.4f}"
                 postfix = {"train_loss": f"{avg_loss:.4f}"}
                 if val_metrics is not None:
-                    msg += (
-                        f"  val_loss={val_metrics['val_loss']:.4f}"
-                        f"  auc={val_metrics['auc']:.4f}"
-                        f"  auprc={val_metrics['auprc']:.4f}"
-                        f"  f1={val_metrics['f1']:.4f}"
-                    )
-                    postfix.update({
-                        "val_loss": f"{val_metrics['val_loss']:.4f}",
-                        "auc":      f"{val_metrics['auc']:.4f}",
-                        "auprc":    f"{val_metrics['auprc']:.4f}",
-                        "f1":       f"{val_metrics['f1']:.4f}",
-                    })
+                    if self.is_classification:
+                        msg += (
+                            f"  val_loss={val_metrics['val_loss']:.4f}"
+                            f"  auc={val_metrics['auc']:.4f}"
+                            f"  auprc={val_metrics['auprc']:.4f}"
+                            f"  f1={val_metrics['f1']:.4f}"
+                        )
+                        postfix.update({
+                            "val_loss": f"{val_metrics['val_loss']:.4f}",
+                            "auc":      f"{val_metrics['auc']:.4f}",
+                            "auprc":    f"{val_metrics['auprc']:.4f}",
+                            "f1":       f"{val_metrics['f1']:.4f}",
+                        })
+                    else:
+                        msg += (
+                            f"  val_loss={val_metrics['val_loss']:.4f}"
+                            f"  mse={val_metrics['mse']:.4f}"
+                            f"  r2={val_metrics['r2']:.4f}"
+                        )
+                        postfix.update({
+                            "val_loss": f"{val_metrics['val_loss']:.4f}",
+                            "mse":      f"{val_metrics['mse']:.4f}",
+                            "r2":       f"{val_metrics['r2']:.4f}",
+                        })
                 pbar.set_postfix(postfix)
                 logger.info(msg)
 
@@ -633,7 +778,7 @@ class BaseClsFinetune:
         for start in range(0, N_val, self.batch_size):
             end  = min(N_val, start + self.batch_size)
             x_vb = X_val_t[start:end]                                    # already on device
-            y_vb = torch.tensor(y_val[start:end], dtype=torch.long, device=self.device)
+            y_vb = torch.tensor(y_val[start:end], dtype=torch.long if self.is_classification else torch.float32, device=self.device)
 
             # Get unique neighbors per query
             ctx_indices = val_ctx_cache[start:end, :self.context_size]
@@ -641,37 +786,50 @@ class BaseClsFinetune:
             y_ctx = y_t[ctx_indices].float()
 
             logits = self.cls_model(x_vb, x_ctx, y_ctx)                  # (B, n_classes)
-            total_loss += criterion(logits, y_vb).item()
+            if self.is_classification:
+                loss = criterion(logits, y_vb)
+            else:
+                loss = criterion(logits.squeeze(-1), y_vb)
+            total_loss += loss.item()
             n_batches  += 1
 
-            probs = torch.softmax(logits, dim=-1).cpu().float().numpy()
+            if self.is_classification:
+                probs = torch.softmax(logits, dim=-1).cpu().float().numpy()
+            else:
+                probs = logits.cpu().float().numpy()
             all_probs.append(probs)
 
         val_loss = total_loss / max(1, n_batches)
         all_probs = np.concatenate(all_probs, axis=0)   # (N_val, n_classes)
-        y_pred    = np.argmax(all_probs, axis=1)
 
-        is_binary = self.n_classes == 2
+        if self.is_classification:
+            y_pred    = np.argmax(all_probs, axis=1)
+            is_binary = self.n_classes == 2
 
-        try:
-            if is_binary:
-                auc   = roc_auc_score(y_val, all_probs[:, 1])
-                auprc = average_precision_score(y_val, all_probs[:, 1])
-            else:
-                auc   = roc_auc_score(y_val, all_probs, multi_class="ovr", average="macro")
-                auprc = float(np.mean([
-                    average_precision_score(
-                        (y_val == c).astype(int), all_probs[:, c]
-                    )
-                    for c in range(self.n_classes)
-                ]))
-        except ValueError:
-            # Rare edge: a class missing from val fold
-            auc = auprc = float("nan")
+            try:
+                if is_binary:
+                    auc   = roc_auc_score(y_val, all_probs[:, 1])
+                    auprc = average_precision_score(y_val, all_probs[:, 1])
+                else:
+                    auc   = roc_auc_score(y_val, all_probs, multi_class="ovr", average="macro")
+                    auprc = float(np.mean([
+                        average_precision_score(
+                            (y_val == c).astype(int), all_probs[:, c]
+                        )
+                        for c in range(self.n_classes)
+                    ]))
+            except ValueError:
+                # Rare edge: a class missing from val fold
+                auc = auprc = float("nan")
 
-        f1 = f1_score(y_val, y_pred, average="macro", zero_division=0)
-
-        return {"val_loss": val_loss, "auc": auc, "auprc": auprc, "f1": f1}
+            f1 = f1_score(y_val, y_pred, average="macro", zero_division=0)
+            return {"val_loss": val_loss, "auc": auc, "auprc": auprc, "f1": f1}
+        else:
+            from sklearn.metrics import mean_squared_error, r2_score
+            preds = all_probs.squeeze(-1)
+            mse = mean_squared_error(y_val, preds)
+            r2 = r2_score(y_val, preds)
+            return {"val_loss": val_loss, "mse": mse, "r2": r2}
 
 
 # ---------------------------------------------------------------------------
@@ -708,6 +866,7 @@ class TabPFNClsFinetune(BaseClsFinetune):
             ninp=ninp,
             head_hidden_dim=self.head_hidden_dim,
             dropout=self.dropout,
+            is_classification=self.is_classification,
         )
 
 
@@ -742,6 +901,7 @@ class TabDPTClsFinetune(BaseClsFinetune):
             max_features=max_features,
             head_hidden_dim=self.head_hidden_dim,
             dropout=self.dropout,
+            is_classification=self.is_classification,
         )
 
 
@@ -830,8 +990,11 @@ class AWARECLSClassifier(BaseEstimator, ClassifierMixin):
                 x_q   = torch.tensor(X_batch, dtype=torch.float32, device=device)
 
                 logits = ft.cls_model(x_q, x_ctx, y_ctx).cpu().float().numpy()
-                probs  = softmax(logits / self.temperature, axis=-1)
-                probs /= probs.sum(axis=-1, keepdims=True) + 1e-12 # numerical stability
+                if ft.is_classification:
+                    probs  = softmax(logits / self.temperature, axis=-1)
+                    probs /= probs.sum(axis=-1, keepdims=True) + 1e-12 # numerical stability
+                else:
+                    probs = logits
                 probs_ens.append(probs)
             
             current_probs = np.concatenate(probs_ens, axis=0)
@@ -843,13 +1006,17 @@ class AWARECLSClassifier(BaseEstimator, ClassifierMixin):
                 
         avg_pred = logits_cumsum / self.n_ensembles
         
-        # Ensure normalization for final probabilities
-        avg_pred /= avg_pred.sum(axis=-1, keepdims=True) + 1e-12
+        if ft.is_classification:
+            # Ensure normalization for final probabilities
+            avg_pred /= avg_pred.sum(axis=-1, keepdims=True) + 1e-12
+        else:
+            avg_pred = avg_pred.squeeze(-1)
         return avg_pred
 
     def predict(self, X: np.ndarray, seed: Optional[int] = None) -> np.ndarray:
         probs = self.predict_proba(X, seed=seed)
-        y_idx = np.argmax(probs, axis=1)
-        # if self.finetune.label_encoder is not None:
-        #     return self.finetune.label_encoder.inverse_transform(y_idx)
-        return y_idx
+        if self.finetune.is_classification:
+            y_idx = np.argmax(probs, axis=1)
+            return y_idx
+        else:
+            return probs

@@ -51,6 +51,7 @@ def inference(args: DictConfig, data):
 		score = run_binary_classification_metrics(
 			predictions, 
 			y_test,
+			plot_save_path=osp.join(result_folder, 'prediction_distribution.pdf')
 		)
 	else:
 		score = run_regression_metrics(

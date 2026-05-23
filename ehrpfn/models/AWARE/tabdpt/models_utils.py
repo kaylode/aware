@@ -64,7 +64,8 @@ def maskstd(x: torch.Tensor, mask: torch.Tensor, dim: int = 0):
     num = mask.sum(dim=dim, keepdim=True)
     mean = maskmean(x, mask, dim=0)
     diffs = torch.where(mask, mean - x, 0)
-    return ((diffs**2).sum(dim=0, keepdim=True) / (num - 1)) ** 0.5
+    denom = torch.clamp(num - 1, min=1)
+    return ((diffs**2).sum(dim=dim, keepdim=True) / denom + 1e-9) ** 0.5
 
 
 def normalize_data(data: torch.Tensor, eval_pos: int) -> torch.Tensor:
