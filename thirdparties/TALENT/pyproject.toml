@@ -1,0 +1,40 @@
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "TALENT"
+authors = [{name = "Siyang Liu", email = "lsy00043@gmail.com"}]
+dynamic = ["version", "description"]
+
+requires-python = "==3.12.12"
+dependencies = [
+    "annoy==1.17.3",
+    "catboost<=1.2.8",
+    "category-encoders==2.6.3",
+    "delu==0.0.23",
+    "ehr-meds",
+    "einops==0.8.0",
+    "faiss-cpu==1.11.0",
+    "lightgbm<=4.6.0",
+    "loguru>=0.7.3",
+    "matplotlib>=3.10.7",
+    "numpy==1.26.4",
+    "optuna>=3.6.1",
+    "qhoptim==1.1.0",
+    "requests>=2.31.0",
+    "scipy<=1.14.0",
+    "tabulate>=0.9.0",
+    "torch==2.6.0",
+    "xgboost<=3.0.3",
+    "scikit_learn",
+    "chardet>=5.2.0",
+]
+
+[tool.uv]
+override-dependencies = [
+    "meds==0.4.1"
+]
+
+[tool.uv.sources]
+ehr-meds = { path = "../../ehr-meds", editable = true }

@@ -1,0 +1,9 @@
+**/__pycache__/
+
+**/log/
+**/stats/
+**/results_model/
+**/CONTRIBUTING.assets
+.venv/
+data/
+outputs/
