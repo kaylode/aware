@@ -3,11 +3,10 @@ import math
 import numpy as np
 import torch
 from sklearn.base import BaseEstimator, ClassifierMixin, RegressorMixin
-from ehrdpt.models.utils import convert_to_torch_tensor
-from .utils import pad_x, generate_random_permutation
+from .utils import convert_to_torch_tensor, pad_x, generate_random_permutation
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler
-from ehrret import Retriever
+from ehrpfn.retrieval import Retriever
 from tqdm import tqdm
 from scipy.special import softmax
 

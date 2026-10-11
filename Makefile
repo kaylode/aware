@@ -8,224 +8,116 @@ CONTEXT_SIZE ?= 1024
 INF_BATCH_SIZE ?= 512
 SAMPLING ?= null
 
+EICU_VERSION=eicu2
+MIMIC_VERSION=mimiciv_hai
+
+initialize:
+	bash scripts/initialize.sh
+
 inference:
 	bash scripts/inference.sh $(METHOD) $(DATASET) $(SELECTION)  $(RETRIEVAL) $(NUM_FEATURES) $(CONTEXT_SIZE) $(INF_BATCH_SIZE) $(SAMPLING)
 
 exp_retrieval:
-	bash scripts/experiment_retrieval.sh tabdpt mimiciv_hai shap 100
-	bash scripts/experiment_retrieval.sh tabdpt eicu2 shap 100
-	bash scripts/experiment_retrieval.sh knnpfn mimiciv_hai shap 100
-	bash scripts/experiment_retrieval.sh knnpfn eicu2 shap 100
-# 	bash scripts/experiment_retrieval.sh knn-simple mimiciv_hai shap 100
-# 	bash scripts/experiment_retrieval.sh knn-simple eicu2 shap 100
-
-exp_sampling:
-# 	bash scripts/experiment_sampling.sh tabdpt mimiciv_hai shap 100
-# 	bash scripts/experiment_sampling.sh knnpfn mimiciv_hai shap 100
-# 	bash scripts/experiment_sampling.sh knn-simple eicu2 shap 100
-	bash scripts/experiment_sampling.sh tabpfn eicu2 shap 100
-	bash scripts/experiment_sampling.sh tabicl eicu2 shap 100
-# 	bash scripts/experiment_sampling.sh tabdpt eicu2 shap 100
-# 	bash scripts/experiment_sampling.sh knnpfn eicu2 shap 100
-# 	bash scripts/experiment_sampling.sh knn-simple mimiciv_hai shap 100
-	bash scripts/experiment_sampling.sh tabpfn mimiciv_hai shap 100
-	bash scripts/experiment_sampling.sh tabicl mimiciv_hai shap 100
+	bash scripts/experiment_retrieval.sh tabdpt $(MIMIC_VERSION) shap 100
+	bash scripts/experiment_retrieval.sh tabdpt $(EICU_VERSION) shap 100
+	bash scripts/experiment_retrieval.sh knnpfnv1 $(MIMIC_VERSION) shap 100
+	bash scripts/experiment_retrieval.sh knnpfnv1 $(EICU_VERSION) shap 100
+	bash scripts/experiment_retrieval.sh tabdpt-aware $(MIMIC_VERSION) shap 100
+	bash scripts/experiment_retrieval.sh tabdpt-aware $(EICU_VERSION) shap 100
+	bash scripts/experiment_retrieval.sh knnpfn-aware $(MIMIC_VERSION) shap 100
+	bash scripts/experiment_retrieval.sh knnpfn-aware $(EICU_VERSION) shap 100
+	bash scripts/experiment_retrieval.sh knn-simple $(MIMIC_VERSION) shap 100
+	bash scripts/experiment_retrieval.sh knn-simple $(EICU_VERSION) shap 100
 
 exp_datasize:
-	bash scripts/experiment_datasize.sh excelformer mimiciv_hai shap  null 500
-	bash scripts/experiment_datasize.sh excelformer eicu2 shap  null 500
-	bash scripts/experiment_datasize.sh trompt mimiciv_hai shap  null 500
-	bash scripts/experiment_datasize.sh trompt eicu2 shap  null 500
-	bash scripts/experiment_datasize.sh knn-simple mimiciv_hai shap  knn_l2 100
-	bash scripts/experiment_datasize.sh knn-simple eicu2 shap  knn_l2 100
-	bash scripts/experiment_datasize.sh tabdpt mimiciv_hai shap  knn_l2 100
-	bash scripts/experiment_datasize.sh tabdpt eicu2 shap  knn_l2 100
-	bash scripts/experiment_datasize.sh knnpfn mimiciv_hai shap  knn_l2 100
-	bash scripts/experiment_datasize.sh knnpfn eicu2 shap  knn_l2 100
-	bash scripts/experiment_datasize.sh tabpfn mimiciv_hai shap  null 100
-	bash scripts/experiment_datasize.sh tabpfn eicu2 shap  null 100
-	bash scripts/experiment_datasize.sh xgboost mimiciv_hai shap  null 500
-	bash scripts/experiment_datasize.sh xgboost eicu2 shap  null 500
-	bash scripts/experiment_datasize.sh modernNCA mimiciv_hai shap  null 500
-	bash scripts/experiment_datasize.sh modernNCA eicu2 shap  null 500
-	bash scripts/experiment_datasize.sh tabdpt mimiciv_hai shap  aware_snnl 100
-	bash scripts/experiment_datasize.sh tabdpt eicu2 shap  aware_snnl 100
-	bash scripts/experiment_datasize.sh knnpfn mimiciv_hai shap  aware_snnl 100
-	bash scripts/experiment_datasize.sh knnpfn eicu2 shap  aware_snnl 100
-# 	bash scripts/experiment_datasize.sh $(METHOD) openml_ehr null  $(RETRIEVAL) null
-# 	bash scripts/experiment_datasize.sh $(METHOD) mimiciv shap  $(RETRIEVAL) 100
-# 	bash scripts/experiment_datasize.sh $(METHOD) eicu shap  $(RETRIEVAL) 100
-# 	bash scripts/experiment_datasize.sh $(METHOD) sjh_cpe_frame shap  $(RETRIEVAL) 100
+	bash scripts/experiment_datasize.sh excelformer $(MIMIC_VERSION) shap  null 500
+	bash scripts/experiment_datasize.sh excelformer $(EICU_VERSION) shap  null 500
+	bash scripts/experiment_datasize.sh trompt $(MIMIC_VERSION) shap  null 500
+	bash scripts/experiment_datasize.sh trompt $(EICU_VERSION) shap  null 500
+	bash scripts/experiment_datasize.sh knn-simple $(MIMIC_VERSION) shap  knn_l2 100
+	bash scripts/experiment_datasize.sh knn-simple $(EICU_VERSION) shap  knn_l2 100
+	bash scripts/experiment_datasize.sh tabdpt $(MIMIC_VERSION) shap  knn_l2 100
+	bash scripts/experiment_datasize.sh tabdpt $(EICU_VERSION) shap  knn_l2 100
+	bash scripts/experiment_datasize.sh knnpfnv1 $(MIMIC_VERSION) shap  knn_l2 100
+	bash scripts/experiment_datasize.sh knnpfnv1 $(EICU_VERSION) shap  knn_l2 100
+	bash scripts/experiment_datasize.sh tabpfnv1 $(MIMIC_VERSION) shap  random 100
+	bash scripts/experiment_datasize.sh tabpfnv1 $(EICU_VERSION) shap  random 100
+	bash scripts/experiment_datasize.sh xgboost $(MIMIC_VERSION) shap  null 500
+	bash scripts/experiment_datasize.sh xgboost $(EICU_VERSION) shap  null 500
+	bash scripts/experiment_datasize.sh modernNCA $(MIMIC_VERSION) shap  null 500
+	bash scripts/experiment_datasize.sh modernNCA $(EICU_VERSION) shap  null 500
+	bash scripts/experiment_datasize.sh tabdpt $(MIMIC_VERSION) shap  aware_imb 100
+	bash scripts/experiment_datasize.sh tabdpt $(EICU_VERSION) shap  aware_imb 100
+	bash scripts/experiment_datasize.sh knnpfn-aware $(MIMIC_VERSION) shap  aware_imb 100
+	bash scripts/experiment_datasize.sh knnpfn-aware $(EICU_VERSION) shap  aware_imb 100
 
 exp_featuresize:
-	bash scripts/experiment_featuresize.sh excelformer eicu2 shap  null
-	bash scripts/experiment_featuresize.sh excelformer mimiciv_hai shap  null
-	bash scripts/experiment_featuresize.sh trompt eicu2 shap  null
-	bash scripts/experiment_featuresize.sh trompt mimiciv_hai shap  null
-	bash scripts/experiment_featuresize.sh knn-simple eicu2 shap  knn_l2
-	bash scripts/experiment_featuresize.sh knn-simple mimiciv_hai shap  knn_l2
-	bash scripts/experiment_featuresize.sh tabdpt eicu2 shap  knn_l2
-	bash scripts/experiment_featuresize.sh tabdpt mimiciv_hai shap  knn_l2
-	bash scripts/experiment_featuresize.sh knnpfn eicu2 shap  knn_l2
-	bash scripts/experiment_featuresize.sh knnpfn mimiciv_hai shap  knn_l2
-	bash scripts/experiment_featuresize.sh xgboost eicu2 shap  null
-	bash scripts/experiment_featuresize.sh xgboost mimiciv_hai shap  null
-	bash scripts/experiment_featuresize.sh tabpfn eicu2 shap  null
-	bash scripts/experiment_featuresize.sh tabpfn mimiciv_hai shap  null
-	bash scripts/experiment_featuresize.sh modernNCA eicu2 shap  null
-	bash scripts/experiment_featuresize.sh modernNCA mimiciv_hai shap  null
-	bash scripts/experiment_featuresize.sh tabdpt eicu2 shap  aware_snnl
-	bash scripts/experiment_featuresize.sh tabdpt mimiciv_hai shap  aware_snnl
-	bash scripts/experiment_featuresize.sh knnpfn eicu2 shap  aware_snnl
-	bash scripts/experiment_featuresize.sh knnpfn mimiciv_hai shap  aware_snnl
-# 	bash scripts/experiment_featuresize.sh $(METHOD) eicu shap  $(RETRIEVAL)
+	bash scripts/experiment_featuresize.sh excelformer $(EICU_VERSION) shap  null
+	bash scripts/experiment_featuresize.sh excelformer $(MIMIC_VERSION) shap  null
+	bash scripts/experiment_featuresize.sh trompt $(EICU_VERSION) shap  null
+	bash scripts/experiment_featuresize.sh trompt $(MIMIC_VERSION) shap  null
+	bash scripts/experiment_featuresize.sh knn-simple $(EICU_VERSION) shap  knn_l2
+	bash scripts/experiment_featuresize.sh knn-simple $(MIMIC_VERSION) shap  knn_l2
+	bash scripts/experiment_featuresize.sh tabdpt $(EICU_VERSION) shap  knn_l2
+	bash scripts/experiment_featuresize.sh tabdpt $(MIMIC_VERSION) shap  knn_l2
+	bash scripts/experiment_featuresize.sh knnpfnv1 $(EICU_VERSION) shap  knn_l2
+	bash scripts/experiment_featuresize.sh knnpfnv1 $(MIMIC_VERSION) shap  knn_l2
+	bash scripts/experiment_featuresize.sh xgboost $(EICU_VERSION) shap  null
+	bash scripts/experiment_featuresize.sh xgboost $(MIMIC_VERSION) shap  null
+	bash scripts/experiment_featuresize.sh tabpfnv1 $(EICU_VERSION) shap  random
+	bash scripts/experiment_featuresize.sh tabpfnv1 $(MIMIC_VERSION) shap  random
+	bash scripts/experiment_featuresize.sh modernNCA $(EICU_VERSION) shap  null
+	bash scripts/experiment_featuresize.sh modernNCA $(MIMIC_VERSION) shap  null
+	bash scripts/experiment_featuresize.sh tabdpt $(EICU_VERSION) shap  aware_imb
+	bash scripts/experiment_featuresize.sh tabdpt $(MIMIC_VERSION) shap  aware_imb
+	bash scripts/experiment_featuresize.sh knnpfn-aware $(EICU_VERSION) shap  aware_imb
+	bash scripts/experiment_featuresize.sh knnpfn-aware $(MIMIC_VERSION) shap  aware_imb
 
 exp_imbalance:
-	bash scripts/experiment_imbalance_ratio.sh knn-simple eicu2 shap  knn_l2 500
-	bash scripts/experiment_imbalance_ratio.sh knn-simple mimiciv_hai shap  knn_l2 500
-	bash scripts/experiment_imbalance_ratio.sh tabdpt eicu2 shap  knn_l2 100
-	bash scripts/experiment_imbalance_ratio.sh tabdpt mimiciv_hai shap  knn_l2 100
-	bash scripts/experiment_imbalance_ratio.sh knnpfn eicu2 shap  knn_l2 100
-	bash scripts/experiment_imbalance_ratio.sh knnpfn mimiciv_hai shap  knn_l2 100
-	bash scripts/experiment_imbalance_ratio.sh xgboost eicu2 shap  null 500
-	bash scripts/experiment_imbalance_ratio.sh xgboost mimiciv_hai shap  null 500
-	bash scripts/experiment_imbalance_ratio.sh tabpfn eicu2 shap  null 100
-	bash scripts/experiment_imbalance_ratio.sh tabpfn mimiciv_hai shap  null 100
-	bash scripts/experiment_imbalance_ratio.sh tabdpt eicu2 shap  aware_snnl 100
-	bash scripts/experiment_imbalance_ratio.sh tabdpt mimiciv_hai shap  aware_snnl 100
-	bash scripts/experiment_imbalance_ratio.sh knnpfn eicu2 shap  aware_snnl 100
-	bash scripts/experiment_imbalance_ratio.sh knnpfn mimiciv_hai shap  aware_snnl 100
-	bash scripts/experiment_imbalance_ratio.sh excelformer eicu2 shap  null 500
-	bash scripts/experiment_imbalance_ratio.sh excelformer mimiciv_hai shap  null 500
-	bash scripts/experiment_imbalance_ratio.sh trompt eicu2 shap  null 500
-	bash scripts/experiment_imbalance_ratio.sh trompt mimiciv_hai shap  null 500
-	bash scripts/experiment_imbalance_ratio.sh modernNCA eicu2 shap  null 500
-	bash scripts/experiment_imbalance_ratio.sh modernNCA mimiciv_hai shap  null 500
-
-# 	bash scripts/experiment_imbalance_ratio.sh $(METHOD) eicu shap  $(RETRIEVAL) 100
-# 	bash scripts/experiment_imbalance_ratio.sh $(METHOD) mimiciv shap  $(RETRIEVAL) 100
-# 	bash scripts/experiment_imbalance_ratio.sh $(METHOD) sjh_cpe_frame shap  $(RETRIEVAL) 100
-
-benchmark_aware:
-	bash scripts/inference.sh tabdpt $(DATASET) shap aware_snnl 100 $(CONTEXT_SIZE) $(INF_BATCH_SIZE) null
-	bash scripts/inference.sh knnpfn $(DATASET) shap aware_snnl 100 $(CONTEXT_SIZE) $(INF_BATCH_SIZE) null
-	bash scripts/inference.sh knn-simple $(DATASET) null aware_snnl null $(CONTEXT_SIZE) $(INF_BATCH_SIZE) null
-
+	bash scripts/experiment_imbalance_ratio.sh knn-simple $(EICU_VERSION) shap  knn_l2 500
+	bash scripts/experiment_imbalance_ratio.sh knn-simple $(MIMIC_VERSION) shap  knn_l2 500
+	bash scripts/experiment_imbalance_ratio.sh tabdpt $(EICU_VERSION) shap  knn_l2 100
+	bash scripts/experiment_imbalance_ratio.sh tabdpt $(MIMIC_VERSION) shap  knn_l2 100
+	bash scripts/experiment_imbalance_ratio.sh knnpfnv1 $(EICU_VERSION) shap  knn_l2 100
+	bash scripts/experiment_imbalance_ratio.sh knnpfnv1 $(MIMIC_VERSION) shap  knn_l2 100
+	bash scripts/experiment_imbalance_ratio.sh xgboost $(EICU_VERSION) shap  null 500
+	bash scripts/experiment_imbalance_ratio.sh xgboost $(MIMIC_VERSION) shap  null 500
+	bash scripts/experiment_imbalance_ratio.sh tabpfnv1 $(EICU_VERSION) shap  random 100
+	bash scripts/experiment_imbalance_ratio.sh tabpfnv1 $(MIMIC_VERSION) shap  random 100
+	bash scripts/experiment_imbalance_ratio.sh tabdpt-aware $(EICU_VERSION) shap  aware_imb 100
+	bash scripts/experiment_imbalance_ratio.sh tabdpt-aware $(MIMIC_VERSION) shap  aware_imb 100
+	bash scripts/experiment_imbalance_ratio.sh knnpfn-aware $(EICU_VERSION) shap  aware_imb 100
+	bash scripts/experiment_imbalance_ratio.sh knnpfn-aware $(MIMIC_VERSION) shap  aware_imb 100
+	bash scripts/experiment_imbalance_ratio.sh excelformer $(EICU_VERSION) shap  null 500
+	bash scripts/experiment_imbalance_ratio.sh excelformer $(MIMIC_VERSION) shap  null 500
+	bash scripts/experiment_imbalance_ratio.sh trompt $(EICU_VERSION) shap  null 500
+	bash scripts/experiment_imbalance_ratio.sh trompt $(MIMIC_VERSION) shap  null 500
+	bash scripts/experiment_imbalance_ratio.sh modernNCA $(EICU_VERSION) shap  null 500
+	bash scripts/experiment_imbalance_ratio.sh modernNCA $(MIMIC_VERSION) shap  null 500
 
 benchmark:
-# 	bash scripts/inference.sh xgboost $(DATASET) null  null null null null null
-# 	bash scripts/inference.sh logistics $(DATASET) null null null null null null
-# 	bash scripts/select_features.sh xgboost $(DATASET)
-# 	bash scripts/inference.sh catboost $(DATASET) shap null 500 null null null
-# 	bash scripts/inference.sh xgboost $(DATASET) shap null 500 null null null
-# 	bash scripts/inference.sh lightgbm $(DATASET) shap null 500 null null null
-# 	bash scripts/inference.sh logistics $(DATASET) shap null 500 null null null
-# 	bash scripts/inference.sh mlp $(DATASET) shap null 500 null null null
-# 	bash scripts/inference.sh tabpfnv1 $(DATASET) shap null 100 $(CONTEXT_SIZE) $(INF_BATCH_SIZE) null
-# 	bash scripts/inference.sh knn-simple $(DATASET) shap knn_l2 100 $(CONTEXT_SIZE) $(INF_BATCH_SIZE) null
-# 	bash scripts/inference.sh knn-simple $(DATASET) shap aware_imb 100 $(CONTEXT_SIZE) $(INF_BATCH_SIZE) null
-# 	bash scripts/inference.sh knnpfnv1 $(DATASET) shap knn_l2 100 $(CONTEXT_SIZE) $(INF_BATCH_SIZE) null
-# 	bash scripts/inference.sh tabdpt $(DATASET) shap knn_l2 100 $(CONTEXT_SIZE) $(INF_BATCH_SIZE) null
-# 	bash scripts/inference.sh tabpfnv1 $(DATASET) shap random 100 $(CONTEXT_SIZE) $(INF_BATCH_SIZE) null
-# 	bash scripts/inference.sh knnpfnv1 $(DATASET) shap aware_imb 100 $(CONTEXT_SIZE) $(INF_BATCH_SIZE) null
-# 	bash scripts/inference.sh tabdpt $(DATASET) shap aware_imb 100 $(CONTEXT_SIZE) $(INF_BATCH_SIZE) null
+	bash scripts/inference.sh xgboost $(DATASET) null  null null null null null
+	bash scripts/inference.sh logistics $(DATASET) null null null null null null
+	bash scripts/select_features.sh xgboost $(DATASET)
+	bash scripts/inference.sh catboost $(DATASET) shap null 500 null null null
+	bash scripts/inference.sh xgboost $(DATASET) shap null 500 null null null
+	bash scripts/inference.sh lightgbm $(DATASET) shap null 500 null null null
+	bash scripts/inference.sh logistics $(DATASET) shap null 500 null null null
+	bash scripts/inference.sh mlp $(DATASET) shap null 500 null null null
+	bash scripts/inference.sh knn-simple $(DATASET) shap knn_l2 100 $(CONTEXT_SIZE) $(INF_BATCH_SIZE) null
+	bash scripts/inference.sh knn-simple $(DATASET) shap aware_imb 100 $(CONTEXT_SIZE) $(INF_BATCH_SIZE) null
+	bash scripts/inference.sh knnpfnv1 $(DATASET) shap knn_l2 100 $(CONTEXT_SIZE) $(INF_BATCH_SIZE) null
+	bash scripts/inference.sh tabdpt $(DATASET) shap knn_l2 100 $(CONTEXT_SIZE) $(INF_BATCH_SIZE) null
+	bash scripts/inference.sh tabpfnv1 $(DATASET) shap random 100 $(CONTEXT_SIZE) $(INF_BATCH_SIZE) null
 	bash scripts/inference.sh knnpfn-aware $(DATASET) shap aware_imb 100 $(CONTEXT_SIZE) $(INF_BATCH_SIZE) null
 	bash scripts/inference.sh tabdpt-aware $(DATASET) shap aware_imb 100 $(CONTEXT_SIZE) $(INF_BATCH_SIZE) null
-
-# 	bash scripts/inference.sh danets $(DATASET) shap null 500 null null null
-# 	bash scripts/inference.sh resnet $(DATASET) shap null 500 null null null
-# 	bash scripts/inference.sh tabnet $(DATASET) shap null 500 null null null
-# 	bash scripts/inference.sh tabtransformer $(DATASET) shap null 500 null null null
-# 	bash scripts/inference.sh trompt $(DATASET) shap null 500 null null null
-# 	bash scripts/inference.sh excelformer $(DATASET) shap null 500 null null null
-# # 	bash scripts/inference.sh tabr $(DATASET) shap null 500 null null null
-# 	bash scripts/inference.sh tabm $(DATASET) shap null 500 null null null
-# 	bash scripts/inference.sh modernNCA $(DATASET) shap null 500 null null null
-# 	bash scripts/inference.sh beta $(DATASET) shap null 500 null null null
+	bash scripts/inference.sh resnet $(DATASET) shap null 500 null null null
+	bash scripts/inference.sh tabnet $(DATASET) shap null 500 null null null
+	bash scripts/inference.sh tabtransformer $(DATASET) shap null 500 null null null
+	bash scripts/inference.sh trompt $(DATASET) shap null 500 null null null
+	bash scripts/inference.sh excelformer $(DATASET) shap null 500 null null null
+	bash scripts/inference.sh tabm $(DATASET) shap null 500 null null null
+	bash scripts/inference.sh modernNCA $(DATASET) shap null 500 null null null
 
 selection:
 	bash scripts/select_features.sh $(METHOD) $(DATASET)
-
-
-ablation:
-# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) knn_l2
-# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_attn_only
-# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_snnl_attn_only
-# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_snnl_attn_bln_only
-# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_imb
-# 	bash scripts/inference_ablation.sh $(METHOD)-aware $(DATASET) knn_l2
-	bash scripts/inference_ablation.sh $(METHOD)-aware $(DATASET) aware_imb
-
-
-rebuttal:
-# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) knn_l2
-# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) balance
-# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) minority_prioritized
-# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) inverse_frequency
-# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) siamese
-# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) supcon
-# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) unsupcon
-# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_nosup_full
-# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_attn_only
-# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_snnl_only
-# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_snnl_attn_only
-# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_snnl_attn_bln_only
-# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_balance_only
-# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_ensemble_only
-# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_adapter_only
-# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_imb
-# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_no_attn
-# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_no_snnl
-# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_no_balance
-# 	bash scripts/inference_ablation.sh $(METHOD) $(DATASET) aware_no_ensemble
-
-# 	bash scripts/inference.sh knnpfn $(DATASET) null aware_imb null 1024 512 null
-# 	bash scripts/inference.sh tabdpt $(DATASET) null aware_imb null 1024 512 null
-	bash scripts/inference.sh knn-simple $(DATASET) null knn_l2 null 1024 512 null
-# 	bash scripts/inference.sh knn-simple $(DATASET) null aware_imb null 1024 512 null
-	bash scripts/inference.sh knnpfnv1 $(DATASET) null knn_l2 null 1024 512 null
-	bash scripts/inference.sh tabdpt $(DATASET) null knn_l2 null 1024 512 null
-
-
-# 	bash scripts/inference.sh tabdpt $(DATASET) shap aware_imb 100 1024 512 null
-# 	bash scripts/inference.sh tabdpt-aware eicu2 shap aware_imb 100 1024 128 null
-# 	bash scripts/inference.sh knnpfn-aware eicu2 shap aware_imb 100 1024 128 null
-# 	bash scripts/inference.sh knnpfn-aware eicu2 shap knn_l2 100 1024 128 null
-# 	bash scripts/inference.sh tabdpt-aware eicu2 shap knn_l2 100 1024 128 null
-# 	bash scripts/inference.sh tabdpt-aware mimiciv_hai shap aware_imb 100 1024 128 null
-# 	bash scripts/inference.sh knnpfn-aware mimiciv_hai shap aware_imb 100 1024 128 null
-# 	bash scripts/inference.sh knnpfn-aware mimiciv_hai shap knn_l2 100 1024 128 null
-# 	bash scripts/inference.sh tabdpt-aware mimiciv_hai shap knn_l2 100 1024 128 null
-# 	bash scripts/inference.sh knnpfnv1 $(DATASET) null knn_l2 null 1024 512 null
-# 	bash scripts/inference.sh knnpfnv1 $(DATASET) null aware_imb null 1024 512 null
-# 	bash scripts/inference.sh tabpfnv1 $(DATASET) null null null null 512 null
-# 	bash scripts/inference.sh tabpfnv1 $(DATASET) null random null 1024 512 null
-# 	bash scripts/inference.sh knnpfnv1 $(DATASET) shap aware_imb 100 1024 512 null
-# 	bash scripts/inference.sh knnpfnv1 $(DATASET) shap knn_l2 100 1024 512 null
-# 	bash scripts/inference.sh tabpfnv1 $(DATASET) shap random 100 1024 512 null
-# 	bash scripts/inference.sh knn-simple $(DATASET) shap aware_imb 100 1024 512 null
-# 	bash scripts/inference.sh knn-simple $(DATASET) shap knn_l2 100 1024 512 null
-
-
-# 	bash scripts/inference.sh xgboost $(DATASET) null null null null null null
-# 	bash scripts/inference.sh catboost $(DATASET) null null null null null null
-# 	bash scripts/inference.sh lightgbm $(DATASET) null null null null null null
-# 	bash scripts/inference.sh logistics $(DATASET) null null null null null null
-# 	bash scripts/inference.sh mlp $(DATASET) null null null null null null
-# 	bash scripts/inference.sh tabpfnv1 $(DATASET) null random null 1024 512 null
-# 	bash scripts/inference.sh knn-simple $(DATASET) null knn_l2 null 1024 512 null
-# 	bash scripts/inference.sh knn-simple $(DATASET) null aware_imb null 1024 512 null
-# 	bash scripts/inference.sh knnpfnv1 $(DATASET) null knn_l2 null 1024 512 null
-# 	bash scripts/inference.sh knnpfnv1 $(DATASET) null aware_imb null 1024 512 null
-# 	bash scripts/inference.sh tabdpt $(DATASET) null knn_l2 null 1024 512 null
-# 	bash scripts/inference.sh tabdpt $(DATASET) null aware_imb null 1024 512 null
-# 	bash scripts/inference.sh tabdpt-aware $(DATASET) null aware_imb null 1024 64 null
-# 	bash scripts/inference.sh knnpfn-aware $(DATASET) null aware_imb null 1024 128 null
-# 	bash scripts/inference.sh resnet $(DATASET) null null null null null null
-# 	bash scripts/inference.sh tabnet $(DATASET) null null null null null null
-# 	bash scripts/inference.sh tabtransformer $(DATASET) null null null null null null
-# 	bash scripts/inference.sh trompt $(DATASET) null null null null null null
-# 	bash scripts/inference.sh excelformer $(DATASET) null null null null null null
-# 	bash scripts/inference.sh tabr $(DATASET) null null null null null null
-# 	bash scripts/inference.sh tabm $(DATASET) null null null null null null
-# 	bash scripts/inference.sh modernNCA $(DATASET) null null 100 1024 512 null

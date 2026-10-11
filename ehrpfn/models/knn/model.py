@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 from typing import Optional, Any
-from ehrret import Retriever
+from ehrpfn.retrieval import Retriever
 from sklearn.base import ClassifierMixin, RegressorMixin
 
 class SimpleKNNClassifier(ClassifierMixin):

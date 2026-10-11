@@ -24,7 +24,7 @@ from tabpfn.architectures.interface import Architecture
 
 from ehrpfn.models.TabPFN import get_base_tabpfn
 
-from ehrret import Retriever
+from ehrpfn.retrieval import Retriever
 
 
 class InferenceWithRetrievalEngineOnDemand(InferenceEngineOnDemand):

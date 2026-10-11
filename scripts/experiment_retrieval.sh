@@ -47,7 +47,20 @@ fi
 # snnl snnlattnc snnlattne snnlattne_ens snnlattne_focal snnlattnc_weighted
 # bash scripts/experiment_retrieval.sh tabdpt mimiciv_hai shap 100
 # random knn_l2 weighted_logistics bsnnl snnl attention balance minority_prioritized inverse_frequency balanced_snnl clinical_snnl
-for RETRIEVAL_METHOD in knn_l2 attention aware_snnl aware_snnl_nobs_noens aware_snnl_noens ; do # aware_supcon aware_snnl supconattn_focal
+for RETRIEVAL_METHOD in \
+    knn_l2 siamese supcon unsupcon \
+    aware_attn_only \
+    aware_snnl_only \
+    aware_snnl_attn_only \
+    aware_snnl_attn_bln_only \
+    aware_balance_only \
+    aware_ensemble_only \
+    aware_adapter_only \
+    aware_no_attn \
+    aware_no_snnl \
+    aware_no_balance \
+    aware_no_ensemble \
+    aware_imb; do 
     for SEED in 1702 1603  2000  ; do #
         for TASK in "${TASKS[@]}" ; do
             echo "Running inference for method: $METHOD, dataset: $DATASET, task: "${TASK}", seed: $SEED, num_features: $NUM_FEATURES, retrieval_method: $RETRIEVAL_METHOD"

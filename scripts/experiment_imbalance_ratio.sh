@@ -62,7 +62,6 @@ for IMBALANCE_RATIO in 5 10 20 50 100 200 300 400 500; do #
                 CONFIG_PATH="${ROOT}/${TALENT_TUNED_DIR}/${DATASET}/${TASK}/${METHOD}/args.json"
                 TUNE_CONFIG="${ROOT}/${TALENT_TUNED_DIR}/${DATASET}/${TASK}/${METHOD}/${METHOD}-tuned.json"
                 INF_BATCH_SIZE=16
-                # PRETRAIN_PATH="${ROOT}/results/ehrpfn-inference/benchmark/${DATASET}/${TASK}/${METHOD}_${DATASET}_${TASK}/best-val-${SEED}.pth"
                 echo "Using config path: $CONFIG_PATH"
                 echo "Using tune config: $TUNE_CONFIG"
             else

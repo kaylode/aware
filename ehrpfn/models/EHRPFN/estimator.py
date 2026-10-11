@@ -7,7 +7,7 @@ from sklearn.utils.validation import check_is_fitted
 
 from .model import EHRPFNModel
 from .utils import convert_to_torch_tensor, download_model
-from ehrret import Retriever
+from ehrpfn.retrieval import Retriever
 
 
 class EHRPFNEstimator(BaseEstimator):

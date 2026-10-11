@@ -17,12 +17,10 @@ from .AWARE import (
 )
 from .talent_wrapper import TALENTWrapper
 from .knn import SimpleKNNClassifier, SimpleKNNRegressor
-from .KNNPFNv1 import KNNPFN
 from .tabpfn import TabPFNv1
 from .tabicl import TabICL, TabICLClassifier
 from tradml import TradMLTuner
-from ehrret import get_retriever, get_ehr_retrieval_weight
-from ehrret.encoding.coding.icd_tokenizer import ICDHierachicalTokenizer
+from ehrpfn.retrieval import get_retriever, get_ehr_retrieval_weight
 from ehrpfn.utils import save_model
 import os
 import os.path as osp
@@ -55,21 +53,6 @@ def get_predictions(args, data, config_dict):
     retriever_additional_query = {
         'ori_feature': X_test_original.values.astype(np.float64),
     }
-
-    if "raw_codes_train" in data and "raw_codes_test" in data:
-        raw_codes_train = [" ".join(i) for i in data['raw_codes_train']]
-        raw_codes_test = [" ".join(i) for i in data['raw_codes_test']]
-        tokenizer = ICDHierachicalTokenizer()
-        tokenized_train = tokenizer(raw_codes_train)
-        tokenized_train = [" ".join([item for sublist in seq for item in sublist]) for seq in tokenized_train]
-        tokenized_test = tokenizer(raw_codes_test)
-        tokenized_test = [" ".join([item for sublist in seq for item in sublist]) for seq in tokenized_test]
-
-        retriever_additional_fit['codes'] = raw_codes_train
-        retriever_additional_fit['hierarchical_codes'] = tokenized_train
-        retriever_additional_query['codes'] = raw_codes_test
-        retriever_additional_query['hierarchical_codes'] = tokenized_test
-
 
     ## Init context retrievers
     retrieval_weights = None
@@ -223,27 +206,6 @@ def get_predictions(args, data, config_dict):
             y_pred = model.predict(X_test)
         running_time = time.time() - start_time
 
-    elif method_name == "tabpfnv2":
-        from ehrpfn.models.TabPFN import get_base_tabpfn
-
-        model = get_base_tabpfn(
-            categorical_feature_indices=categorical_feature_indices,
-            is_classification=is_classification,
-            device='cuda',
-            seed=args.inference.seed
-        )
-
-        start_time = time.time()
-        model.fit(X_train, y_train)
-        training_time = time.time() - start_time
-        
-        start_time = time.time()
-        if is_classification:
-            y_pred = model.predict_proba(X_test)
-        else:
-            y_pred = model.predict(X_test)
-        running_time = time.time() - start_time
-
     elif method_name == 'tabpfnv1':
         model = TabPFNv1(
             n_classes=num_classes, 
@@ -298,33 +260,6 @@ def get_predictions(args, data, config_dict):
                 X_test,
                 retriever_additional_query=retriever_additional_query
             )
-        running_time = time.time() - start_time
-
-
-
-    elif method_name == "knnpfnv2":
-        model = KNNPFN(
-            retriever=retriever,
-            is_classification=is_classification,
-            categorical_feature_indices=categorical_feature_indices,
-            seed=42,
-            device='cuda',
-            batch_size=args.retrieval.get('inf_batch_size', 512),
-        )
-        start_time = time.time()
-        model.fit(
-            X_train, y_train,
-            retriever_additional_fit = retriever_additional_fit,
-            retriever_additional_query = retriever_additional_query,
-        )
-        training_time = time.time() - start_time
-        # save_fitted_tabpfn_model(model, osp.join(result_folder, 'model.tabpfn_fit'))
-        
-        start_time = time.time()
-        if is_classification:
-            y_pred = model.predict(X_test)
-        else:
-            y_pred = model.predict(X_test)
         running_time = time.time() - start_time
 
     elif method_name in ['tabdpt', 'ehrpfn'] or method_name.startswith('ehrpfn'):
