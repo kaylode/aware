@@ -24,12 +24,9 @@ requires-python = "==3.12.12"
 dependencies = [
     "torch==2.6.0",
     "ehr-meds",
-    "ehrret",
     "tabpfn",
     "talent",
-    "traddl",
     "tradml",
-    "ehrdpt",
     "tabpfn-extensions",
     "faiss-gpu-cu12>=1.12.0"
 ]
@@ -53,10 +50,7 @@ jupyter = ["jupyter", "seaborn", "scikit-learn", "matplotlib", "pandas", "altair
 typeCheckingMode = "off"
 
 [tool.uv.sources]
-traddl = { path = "../tabular-training/traddl", editable = true }
-tabpfn = { path = "../TabPFN", editable = true }
+tabpfn = { path = "thirdparties/TabPFN", editable = true }
 ehr-meds = { path = "../ehr-meds", editable = true }
-talent = { path = "../tabular-training/TALENT", editable = true }
-ehrret = { path = "../ehr-retrieval", editable = true }
-tradml = { path = "../tabular-training/tradml", editable = true }
-ehrdpt = { path = "../ehrpfn-training", editable = true }
+talent = { path = "thirdparties/tabular-training/TALENT", editable = true }
+tradml = { path = "thirdparties/tabular-training/tradml", editable = true }

@@ -66,8 +66,6 @@ else
     exit 1  
 fi
 
-# PRETRAIN_PATH="/home/mpham/workspace/source/ehrfm/ehrpfn-inference/results/ehrdpt-training/1702/tabdpt_aware_mimiciv_hai_ICD UTI_100/best_auc.ckpt"
-# PRETRAIN_RETRIEVER_PATH="/home/mpham/workspace/source/ehrfm/ehrpfn-inference/results/ehrdpt-training/1702/tabdpt_aware_mimiciv_hai_ICD UTI_100/retriever.pth"
 
 for SEED in 1603 2000 1702  ; do #   
     for TASK in "${TASKS[@]}" ; do
@@ -91,7 +89,6 @@ for SEED in 1603 2000 1702  ; do #
                 fi
             fi
 
-            # PRETRAIN_PATH="${ROOT}/results/ehrpfn-inference/benchmark/hcai/${DATASET}/${TASK}/${METHOD}_${DATASET}_${TASK}/best-val-${SEED}.pth"
             echo "Using config path: $CONFIG_PATH"
             echo "Using tune config: $TUNE_CONFIG"
         elif [[ " ${ML_METHODS[@]} " =~ " ${METHOD} " ]]; then

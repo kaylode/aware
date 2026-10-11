@@ -10,7 +10,7 @@ from sklearn.preprocessing import StandardScaler
 from .estimator import EHRPFNEstimator
 from sklearn.base import RegressorMixin
 
-from ehrret import Retriever
+from ehrpfn.retrieval import Retriever
 
 
 class EHRPFNRegressor(EHRPFNEstimator, RegressorMixin):

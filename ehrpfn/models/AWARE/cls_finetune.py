@@ -34,7 +34,7 @@ from sklearn.metrics import (
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
-from ehrret import Retriever
+from ehrpfn.retrieval import Retriever
 
 from .adapter import AWAREAdapter
 

@@ -26,3 +26,6 @@ outputs/
 */training_deepspeed
 pyrightconfig.json
 .vscode/
+.claude
+.venv
+results

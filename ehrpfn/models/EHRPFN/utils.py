@@ -96,3 +96,19 @@ def pad_x(X: torch.Tensor, num_features: int = 100):
     zero_feature_padding = torch.zeros((*X.shape[:-1], num_features - n_features), device=X.device)
     return torch.cat([X, zero_feature_padding], dim=-1)
 
+
+def convert_to_torch_tensor(input: np.ndarray | torch.Tensor) -> torch.Tensor:
+    """Convert a NumPy array or a PyTorch tensor to a PyTorch tensor.
+    Args:
+        input (np.ndarray | torch.Tensor): Input data to be converted.
+    Returns:
+        torch.Tensor: Converted PyTorch tensor.
+    Raises:
+        TypeError: If the input is neither a NumPy array nor a PyTorch tensor.
+    """
+    if isinstance(input, np.ndarray):
+        return torch.from_numpy(input)
+    elif torch.is_tensor(input):
+        return input
+    else:
+        raise TypeError("Input must be a NumPy array or a PyTorch tensor.")
